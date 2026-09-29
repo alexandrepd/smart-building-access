@@ -37,3 +37,12 @@ fix(api): return not found for unknown card
 - Implement one project phase at a time and keep Domain independent from frameworks.
 - Run the narrowest relevant tests, then build the complete solution before requesting a commit.
 - Report the branch name, validation result, and suggested commit message before any push.
+
+## Documentation and Learning
+
+- Treat documentation as part of the Definition of Done for every change.
+- Update the relevant technical document in `Docs/` whenever behavior, architecture, dependencies, configuration, operations, or workflows change.
+- Update the corresponding guide in `Docs/study/` with a simple explanation, technical definition, project example, interview answer, and practical exercise.
+- Clearly distinguish implemented behavior from work in progress and planned behavior.
+- Keep `Docs/README.md` and `Docs/study/README.md` indexes current when documents are added, renamed, or removed.
+- Validate local Markdown links before requesting a commit.
