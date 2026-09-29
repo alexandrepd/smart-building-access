@@ -74,7 +74,7 @@ Application não deve saber se os dados vieram de PostgreSQL, memória ou outro 
 
 ## Infrastructure
 
-Infrastructure implementa detalhes externos. Atualmente contém EF Core e Npgsql. Futuramente implementará contratos de persistência definidos por Application.
+Infrastructure implementa detalhes externos. Atualmente contém EF Core, Npgsql, o registro de `SmartBuildingDbContext`, a migration inicial e o seed de desenvolvimento. Futuramente implementará contratos de persistência definidos por Application.
 
 Trocar PostgreSQL por outra tecnologia deveria afetar principalmente Infrastructure, não as regras do Domain.
 
@@ -83,6 +83,8 @@ Trocar PostgreSQL por outra tecnologia deveria afetar principalmente Infrastruct
 API é a borda HTTP e o composition root. Ela registra dependências e transforma requests em chamadas de casos de uso.
 
 Um endpoint deve ser fino. Não deve concentrar consultas, regras, persistência e serialização numa única função.
+
+No projeto, a API lê `ConnectionStrings:SmartBuilding` e chama `AddInfrastructure`. Se a configuração estiver ausente, o processo falha cedo. Em `Development`, a API também pede à Infrastructure que aplique migrations e execute o seed antes de servir requests.
 
 ## Dependency Injection
 
@@ -109,6 +111,8 @@ Tempos de vida comuns:
 - **Singleton:** uma instância para toda a aplicação.
 
 `DbContext` normalmente é scoped e não é thread-safe. Um singleton não deve capturar um serviço scoped.
+
+No Smart Building, `AddInfrastructure` usa `AddDbContext`, por isso `SmartBuildingDbContext` recebe o lifetime scoped padrão. A mesma extensão encapsula Npgsql e a convenção `snake_case`, deixando `Program.cs` responsável pela composição, não pelos detalhes do mapeamento.
 
 ## Interface
 
@@ -167,6 +171,10 @@ SOLID é orientação, não uma meta para maximizar quantidade de classes.
 
 > Porque regras de negócio devem permanecer independentes de EF Core, PostgreSQL e HTTP. Infrastructure conhece o Domain para mapeá-lo, mas o Domain não conhece Infrastructure. Isso reduz acoplamento, facilita testes e permite trocar detalhes técnicos sem reescrever regras.
 
+**Por que validar a connection string no arranque?**
+
+> Para falhar cedo com uma mensagem clara quando uma dependência obrigatória não foi configurada. No Smart Building, a API valida `ConnectionStrings:SmartBuilding` antes de construir o host e passa o valor para `AddInfrastructure`. Credenciais locais ficam em User Secrets, não no repositório.
+
 ## Exercício
 
-Explique, sem olhar o código, por que API referencia Application e Infrastructure, por que Application referencia Domain e por que Domain não referencia ninguém.
+Explique, sem olhar o código, por que API referencia Application e Infrastructure, por que Application referencia Domain e por que Domain não referencia ninguém. Depois desenhe o fluxo de arranque em `Development`, desde a leitura da connection string até migration e seed.

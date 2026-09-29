@@ -9,9 +9,8 @@ Os testes fornecem feedback sobre regras, fronteiras arquiteturais, persistênci
 Existe um projeto `SmartBuilding.UnitTests` com xUnit. Ele contém:
 
 - um teste arquitetural de independência do Domain;
-- testes dos metadados do modelo EF Core.
-
-Na validação mais recente, a solução executou 15 testes com sucesso.
+- testes dos metadados do modelo EF Core;
+- testes do registro de persistência em Dependency Injection.
 
 Ainda não existe `SmartBuilding.IntegrationTests`.
 
@@ -22,7 +21,8 @@ SmartBuilding.UnitTests/
 ├── Architecture/
 │   └── DomainDependencyTests.cs
 └── Persistence/
-    └── ModelMetadataTests.cs
+  ├── DependencyInjectionTests.cs
+  └── ModelMetadataTests.cs
 ```
 
 ## Testes arquiteturais
@@ -48,6 +48,28 @@ Os testes verificam:
 3. obrigatoriedade das foreign keys.
 
 Esse teste é rápido e detecta regressões de mapeamento. Ele não prova que uma migration aplica corretamente em PostgreSQL.
+
+## Testes de Dependency Injection
+
+`DependencyInjectionTests` constrói um `ServiceProvider` sem abrir conexão. Ele verifica:
+
+1. lifetime scoped de `SmartBuildingDbContext`, com identidade dentro do mesmo scope e instâncias distintas entre scopes;
+2. provider `Npgsql.EntityFrameworkCore.PostgreSQL`;
+3. mapeamento de `AccessEvent.AccessPointId` para `access_point_id` em `snake_case`;
+4. rejeição de connection string vazia ou composta apenas por espaços.
+
+## Validação manual com PostgreSQL
+
+A persistência também foi validada contra PostgreSQL 18 real num container Docker descartável, exposto na porta isolada `55432`. A verificação confirmou:
+
+- criação das nove tabelas do domínio;
+- registo de `InitialCreate` em `__EFMigrationsHistory`;
+- resposta do endpoint `GET /` após a inicialização;
+- aquisição de `pg_advisory_xact_lock(1937001)` pelo seed dentro da transação;
+- uma linha em `buildings`, `floors` e `access_points`;
+- manutenção das contagens `1|1|1` após a execução do seed.
+
+Essa execução é evidência manual da mudança, não uma suíte de integração repetível. O uso de Docker foi apenas para isolar o PostgreSQL de validação e não representa a implementação da fase Docker.
 
 ## Categorias planejadas
 
@@ -147,6 +169,13 @@ dotnet test tests/SmartBuilding.UnitTests/SmartBuilding.UnitTests.csproj \
   --filter 'FullyQualifiedName~ModelMetadataTests'
 ```
 
+Executar somente os testes de registro:
+
+```bash
+dotnet test tests/SmartBuilding.UnitTests/SmartBuilding.UnitTests.csproj \
+  --filter 'FullyQualifiedName~DependencyInjectionTests'
+```
+
 Build final da solução:
 
 ```bash
@@ -165,4 +194,4 @@ Antes de solicitar commit:
 
 ## Próximos passos
 
-Ao concluir a Fase 3, criar testes de integração para a migration em PostgreSQL. Quando regras de negócio forem adicionadas, expandir UnitTests antes de construir endpoints sobre elas.
+Criar testes de integração automatizados para repetir a aplicação da migration e o seed em PostgreSQL isolado. Quando regras de negócio forem adicionadas, expandir UnitTests antes de construir endpoints sobre elas.

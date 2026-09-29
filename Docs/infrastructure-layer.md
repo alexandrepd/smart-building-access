@@ -6,7 +6,7 @@
 
 ## Estado atual
 
-O modelo EF Core está implementado na branch `feat/ef-core-infrastructure`, mas a Fase 3 ainda não foi concluída nem entregue.
+O modelo EF Core e o bootstrap da persistência estão implementados na branch `feat/postgresql-persistence`. A mudança ainda está em desenvolvimento e não foi entregue.
 
 Já existem:
 
@@ -16,15 +16,15 @@ Já existem:
 - uma configuração Fluent API por entidade;
 - nomes de tabelas e colunas em `snake_case`;
 - chaves, índices, limites de texto e relacionamentos;
-- testes dos metadados do modelo.
+- registro do contexto com `UseNpgsql` e `UseSnakeCaseNamingConvention`;
+- migration `InitialCreate`;
+- aplicação automática de migrations em `Development`;
+- seed mínimo e idempotente de desenvolvimento;
+- testes dos metadados e do registro do contexto.
 
 Ainda não existem:
 
-- connection string da aplicação;
-- registro de `DbContext` na injeção de dependência;
-- migration inicial;
-- seed de desenvolvimento;
-- banco PostgreSQL configurado ou executado;
+- projeto automatizado de testes de integração com PostgreSQL;
 - implementações de consultas para casos de uso.
 
 ## Dependências
@@ -55,6 +55,8 @@ Ainda não existem:
 | `EFCore.NamingConventions` | Convenção automática `snake_case` |
 
 As versões de EF Core foram alinhadas explicitamente para evitar conflitos de assembly entre o provider e as ferramentas de design.
+
+O repositório fixa `dotnet-ef` 10.0.12 como ferramenta local em `dotnet-tools.json`. Assim, a geração e aplicação de migrations usam uma versão reproduzível com `dotnet tool restore` e `dotnet ef`.
 
 ## SmartBuildingDbContext
 
@@ -145,15 +147,17 @@ OccurredAt -> occurred_at
 OccupancySessions -> occupancy_sessions
 ```
 
-A API deverá aplicar essa opção ao registrar o contexto. Os testes atuais também a aplicam ao construir o modelo.
+`AddInfrastructure` registra `SmartBuildingDbContext` como scoped e aplica `UseNpgsql(connectionString)` seguido de `UseSnakeCaseNamingConvention()`.
 
 ## Migrations
 
-Migrations serão o histórico versionado do esquema. A migration inicial deverá ser criada somente depois de configurar o provider e revisar o modelo.
+Migrations são o histórico versionado do esquema. A migration `InitialCreate` foi gerada para as nove tabelas do domínio, respetivas chaves, foreign keys e índices.
 
-Comandos planejados:
+Comandos usados pelo fluxo local:
 
 ```bash
+dotnet tool restore
+
 dotnet ef migrations add InitialCreate \
   --project src/SmartBuilding.Infrastructure \
   --startup-project src/SmartBuilding.Api
@@ -167,11 +171,34 @@ Uma migration já aplicada não deve ser reescrita como se fosse descartável.
 
 ## Configuração e segredos
 
-A connection string será lida pela API e fornecida ao registro do contexto. Credenciais reais não devem ser commitadas. Desenvolvimento local poderá usar User Secrets, variáveis de ambiente ou `.env` ignorado pelo Git.
+A API lê `ConnectionStrings:SmartBuilding` e falha no arranque com `InvalidOperationException` quando o valor está ausente ou vazio. A connection string é fornecida a `AddInfrastructure`; credenciais reais não são guardadas no código nem em ficheiros versionados.
+
+User Secrets foi inicializado no projeto API para configuração local. O `appsettings.json` mantém apenas uma entrada vazia, sem segredo versionado. Variáveis de ambiente continuam sendo uma alternativa válida.
+
+Para executar a API localmente, é necessário PostgreSQL 18 e a connection string deve ser configurada fora dos ficheiros versionados:
+
+```bash
+dotnet tool restore
+
+dotnet user-secrets set \
+  --project src/SmartBuilding.Api \
+  "ConnectionStrings:SmartBuilding" \
+  "Host=localhost;Port=5432;Database=smart_building;Username=smart_building;Password=<local-password>"
+```
+
+Em `Development`, `InitializeDevelopmentDatabaseAsync` cria um scope, executa `MigrateAsync` e só depois chama `DevelopmentDataSeeder`. Fora de `Development`, a API não aplica migrations nem executa esse seed automaticamente.
 
 ## Seed
 
-O seed de desenvolvimento deverá ser determinístico e mínimo. Ele servirá para demonstração e testes manuais, não para armazenar passwords reais ou substituir migrations.
+O seed de desenvolvimento é determinístico e mínimo. GUIDs fixos identificam:
+
+- edifício `HQ Lisbon`;
+- piso `Ground Floor`;
+- ponto de acesso `Main Entrance`.
+
+Antes de inserir cada registo, o seeder consulta o respetivo GUID. Por isso, reiniciar a API não duplica esses dados. O seed serve para demonstração e testes manuais; não armazena passwords nem substitui migrations.
+
+`SeedAsync` abre uma transação e adquire `pg_advisory_xact_lock(1937001)` antes das consultas e inserções. O PostgreSQL mantém esse lock até ao fim da transação; assim, duas instâncias que inicializem ao mesmo tempo não executam em paralelo a sequência de verificar e inserir. O lock usa uma chave exclusiva deste bootstrap e coordena apenas participantes que adotem a mesma chave.
 
 ## Testes atuais
 
@@ -181,13 +208,14 @@ O seed de desenvolvimento deverá ser determinístico e mínimo. Ele servirá pa
 - unicidade de email e número do cartão;
 - obrigatoriedade das relações críticas.
 
-Testes de migration e queries reais pertencerão ao futuro projeto de integração com PostgreSQL.
+`DependencyInjectionTests` resolve o contexto em dois scopes e verifica a mesma instância dentro de um scope e instâncias diferentes entre scopes. Também confirma o provider Npgsql, a coluna `access_point_id` em `snake_case` e a rejeição de connection string vazia ou composta apenas por espaços.
+
+Também foi feita uma validação manual contra PostgreSQL 18 real num container Docker descartável, exposto apenas em `55432`. Ela confirmou as nove tabelas do domínio, o registo da migration em `__EFMigrationsHistory`, `GET /`, a aquisição do advisory lock e contagens `1|1|1` para edifício, piso e ponto de acesso após o seed.
+
+O container foi apenas um ambiente isolado de validação da persistência. Isso não implementa a fase futura de Docker da aplicação, nem substitui testes de integração automatizados.
 
 ## Próximos passos
 
-1. registrar `SmartBuildingDbContext` na API;
-2. adicionar configuração segura da connection string;
-3. criar e revisar a migration inicial;
-4. subir PostgreSQL e aplicar a migration;
-5. adicionar seed de desenvolvimento;
-6. criar testes de integração separados.
+1. criar testes de integração automatizados com PostgreSQL;
+2. implementar contratos e consultas de persistência para os casos de uso;
+3. manter novas evoluções do esquema em migrations adicionais.

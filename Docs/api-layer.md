@@ -14,12 +14,14 @@ A API contém:
 - geração do documento OpenAPI em ambiente de desenvolvimento;
 - redirecionamento HTTPS;
 - endpoint `GET /` para indicar que o processo está ativo;
-- referências para Application e Infrastructure.
+- referências para Application e Infrastructure;
+- leitura obrigatória de `ConnectionStrings:SmartBuilding`;
+- registro da persistência por `AddInfrastructure`;
+- aplicação de migrations e seed apenas em `Development`.
 
 Ainda não contém:
 
 - controllers ou grupos de endpoints do domínio;
-- registro do `SmartBuildingDbContext`;
 - endpoints CRUD;
 - autenticação JWT;
 - autorização por papéis;
@@ -47,14 +49,20 @@ Ainda não contém:
 
 ## Bootstrap atual
 
-`Program.cs` executa quatro passos:
+`Program.cs` executa estes passos:
 
 ```text
 1. cria WebApplicationBuilder;
-2. registra OpenAPI;
-3. constrói a aplicação;
-4. configura middleware e endpoints.
+2. lê e valida ConnectionStrings:SmartBuilding;
+3. registra OpenAPI e Infrastructure;
+4. constrói a aplicação;
+5. em Development, publica OpenAPI e inicializa o banco;
+6. configura middleware e endpoints.
 ```
+
+Se a connection string estiver ausente ou vazia, a API falha imediatamente com `InvalidOperationException`. Isso evita iniciar um processo parcialmente configurado. User Secrets está habilitado para desenvolvimento local e nenhum segredo foi versionado.
+
+Em `Development`, `InitializeDevelopmentDatabaseAsync` executa migrations e o seed mínimo antes de a aplicação começar a servir requests. Nos demais ambientes, essa inicialização automática não ocorre.
 
 O endpoint atual responde aproximadamente:
 
@@ -65,7 +73,7 @@ O endpoint atual responde aproximadamente:
 }
 ```
 
-Ele confirma que o host iniciou, mas não confirma conectividade com PostgreSQL.
+Isoladamente, esse endpoint confirma apenas que o host iniciou. Na validação realizada em `Development`, o arranque anterior ao request também aplicou a migration e o seed com sucesso num PostgreSQL real.
 
 ## Fluxo futuro de request
 
@@ -82,16 +90,13 @@ O endpoint deve ser fino: mapear entrada, chamar o caso de uso e mapear o result
 
 ## Composition root
 
-Na Fase 3, a API deverá registrar a persistência:
+A API registra a persistência sem conhecer os detalhes internos do contexto:
 
 ```csharp
-builder.Services.AddDbContext<SmartBuildingDbContext>(options =>
-    options
-        .UseNpgsql(connectionString)
-        .UseSnakeCaseNamingConvention());
+builder.Services.AddInfrastructure(connectionString);
 ```
 
-Esse exemplo representa o próximo passo e ainda não existe em `Program.cs`.
+`AddInfrastructure` encapsula `AddDbContext`, `UseNpgsql` e `UseSnakeCaseNamingConvention`. O contexto mantém o lifetime scoped padrão do EF Core.
 
 Depois, contratos de Application serão registrados com implementações de Infrastructure. A API conhece os dois lados apenas para realizar essa composição.
 
@@ -161,4 +166,4 @@ O futuro hub `/accessHub` notificará eventos, alertas e alterações de ocupaç
 
 ## Próximos passos
 
-O único passo da API pertencente à Fase 3 é configurar a persistência e a connection string. CRUD, validação HTTP e tratamento global de erros pertencem à Fase 4.
+A composição básica da persistência e a connection string da Fase 3 estão implementadas na branch atual. CRUD, validação HTTP e tratamento global de erros pertencem à Fase 4 e continuam planejados.
