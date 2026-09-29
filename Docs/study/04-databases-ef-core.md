@@ -207,6 +207,8 @@ Configurar entidades não cria automaticamente o banco. É necessário criar e a
 
 Uma migration aplicada e compartilhada não deve ser editada. Crie outra migration para evoluir o esquema.
 
+No projeto, a ferramenta local `dotnet-ef` 10.0.12 torna o comando reproduzível após `dotnet tool restore`. A migration `InitialCreate` cria as nove tabelas do domínio. Em `Development`, `InitializeDevelopmentDatabaseAsync` chama `MigrateAsync` antes do seed.
+
 ## Seed
 
 Seed fornece dados iniciais previsíveis. Não é:
@@ -218,6 +220,22 @@ Seed fornece dados iniciais previsíveis. Não é:
 - substituto de teste.
 
 Seed deve ser determinístico e evitar duplicações ao ser executado novamente.
+
+O seed atual usa GUIDs fixos e consulta cada identificador antes de inserir `HQ Lisbon`, `Ground Floor` e `Main Entrance`. Reiniciar a API mantém uma linha de cada: idempotência significa que repetir a inicialização não duplica o efeito.
+
+### Concorrência no seed
+
+Imagine uma sala de preparação com uma única chave: antes de conferir e repor os materiais, uma equipa pega a chave; as outras aguardam. Isso evita que duas equipas vejam a sala vazia e reponham o mesmo material ao mesmo tempo.
+
+Tecnicamente, `DevelopmentDataSeeder` abre uma transação e executa `pg_advisory_xact_lock(1937001)` antes das verificações e inserções. Esse advisory lock do PostgreSQL é associado à transação e libertado automaticamente no seu fim. Instâncias concorrentes que usam a mesma chave serializam o bootstrap completo, fechando a corrida entre o `AnyAsync` e o `SaveChangesAsync`.
+
+A chave `1937001` identifica este protocolo de coordenação; o banco não associa significado de negócio a ela. Um advisory lock é cooperativo: protege contra outros processos que também adquiram a mesma chave, não contra qualquer escrita arbitrária nas tabelas.
+
+## Validação real e ambiente descartável
+
+A migration e o seed foram validados num PostgreSQL 18 real, executado temporariamente num container Docker na porta `55432`. Foram confirmadas nove tabelas do domínio, a migration em `__EFMigrationsHistory`, a aquisição do advisory lock e contagens `1|1|1` após o seed.
+
+Aqui, Docker foi apenas a forma de fornecer um banco isolado e descartável para a validação. A aplicação ainda não ganhou imagem, Compose ou fluxo operacional de containers; portanto, a fase Docker continua planejada.
 
 ## Concorrência
 
@@ -247,6 +265,14 @@ São problemas relacionados, mas diferentes.
 
 > `DbContext` representa a sessão e unidade de trabalho do EF Core: configura o modelo, gerencia conexão e rastreia alterações. `DbSet<TEntity>` é a entrada para consultar e alterar entidades de um tipo dentro desse contexto. O DbSet não é literalmente a tabela, e as alterações só são persistidas quando o contexto executa SaveChanges.
 
+**Qual a diferença entre migration e seed?**
+
+> Migration versiona a estrutura do banco, como tabelas, constraints e índices. Seed insere dados iniciais previsíveis depois que a estrutura existe. No Smart Building, `InitialCreate` cria o esquema e o seeder de desenvolvimento cria três registos por GUID fixo sem duplicá-los em reinícios.
+
+**Como o seed evita uma corrida entre instâncias?**
+
+> O seeder abre uma transação e adquire `pg_advisory_xact_lock(1937001)` antes de consultar ou inserir. O PostgreSQL mantém o lock até commit ou rollback, então outra instância que use a mesma chave aguarda e só verifica os GUIDs depois da primeira terminar. Isso serializa o bootstrap, mas continua sendo um mecanismo cooperativo específico do PostgreSQL.
+
 ## Exercício
 
-Abra `SmartBuildingDbContext` e explique cada `DbSet`. Depois escolha `AccessEventConfiguration` e explique PK, FKs, índices, campos obrigatórios e delete behavior.
+Abra `SmartBuildingDbContext` e explique cada `DbSet`. Depois escolha `AccessEventConfiguration` e explique PK, FKs, índices, campos obrigatórios e delete behavior. Por fim, descreva como provaria automaticamente que `InitialCreate` aplica e que duas execuções concorrentes do seed terminam com apenas um `Building`, um `Floor` e um `AccessPoint` do conjunto inicial.

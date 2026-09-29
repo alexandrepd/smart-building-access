@@ -11,14 +11,18 @@ public class ModelMetadataTests
 
     public ModelMetadataTests()
     {
-        DbContextOptions<SmartBuildingDbContext> options =
-            new DbContextOptionsBuilder<SmartBuildingDbContext>()
-                .UseNpgsql("Host=localhost;Database=model_metadata;Username=unused;Password=unused")
-                .UseSnakeCaseNamingConvention()
-                .Options;
-
-        using var context = new SmartBuildingDbContext(options);
+        using var context = new SmartBuildingDbContext(CreateOptions());
         model = context.Model;
+    }
+
+    [Fact]
+    public void Database_InitialMigration_IsAvailable()
+    {
+        using var context = new SmartBuildingDbContext(CreateOptions());
+
+        Assert.Contains(
+            context.Database.GetMigrations(),
+            migration => migration.EndsWith("_InitialCreate", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -78,5 +82,13 @@ public class ModelMetadataTests
             candidate => candidate.Properties.Any(property => property.Name == foreignKeyProperty));
 
         Assert.Equal(isOptional, !foreignKey.IsRequired);
+    }
+
+    private static DbContextOptions<SmartBuildingDbContext> CreateOptions()
+    {
+        return new DbContextOptionsBuilder<SmartBuildingDbContext>()
+            .UseNpgsql("Host=localhost;Database=model_metadata;Username=unused")
+            .UseSnakeCaseNamingConvention()
+            .Options;
     }
 }

@@ -1,6 +1,6 @@
 @SmartBuilding.Api_HostAddress = http://localhost:5077
 
-GET {{SmartBuilding.Api_HostAddress}}/weatherforecast/
+GET {{SmartBuilding.Api_HostAddress}}/
 Accept: application/json
 
 ###

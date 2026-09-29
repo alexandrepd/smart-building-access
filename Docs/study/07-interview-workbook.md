@@ -16,6 +16,7 @@ Evite decorar parágrafos inteiros. Memorize a estrutura da resposta.
 Modelo de resposta:
 
 > Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, Angular, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Atualmente concluí a fundação e o modelo de domínio e estou a implementar a persistência com Fluent API e testes de metadados. O roadmap inclui REST, JWT, SignalR, processamento em background, Docker, GitHub Actions e Kubernetes, sempre uma fase por vez.
+> Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Na branch atual implementei o modelo relacional, o registro do DbContext com Npgsql, a migration inicial e um seed idempotente e protegido contra inicializações concorrentes. Validei a persistência num PostgreSQL real. Hoje existe apenas o host HTTP básico com `GET /`; a API REST funcional, Angular, JWT, SignalR, Docker da aplicação, CI/CD e Kubernetes continuam planejados para fases futuras.
 
 Não diga que uma tecnologia está implementada quando está apenas no roadmap.
 
@@ -88,6 +89,20 @@ Desativa tracking para leitura, reduzindo memória e processamento quando atuali
 ### Por que migrations?
 
 Versionam e reproduzem evolução do schema. Não editar migration compartilhada e aplicada; criar uma nova.
+
+Exemplo do projeto: `InitialCreate` foi gerada com a ferramenta local `dotnet-ef` 10.0.12 e aplicada a PostgreSQL 18. O histórico em `__EFMigrationsHistory` confirmou qual versão do esquema estava instalada.
+
+### Como tornou o seed idempotente?
+
+Usei GUIDs fixos para `HQ Lisbon`, `Ground Floor` e `Main Entrance`. Antes das consultas, o seeder abre uma transação e adquire `pg_advisory_xact_lock(1937001)`. Assim, inicializações concorrentes com a mesma chave são serializadas; cada entidade só é adicionada quando o respetivo ID não existe, mantendo contagens `1|1|1`.
+
+### Como configurou a persistência sem versionar secrets?
+
+A API exige `ConnectionStrings:SmartBuilding`, falha cedo quando a configuração está ausente e entrega o valor a `AddInfrastructure`. Para desenvolvimento local, inicializei User Secrets; `appsettings.json` contém somente uma entrada vazia e nenhuma credencial foi commitada.
+
+### Usar PostgreSQL em Docker significa que a aplicação está containerizada?
+
+Não. O container foi apenas um ambiente descartável de PostgreSQL na porta isolada `55432` para validar migration, arranque e seed. A aplicação ainda não tem a fase Docker implementada.
 
 ### Índice sempre melhora performance?
 
