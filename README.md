@@ -5,7 +5,7 @@ Plataforma de controlo de acessos e monitorização de ocupação para um edifí
 ## Estado atual
 
 - solução .NET 10;
-- projetos API, Domain, Infrastructure e UnitTests;
+- projetos API, Application, Domain, Infrastructure e UnitTests;
 - modelo inicial de domínio;
 - OpenAPI configurado na API;
 - desenvolvimento organizado por fases em [Docs/smart-building-project-plan.md](Docs/smart-building-project-plan.md).
