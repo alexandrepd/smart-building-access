@@ -11,6 +11,7 @@ Existe um projeto `SmartBuilding.UnitTests` com xUnit. Ele contém:
 - um teste arquitetural de independência do Domain;
 - testes dos metadados do modelo EF Core;
 - testes do registro de persistência em Dependency Injection.
+- nove casos de teste unitário de `BuildingService`.
 
 Ainda não existe `SmartBuilding.IntegrationTests`.
 
@@ -18,6 +19,9 @@ Ainda não existe `SmartBuilding.IntegrationTests`.
 
 ```text
 SmartBuilding.UnitTests/
+├── Application/
+│   └── Buildings/
+│       └── BuildingServiceTests.cs
 ├── Architecture/
 │   └── DomainDependencyTests.cs
 └── Persistence/
@@ -58,6 +62,22 @@ Esse teste é rápido e detecta regressões de mapeamento. Ele não prova que um
 3. mapeamento de `AccessEvent.AccessPointId` para `access_point_id` em `snake_case`;
 4. rejeição de connection string vazia ou composta apenas por espaços.
 
+## Testes unitários de BuildingService
+
+`BuildingServiceTests` substitui `IBuildingRepository` por um fake em memória. Oito métodos, incluindo uma teoria com dois cenários de limite, executam nove casos de teste que verificam:
+
+1. mapeamento completo dos edifícios existentes para DTOs;
+2. `null` ao consultar um ID desconhecido;
+3. remoção de espaços de nome e endereço na criação;
+4. rejeição de nome composto apenas por whitespace com `ApplicationValidationException`;
+5. `null` ao atualizar um edifício inexistente;
+6. normalização e substituição completa do estado editável numa atualização bem-sucedida;
+7. rejeição de nome acima de 200 caracteres;
+8. rejeição de endereço acima de 500 caracteres;
+9. resultado `HasFloors` quando a remoção é bloqueada.
+
+Esses testes isolam a orquestração da Application. Eles não exercitam Minimal APIs, EF Core ou PostgreSQL.
+
 ## Validação manual com PostgreSQL
 
 A persistência também foi validada contra PostgreSQL 18 real num container Docker descartável, exposto na porta isolada `55432`. A verificação confirmou:
@@ -70,6 +90,8 @@ A persistência também foi validada contra PostgreSQL 18 real num container Doc
 - manutenção das contagens `1|1|1` após a execução do seed.
 
 Essa execução é evidência manual da mudança, não uma suíte de integração repetível. O uso de Docker foi apenas para isolar o PostgreSQL de validação e não representa a implementação da fase Docker.
+
+Após o primeiro slice da Fase 4, um novo smoke test manual atravessou API, Application, Infrastructure e PostgreSQL real. A sequência observada foi `200/201/200/200/204/404/400/409`, cobrindo listagem, criação, consultas, atualização, remoção, recurso ausente, validação e conflito por pisos. Nos três cenários de erro observados, `400`, `404` e `409`, o content type foi `application/problem+json`. Essa evidência confirma o comportamento atual de `Buildings`, mas não substitui testes HTTP e de persistência automatizados.
 
 ## Categorias planejadas
 
@@ -176,6 +198,13 @@ dotnet test tests/SmartBuilding.UnitTests/SmartBuilding.UnitTests.csproj \
   --filter 'FullyQualifiedName~DependencyInjectionTests'
 ```
 
+Executar somente os testes de `BuildingService`:
+
+```bash
+dotnet test tests/SmartBuilding.UnitTests/SmartBuilding.UnitTests.csproj \
+  --filter 'FullyQualifiedName~BuildingServiceTests'
+```
+
 Build final da solução:
 
 ```bash
@@ -194,4 +223,4 @@ Antes de solicitar commit:
 
 ## Próximos passos
 
-Criar testes de integração automatizados para repetir a aplicação da migration e o seed em PostgreSQL isolado. Quando regras de negócio forem adicionadas, expandir UnitTests antes de construir endpoints sobre elas.
+Criar testes de integração automatizados para repetir a aplicação da migration, o seed e o CRUD de `Buildings` em PostgreSQL isolado. Os demais CRUDs e respetivos testes continuam planejados.

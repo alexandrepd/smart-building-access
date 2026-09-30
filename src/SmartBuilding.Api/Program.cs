@@ -1,3 +1,6 @@
+using SmartBuilding.Api.Endpoints;
+using SmartBuilding.Api.ErrorHandling;
+using SmartBuilding.Application;
 using SmartBuilding.Infrastructure;
 using SmartBuilding.Infrastructure.Data;
 
@@ -11,6 +14,10 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 builder.Services.AddOpenApi();
+builder.Services.AddValidation();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(connectionString);
 
 var app = builder.Build();
@@ -22,11 +29,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 app.MapGet("/", () => Results.Ok(new
 {
     Name = "Smart Building API",
     Status = "Running"
 }));
+
+app.MapBuildingEndpoints();
 
 app.Run();

@@ -14,18 +14,21 @@ A API contém:
 - geração do documento OpenAPI em ambiente de desenvolvimento;
 - redirecionamento HTTPS;
 - endpoint `GET /` para indicar que o processo está ativo;
+- grupo de Minimal APIs em `/api/buildings` com listagem, consulta por ID, criação, substituição e remoção;
+- contratos HTTP próprios para requests e responses de `Building`;
+- validação automática com DataAnnotations e `AddValidation`;
+- Problem Details para validação, conflitos e falhas inesperadas;
 - referências para Application e Infrastructure;
 - leitura obrigatória de `ConnectionStrings:SmartBuilding`;
+- registro de Application por `AddApplication`;
 - registro da persistência por `AddInfrastructure`;
 - aplicação de migrations e seed apenas em `Development`.
 
 Ainda não contém:
 
-- controllers ou grupos de endpoints do domínio;
-- endpoints CRUD;
+- CRUDs dos demais recursos do domínio;
 - autenticação JWT;
 - autorização por papéis;
-- middleware global de erros;
 - SignalR;
 - Swagger UI interativo;
 - health checks completos.
@@ -54,10 +57,10 @@ Ainda não contém:
 ```text
 1. cria WebApplicationBuilder;
 2. lê e valida ConnectionStrings:SmartBuilding;
-3. registra OpenAPI e Infrastructure;
+3. registra OpenAPI, validação, Problem Details, Application e Infrastructure;
 4. constrói a aplicação;
 5. em Development, publica OpenAPI e inicializa o banco;
-6. configura middleware e endpoints.
+6. configura o tratamento global de erros, páginas de status e endpoints.
 ```
 
 Se a connection string estiver ausente ou vazia, a API falha imediatamente com `InvalidOperationException`. Isso evita iniciar um processo parcialmente configurado. User Secrets está habilitado para desenvolvimento local e nenhum segredo foi versionado.
@@ -75,18 +78,22 @@ O endpoint atual responde aproximadamente:
 
 Isoladamente, esse endpoint confirma apenas que o host iniciou. Na validação realizada em `Development`, o arranque anterior ao request também aplicou a migration e o seed com sucesso num PostgreSQL real.
 
-## Fluxo futuro de request
+## Fluxo implementado para Buildings
 
 ```mermaid
 flowchart LR
     Request[HTTP Request] --> Middleware[Middleware]
-    Middleware --> Endpoint[Endpoint ou Controller]
-    Endpoint --> App[Application Use Case]
-    App --> Endpoint
-    Endpoint --> Response[HTTP Response]
+  Middleware --> Endpoint[Minimal API de Buildings]
+  Endpoint --> App[IBuildingService]
+  App --> Repo[IBuildingRepository]
+  Repo --> PostgreSQL[(PostgreSQL)]
+  PostgreSQL --> Repo
+  Repo --> App
+  App --> Endpoint
+  Endpoint --> Response[HTTP Response ou Problem Details]
 ```
 
-O endpoint deve ser fino: mapear entrada, chamar o caso de uso e mapear o resultado.
+Os endpoints são finos: mapeiam requests para commands, chamam `IBuildingService` e convertem `BuildingDto` em `BuildingResponse`. Eles não usam `DbContext` diretamente.
 
 ## Composition root
 
@@ -98,7 +105,7 @@ builder.Services.AddInfrastructure(connectionString);
 
 `AddInfrastructure` encapsula `AddDbContext`, `UseNpgsql` e `UseSnakeCaseNamingConvention`. O contexto mantém o lifetime scoped padrão do EF Core.
 
-Depois, contratos de Application serão registrados com implementações de Infrastructure. A API conhece os dois lados apenas para realizar essa composição.
+`AddApplication` registra `IBuildingService`, enquanto `AddInfrastructure` liga `IBuildingRepository` a `BuildingRepository`. A API conhece os dois lados apenas para realizar essa composição.
 
 ## Contratos HTTP
 
@@ -116,9 +123,23 @@ Os recursos usam substantivos plurais em kebab-case:
 
 DTOs devem representar explicitamente requests e responses. Entidades EF não devem ser serializadas diretamente, porque isso acopla o contrato público ao esquema interno e pode expor propriedades de navegação.
 
+O slice implementado expõe:
+
+| Método e rota | Resultado de sucesso | Outros resultados |
+|---|---|---|
+| `GET /api/buildings` | `200 OK` com lista ordenada por nome | — |
+| `GET /api/buildings/{id}` | `200 OK` com `BuildingResponse` | `404 Not Found` |
+| `POST /api/buildings` | `201 Created`, body e header `Location` | `400 Bad Request` |
+| `PUT /api/buildings/{id}` | `200 OK` com o estado substituído | `400 Bad Request`, `404 Not Found` |
+| `DELETE /api/buildings/{id}` | `204 No Content` | `404 Not Found`, `409 Conflict` quando existem pisos |
+
+`CreateBuildingRequest` exige `Name` até 200 caracteres e `Address` até 500. `UpdateBuildingRequest` possui os mesmos limites e também exige `IsActive`. `BuildingResponse` contém `Id`, `Name`, `Address`, `IsActive` e `CreatedAt`.
+
+Somente `Buildings` possui CRUD nesta branch. Rotas de `Floors`, `AccessPoints`, cartões, permissões, eventos, ocupação e alertas continuam planejadas.
+
 ## Códigos de resposta
 
-Os endpoints devem usar semântica HTTP consistente:
+Os endpoints usam semântica HTTP consistente:
 
 - `200 OK`: consulta ou operação concluída com representação;
 - `201 Created`: criação de recurso;
@@ -132,15 +153,19 @@ Os endpoints devem usar semântica HTTP consistente:
 
 ## Tratamento de erros
 
-Erros inesperados devem ser convertidos para Problem Details sem stack trace. Logs internos devem conter contexto e `traceId`, mas nunca passwords, hashes, tokens completos ou segredos.
+`AddProblemDetails`, `UseExceptionHandler` e `ApiExceptionHandler` formam o tratamento global. Somente `ApplicationValidationException`, exceção específica da Application, vira `400 Bad Request`; o handler preserva o nome da propriedade e produz `ValidationProblemDetails` com erros por campo. Exceções inesperadas viram `500 Internal Server Error` e são registradas no log, sem expor stack trace.
+
+O bloqueio de remoção de um edifício com pisos é um conflito de estado conhecido. O endpoint inclui `ProblemHttpResult` no resultado tipado e retorna `409 Conflict` com Problem Details. Respostas vazias `404` e outros status sem body passam por `UseStatusCodePages` para manter o formato de erro consistente. Os contratos OpenAPI declaram `ValidationProblemDetails` para `400` e Problem Details para `404` e `409`.
 
 ## Validação
 
-A API valida o formato do transporte: JSON, campos obrigatórios, identificadores e limites básicos. Regras de negócio permanecem em Domain/Application.
+A API valida o formato do transporte com DataAnnotations e `AddValidation`. Campos ausentes, valores compostos apenas por whitespace e comprimentos inválidos produzem `ValidationProblemDetails` com `400 Bad Request` e erros associados a cada campo. A Application também normaliza espaços e protege os mesmos requisitos para chamadas que não atravessem HTTP, lançando `ApplicationValidationException` com o nome da propriedade inválida.
+
+No smoke test com PostgreSQL real, as respostas de validação, recurso inexistente e conflito foram confirmadas, respetivamente, como `400`, `404` e `409`, todas com content type `application/problem+json`.
 
 ## OpenAPI e Swagger
 
-Atualmente `MapOpenApi` publica o documento OpenAPI somente em Development. Uma UI interativa ainda deverá ser adicionada na fase da API.
+`MapOpenApi` publica o documento somente em Development. Os endpoints de `Buildings` declaram nomes, resumos, tipos de sucesso e status alternativos para geração code-first. Uma UI interativa ainda não foi adicionada.
 
 Cada endpoint futuro deve documentar tipos de resposta, status possíveis, autenticação e exemplos úteis.
 
@@ -166,4 +191,4 @@ O futuro hub `/accessHub` notificará eventos, alertas e alterações de ocupaç
 
 ## Próximos passos
 
-A composição básica da persistência e a connection string da Fase 3 estão implementadas na branch atual. CRUD, validação HTTP e tratamento global de erros pertencem à Fase 4 e continuam planejados.
+O primeiro vertical slice da Fase 4 está implementado para `Buildings` na branch `feat/building-api`, incluindo CRUD, validação HTTP, Problem Details e exemplos no ficheiro `.http`. Os CRUDs dos demais recursos, autenticação, autorização e a UI Swagger continuam planejados para as respetivas etapas.

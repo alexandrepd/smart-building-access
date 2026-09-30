@@ -2,11 +2,11 @@
 
 ## Propósito
 
-`SmartBuilding.Infrastructure` contém detalhes técnicos externos ao negócio. No estado atual, a sua responsabilidade é mapear o modelo Domain para PostgreSQL através do Entity Framework Core.
+`SmartBuilding.Infrastructure` contém detalhes técnicos externos ao negócio. Ela mapeia o modelo Domain para PostgreSQL através do Entity Framework Core e implementa contratos de persistência definidos pela Application.
 
 ## Estado atual
 
-O modelo EF Core e o bootstrap da persistência estão implementados na branch `feat/postgresql-persistence`. A mudança ainda está em desenvolvimento e não foi entregue.
+O modelo EF Core e o bootstrap da persistência estão implementados. Na branch `feat/building-api`, o primeiro repositório funcional da Fase 4 foi adicionado para `Buildings`; a mudança ainda está em desenvolvimento e não foi entregue.
 
 Já existem:
 
@@ -20,22 +20,25 @@ Já existem:
 - migration `InitialCreate`;
 - aplicação automática de migrations em `Development`;
 - seed mínimo e idempotente de desenvolvimento;
+- `BuildingRepository` com operações CRUD assíncronas;
+- consultas de `Building` com `AsNoTracking`;
+- proteção da remoção quando o edifício possui pisos;
 - testes dos metadados e do registro do contexto.
 
 Ainda não existem:
 
 - projeto automatizado de testes de integração com PostgreSQL;
-- implementações de consultas para casos de uso.
+- repositórios para os demais recursos do domínio.
 
 ## Dependências
 
 ### Permitidas
 
 - `SmartBuilding.Domain` para mapear entidades;
+- `SmartBuilding.Application` para implementar contratos de persistência;
 - Entity Framework Core;
 - provider Npgsql;
 - bibliotecas técnicas necessárias à implementação;
-- futuramente, `SmartBuilding.Application` para implementar contratos definidos por ela.
 
 ### Proibidas
 
@@ -149,6 +152,14 @@ OccupancySessions -> occupancy_sessions
 
 `AddInfrastructure` registra `SmartBuildingDbContext` como scoped e aplica `UseNpgsql(connectionString)` seguido de `UseSnakeCaseNamingConvention()`.
 
+## BuildingRepository
+
+`BuildingRepository` implementa `IBuildingRepository`, contrato pertencente à Application. A listagem e a consulta por ID usam `AsNoTracking`; a listagem também ordena por nome. Criação e atualização usam entidades rastreadas e persistem com `SaveChangesAsync`.
+
+Antes do delete, o repositório verifica se existem `Floor`s associados. Se existirem, retorna `HasFloors` sem remover o edifício. A verificação melhora a resposta normal, mas não elimina a corrida entre consulta e gravação: se um piso for inserido nesse intervalo, a constraint FK com `Restrict` continua sendo a autoridade. O repositório captura especificamente a `ForeignKeyViolation` do PostgreSQL e também retorna `HasFloors`.
+
+Essa proteção está implementada somente para o CRUD de `Buildings`. Consultas e comandos dos demais recursos continuam planejados.
+
 ## Migrations
 
 Migrations são o histórico versionado do esquema. A migration `InitialCreate` foi gerada para as nove tabelas do domínio, respetivas chaves, foreign keys e índices.
@@ -210,12 +221,12 @@ Antes de inserir cada registo, o seeder consulta o respetivo GUID. Por isso, rei
 
 `DependencyInjectionTests` resolve o contexto em dois scopes e verifica a mesma instância dentro de um scope e instâncias diferentes entre scopes. Também confirma o provider Npgsql, a coluna `access_point_id` em `snake_case` e a rejeição de connection string vazia ou composta apenas por espaços.
 
-Também foi feita uma validação manual contra PostgreSQL 18 real num container Docker descartável, exposto apenas em `55432`. Ela confirmou as nove tabelas do domínio, o registo da migration em `__EFMigrationsHistory`, `GET /`, a aquisição do advisory lock e contagens `1|1|1` para edifício, piso e ponto de acesso após o seed.
+Também foi feita uma validação manual contra PostgreSQL 18 real num container Docker descartável, exposto apenas em `55432`. Além da migration e do seed, o smoke test do slice de `Buildings` observou, em sequência, os status `200/201/200/200/204/404/400/409`. As respostas `404`, `400` e `409` usaram content type `application/problem+json`. Isso confirmou o CRUD, a validação e o bloqueio real de exclusão do edifício sem transformar a verificação em teste automatizado.
 
 O container foi apenas um ambiente isolado de validação da persistência. Isso não implementa a fase futura de Docker da aplicação, nem substitui testes de integração automatizados.
 
 ## Próximos passos
 
 1. criar testes de integração automatizados com PostgreSQL;
-2. implementar contratos e consultas de persistência para os casos de uso;
+2. implementar contratos e consultas de persistência para os demais casos de uso;
 3. manter novas evoluções do esquema em migrations adicionais.

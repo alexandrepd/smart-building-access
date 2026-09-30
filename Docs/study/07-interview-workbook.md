@@ -15,8 +15,7 @@ Evite decorar parágrafos inteiros. Memorize a estrutura da resposta.
 
 Modelo de resposta:
 
-> Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, Angular, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Atualmente concluí a fundação e o modelo de domínio e estou a implementar a persistência com Fluent API e testes de metadados. O roadmap inclui REST, JWT, SignalR, processamento em background, Docker, GitHub Actions e Kubernetes, sempre uma fase por vez.
-> Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Na branch atual implementei o modelo relacional, o registro do DbContext com Npgsql, a migration inicial e um seed idempotente e protegido contra inicializações concorrentes. Validei a persistência num PostgreSQL real. Hoje existe apenas o host HTTP básico com `GET /`; a API REST funcional, Angular, JWT, SignalR, Docker da aplicação, CI/CD e Kubernetes continuam planejados para fases futuras.
+> Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Na branch atual implementei o primeiro vertical slice da Fase 4: CRUD REST de `Buildings`, com serviço de Application, repositório EF Core, validação, Problem Details e nove casos de teste unitário. Também validei o fluxo contra PostgreSQL real, incluindo `400`, `404` e `409` com `application/problem+json`. Apenas `Buildings` está implementado; os demais CRUDs, Angular, JWT, SignalR, Docker da aplicação, CI/CD e Kubernetes continuam planejados.
 
 Não diga que uma tecnologia está implementada quando está apenas no roadmap.
 
@@ -53,6 +52,18 @@ Pontos esperados:
 - substituição de detalhes;
 - evitar lógica de negócio em mappings.
 
+### Como implementou um vertical slice sem acoplar as camadas?
+
+Pontos esperados:
+
+- Minimal API conhece o contrato HTTP;
+- `BuildingService` coordena commands, DTOs e normalização;
+- `ApplicationValidationException` identifica falhas esperadas e a propriedade inválida;
+- `IBuildingRepository` pertence à Application;
+- `BuildingRepository` implementa o contrato com EF Core;
+- Dependency Injection conecta as implementações;
+- o fake do repositório permite testar o serviço isoladamente.
+
 ## Perguntas REST
 
 ### O que torna uma API RESTful?
@@ -72,6 +83,10 @@ Explique repetição com mesmo efeito final. Use retry do leitor e `ExternalEven
 
 Explique especificação versus ferramentas e code-first versus contract-first.
 
+### Como desenhou os status do CRUD de Buildings?
+
+Explique `200` para leitura e atualização, `201` com `Location` para criação, `204` para remoção, `404` para ID desconhecido, `400` para validação e `409` quando pisos impedem o delete. Diga que whitespace é rejeitado por DataAnnotations com erros por campo, que o handler converte somente `ApplicationValidationException` em `400` e mantém falhas inesperadas como `500`, e que `404` e `409` seguem Problem Details coerente com OpenAPI. Somente esse recurso está implementado.
+
 ## Perguntas EF Core e PostgreSQL
 
 ### O que é DbContext?
@@ -85,6 +100,12 @@ Entrada para query e alteração de um tipo de entidade. Não é literalmente um
 ### O que faz AsNoTracking?
 
 Desativa tracking para leitura, reduzindo memória e processamento quando atualização não será feita.
+
+Exemplo do projeto: `BuildingRepository` usa `AsNoTracking` na lista e na consulta por ID, mas mantém tracking na atualização e remoção.
+
+### Como tratou uma corrida no delete de Building?
+
+Primeiro verifico se existem pisos para retornar um conflito esperado. Como um piso ainda pode ser inserido antes do commit, a FK com `Restrict` é a garantia final. Capturo apenas a `ForeignKeyViolation` e converto esse caso em `HasFloors`; outras falhas não são mascaradas.
 
 ### Por que migrations?
 
@@ -186,6 +207,8 @@ Prepare histórias sobre:
 - aprendizagem rápida;
 - feedback recebido;
 - decisão com trade-off.
+
+Uma história técnica disponível nesta branch é a proteção em duas camadas do delete: consulta antecipada para o fluxo comum e constraint FK para concorrência. Num PostgreSQL real, o resultado validado foi `409 Conflict` com content type `application/problem+json` quando o edifício possui pisos; `400` e `404` também foram confirmados com esse content type.
 
 ## Inglês técnico
 

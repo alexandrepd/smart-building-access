@@ -12,9 +12,11 @@ flowchart LR
     API --> Application[SmartBuilding.Application]
     API --> Infrastructure[SmartBuilding.Infrastructure]
     Application --> Domain[SmartBuilding.Domain]
+    Infrastructure --> Application
     Infrastructure --> Domain
 
     UnitTests[SmartBuilding.UnitTests] --> Domain
+    UnitTests --> Application
     UnitTests --> Infrastructure
 
     Infrastructure --> PostgreSQL[(PostgreSQL)]
@@ -32,31 +34,35 @@ API ------------> Application ------------> Domain
    \-----------> Infrastructure ----------/
 ```
 
-O Domain é o núcleo e não referencia nenhuma outra camada do sistema. Application conhece o Domain, mas não conhece API nem Infrastructure. Infrastructure conhece o Domain para realizar o mapeamento técnico. API funciona como composition root e conecta as partes.
+O Domain é o núcleo e não referencia nenhuma outra camada do sistema. Application conhece o Domain, mas não conhece API nem Infrastructure. Infrastructure conhece Domain e Application para mapear entidades e implementar contratos definidos pela Application. API funciona como composition root e conecta as partes.
 
 ## Responsabilidades
 
 | Projeto | Responsabilidade principal | Estado |
 |---|---|---|
 | `SmartBuilding.Domain` | Vocabulário, estado e regras puras do negócio | Modelo estrutural implementado; comportamento ainda será evoluído |
-| `SmartBuilding.Application` | Casos de uso, DTOs, contratos e orquestração | Estrutura criada; ainda sem casos de uso |
-| `SmartBuilding.Infrastructure` | EF Core, PostgreSQL e implementações técnicas | Modelo, registro, migration inicial e seed de desenvolvimento implementados na branch atual |
-| `SmartBuilding.Api` | Host HTTP, endpoints, autenticação e composição | Bootstrap, OpenAPI e composição da persistência implementados |
-| `SmartBuilding.UnitTests` | Testes unitários, arquiteturais e de persistência | Testes arquiteturais, de metadados e de registro do contexto implementados |
+| `SmartBuilding.Application` | Casos de uso, DTOs, contratos e orquestração | Serviço, commands, DTO e contrato de repositório de `Buildings` implementados |
+| `SmartBuilding.Infrastructure` | EF Core, PostgreSQL e implementações técnicas | Persistência base e `BuildingRepository` implementados |
+| `SmartBuilding.Api` | Host HTTP, endpoints, autenticação e composição | Minimal APIs, validação e Problem Details de `Buildings` implementados; autenticação planejada |
+| `SmartBuilding.UnitTests` | Testes unitários, arquiteturais e de persistência | Testes existentes mais nove casos de teste de `BuildingService` |
 
 ## Fluxo atual
 
-No estado atual, a API possui somente um endpoint de estado:
+Além do endpoint de estado, o primeiro fluxo vertical da Fase 4 atravessa todas as camadas:
 
 ```text
-GET /
-  -> SmartBuilding.Api
-  -> resposta { Name, Status }
+HTTP /api/buildings
+  -> requests e endpoints em SmartBuilding.Api
+  -> BuildingService e IBuildingRepository em SmartBuilding.Application
+  -> BuildingRepository e SmartBuildingDbContext em SmartBuilding.Infrastructure
+  -> PostgreSQL
 ```
 
-Esse endpoint não executa casos de uso e não acessa banco de dados.
+O fluxo implementa listagem, consulta por ID, criação, atualização e remoção de `Building`. O delete retorna conflito quando há `Floor`s associados, inclusive quando uma inserção concorrente causa violação de FK durante a gravação.
 
-Antes de servir o endpoint, a API exige `ConnectionStrings:SmartBuilding`. Em `Development`, o bootstrap aplica migrations e executa o seed mínimo. Portanto, o request não consulta PostgreSQL, mas o arranque de desenvolvimento depende da inicialização bem-sucedida da persistência.
+Antes de servir endpoints, a API exige `ConnectionStrings:SmartBuilding`. Em `Development`, o bootstrap aplica migrations e executa o seed mínimo. O endpoint `GET /` continua sem acessar o banco, enquanto `/api/buildings` usa a persistência PostgreSQL.
+
+Esse fluxo existe somente para `Buildings`. CRUDs de `Floor`, `AccessPoint` e dos demais recursos permanecem planejados.
 
 ## Fluxo planejado de uma solicitação de acesso
 
@@ -113,10 +119,10 @@ Cada fase deve terminar com build, testes e um pull request focado. Tecnologias 
 |---|---|
 | Foundation | Concluída |
 | Domain estrutural | Concluída pelo Definition of Done atual |
-| Database | Persistência base implementada e validada na branch atual; entrega ainda em andamento |
-| API funcional | Não iniciada; existe apenas o host |
+| Database | Persistência base implementada e validada |
+| API funcional | Primeiro vertical slice implementado para `Buildings` na branch atual; demais CRUDs planejados |
 | Access Control em diante | Não iniciado |
 
-PostgreSQL 18 foi executado num container descartável, na porta isolada `55432`, somente para validar a migration, o arranque e a idempotência do seed. Isso não significa que a fase futura de Docker foi implementada.
+PostgreSQL 18 foi executado num container descartável, na porta isolada `55432`, para validar a migration, o arranque, a idempotência do seed e o slice de `Buildings`. O runtime confirmou respostas `400`, `404` e `409` com content type `application/problem+json`. Isso não significa que a fase futura de Docker foi implementada.
 
 Consulte [o plano do projeto](smart-building-project-plan.md) para todas as fases e critérios de conclusão.

@@ -40,7 +40,7 @@ Uma response contém:
 - headers;
 - body opcional.
 
-Exemplo futuro:
+Exemplo planejado para controlo de acesso:
 
 ```http
 POST /api/access/requests
@@ -186,6 +186,16 @@ OpenAPI é a receita escrita. Swagger é uma família de ferramentas que lê e a
 
 No projeto, `AddOpenApi` e `MapOpenApi` geram o documento em Development. Swagger UI ainda não está implementado.
 
+## Exemplo implementado: Buildings
+
+Pense no recurso como uma ficha de edifício: `GET` consulta, `POST` cria uma ficha, `PUT` substitui os campos editáveis e `DELETE` tenta removê-la.
+
+Tecnicamente, o grupo `/api/buildings` usa Minimal APIs e contratos separados das entidades. `POST` retorna `201 Created` com body e `Location`; IDs desconhecidos retornam `404`; DataAnnotations com `AddValidation` rejeitam inclusive valores compostos apenas por whitespace e produzem `400` com `ValidationProblemDetails` e erros por campo. Remover um edifício com pisos retorna `409` por meio de `ProblemHttpResult`; a remoção bem-sucedida retorna `204`.
+
+Os metadados `.WithName`, `.WithSummary`, `.Produces`, `.ProducesValidationProblem` e `.ProducesProblem` alimentam o documento OpenAPI code-first. `404` e `409` são descritos como Problem Details, enquanto `400` é descrito como Validation Problem Details. O ficheiro `SmartBuilding.Api.http` contém requests manuais para os cenários principais. Apenas `Buildings` está implementado; as outras rotas do domínio continuam planejadas.
+
+Pense em Problem Details como uma etiqueta de erro com formato previsível: o status muda, mas o cliente sabe onde procurar título, detalhe e erros de campos. No runtime com PostgreSQL real, `400`, `404` e `409` foram confirmados com content type `application/problem+json`, coerente com o contrato OpenAPI.
+
 ## Contract-first e code-first
 
 - **Code-first:** o documento é gerado a partir do código.
@@ -205,6 +215,10 @@ Antes de versionar, diferencie mudanças compatíveis de breaking changes. Adici
 
 > OpenAPI é a especificação que descreve o contrato da API. Swagger é o conjunto de ferramentas historicamente associado a ela, como Swagger UI e Editor. Posso gerar OpenAPI a partir do código ou implementar a API a partir de uma especificação criada primeiro.
 
+**Por que o delete de Building retorna 409 em vez de 400?**
+
+> O request é sintaticamente válido, mas entra em conflito com o estado atual porque existem pisos associados. `409 Conflict` comunica esse impedimento. O endpoint traduz `DeleteBuildingResult.HasFloors` num `ProblemHttpResult`, devolvido como `application/problem+json`, sem levar conceitos HTTP para a Application.
+
 ## Exercício
 
-Especifique em papel `POST /api/access/requests`: request, response, autenticação, status codes, possibilidade de retry e estratégia de idempotência.
+Abra o documento OpenAPI em Development e compare as cinco operações de `/api/buildings` com `SmartBuilding.Api.http`. Explique o body, `Location`, status e content type de cada cenário. Verifique por que whitespace gera erros por campo em `400` e por que `404` e `409` usam Problem Details. Depois especifique em papel o futuro `POST /api/access/requests`, incluindo autenticação, retry e idempotência, sem descrevê-lo como implementado.

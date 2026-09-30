@@ -4,3 +4,56 @@ GET {{SmartBuilding.Api_HostAddress}}/
 Accept: application/json
 
 ###
+
+GET {{SmartBuilding.Api_HostAddress}}/api/buildings
+Accept: application/json
+
+###
+
+GET {{SmartBuilding.Api_HostAddress}}/api/buildings/10000000-0000-0000-0000-000000000001
+Accept: application/json
+
+###
+
+POST {{SmartBuilding.Api_HostAddress}}/api/buildings
+Content-Type: application/json
+
+{
+	"name": "North Office",
+	"address": "Porto"
+}
+
+###
+
+PUT {{SmartBuilding.Api_HostAddress}}/api/buildings/10000000-0000-0000-0000-000000000001
+Content-Type: application/json
+
+{
+	"name": "HQ Lisbon",
+	"address": "Lisbon",
+	"isActive": true
+}
+
+###
+
+# Returns 409 because the seeded building contains a floor.
+DELETE {{SmartBuilding.Api_HostAddress}}/api/buildings/10000000-0000-0000-0000-000000000001
+
+###
+
+# Returns 404 for an unknown building.
+GET {{SmartBuilding.Api_HostAddress}}/api/buildings/00000000-0000-0000-0000-000000000099
+Accept: application/json
+
+###
+
+# Returns 400 validation problem details.
+POST {{SmartBuilding.Api_HostAddress}}/api/buildings
+Content-Type: application/json
+
+{
+	"name": "",
+	"address": ""
+}
+
+###
