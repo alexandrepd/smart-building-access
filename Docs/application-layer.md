@@ -6,7 +6,7 @@
 
 ## Estado atual
 
-Os vertical slices de `Buildings` e `Floors` estão implementados. A camada contém:
+Os vertical slices CRUD de `Buildings`, `Floors` e `AccessPoints` estão implementados. A camada contém:
 
 - `IBuildingService` e `BuildingService` para os cinco casos de uso CRUD;
 - `CreateBuildingCommand` e `UpdateBuildingCommand`;
@@ -17,9 +17,15 @@ Os vertical slices de `Buildings` e `Floors` estão implementados. A camada cont
 - commands, DTO e contrato de persistência próprios de `Floor`;
 - `FloorSaveResult` e `FloorSaveStatus` para distinguir `Success`, `FloorNotFound` e `BuildingNotFound`;
 - `DeleteFloorResult` para distinguir remoção, ausência e conflito com dependentes;
+- `IAccessPointService` e `AccessPointService` para os cinco casos de uso CRUD;
+- `CreateAccessPointCommand` e `UpdateAccessPointCommand`;
+- `AccessPointDto` como saída da Application;
+- `IAccessPointRepository` como contrato de persistência;
+- `AccessPointSaveResult` e `AccessPointSaveStatus` para distinguir sucesso e ausência do ponto ou piso;
+- `AccessPointPersistenceResult` e `DeleteAccessPointResult` para representar persistência e remoção bloqueada por dependentes;
 - `AddApplication` para registrar os serviços com lifetime scoped.
 
-Os casos de uso dos demais recursos continuam planejados e serão adicionados progressivamente.
+O processamento de pedidos de acesso, permissões, eventos, ocupação e alertas continua planejado e será adicionado progressivamente.
 
 ## Dependências
 
@@ -81,6 +87,17 @@ SmartBuilding.Application/
 │   ├── IFloorRepository.cs
 │   ├── IFloorService.cs
 │   └── UpdateFloorCommand.cs
+├── AccessPoints/
+│   ├── AccessPointDto.cs
+│   ├── AccessPointPersistenceResult.cs
+│   ├── AccessPointSaveResult.cs
+│   ├── AccessPointSaveStatus.cs
+│   ├── AccessPointService.cs
+│   ├── CreateAccessPointCommand.cs
+│   ├── DeleteAccessPointResult.cs
+│   ├── IAccessPointRepository.cs
+│   ├── IAccessPointService.cs
+│   └── UpdateAccessPointCommand.cs
 ├── Common/
 │   └── ApplicationValidationException.cs
 └── DependencyInjection.cs
@@ -129,7 +146,7 @@ Não será criado um `GenericRepository<T>` apenas por convenção. Abstrações
 
 DTOs definem os dados de entrada e saída dos casos de uso. Eles não devem ser entidades EF nem transportar propriedades de navegação.
 
-Nos slices de `Buildings` e `Floors`, commands representam entrada de criação e atualização, enquanto `BuildingDto` e `FloorDto` representam saída. A API mantém requests e responses próprios e faz o mapeamento na borda.
+Nos slices de `Buildings`, `Floors` e `AccessPoints`, commands representam entrada de criação e atualização, enquanto `BuildingDto`, `FloorDto` e `AccessPointDto` representam saída. Para `AccessPoint`, o serviço remove espaços nas extremidades de nome e localização, valida os limites de 150 e 250 caracteres e preserva `SupportsEntry` e `SupportsExit`. A API mantém requests e responses próprios e faz o mapeamento na borda.
 
 Categorias ainda planejadas:
 
@@ -165,9 +182,11 @@ Para um acesso concedido, a gravação de `AccessEvent` e a atualização de ocu
 
 ## Erros
 
-Application usa resultados ou exceções específicas do caso de uso, sem retornar `IResult`, `ActionResult` ou códigos HTTP. `ApplicationValidationException` representa entrada inválida na fronteira da Application, enquanto exceções inesperadas não são classificadas como erro do cliente. No delete de edifício, `DeleteBuildingResult` informa `Deleted`, `NotFound` ou `HasFloors`. Para pisos, `FloorSaveStatus` informa `Success`, `FloorNotFound` ou `BuildingNotFound`, e `DeleteFloorResult` informa `Deleted`, `NotFound` ou `HasDependents`. A API traduz esses resultados para a semântica HTTP correspondente.
+Application usa resultados ou exceções específicas do caso de uso, sem retornar `IResult`, `ActionResult` ou códigos HTTP. `ApplicationValidationException` representa entrada inválida na fronteira da Application, enquanto exceções inesperadas não são classificadas como erro do cliente. No delete de edifício, `DeleteBuildingResult` informa `Deleted`, `NotFound` ou `HasFloors`. Para pisos, `FloorSaveStatus` informa `Success`, `FloorNotFound` ou `BuildingNotFound`, e `DeleteFloorResult` informa `Deleted`, `NotFound` ou `HasDependents`. Para pontos de acesso, `AccessPointSaveStatus` distingue sucesso, `AccessPointNotFound` e `FloorNotFound`; `DeleteAccessPointResult` distingue `Deleted`, `NotFound` e `HasDependents`. A API traduz esses resultados para a semântica HTTP correspondente.
 
 `FloorPersistenceResult` e `FloorSaveResult` possuem factories restritas: sucesso sempre transporta uma entidade ou DTO, enquanto falhas não podem carregar esses valores. Isso evita estados contraditórios antes do mapeamento HTTP.
+
+`AccessPointPersistenceResult` e `AccessPointSaveResult` seguem a mesma proteção: os construtores são privados, sucesso é criado com `Succeeded` e os resultados `AccessPointNotFound` ou `FloorNotFound` são criados sem entidade/DTO. Assim, cada factory mantém consistente o status com o valor transportado.
 
 ## Testes
 
@@ -175,6 +194,8 @@ Os nove casos de teste de `BuildingService` usam um repositório fake e cobrem m
 
 Os oito casos de teste de `FloorService` também usam um repositório fake e cobrem mapeamento da lista, normalização na criação, `BuildingId` vazio, edifício inexistente, substituição do estado editável, conflito de remoção e nomes vazio ou composto apenas por whitespace.
 
+Os dez casos de teste de `AccessPointService` usam um repositório fake e cobrem mapeamento dos indicadores de direção, normalização de nome e localização, `FloorId` vazio, piso inexistente, substituição do estado editável, ponto inexistente, conflito de remoção e texto obrigatório vazio ou composto apenas por whitespace.
+
 ## Próximos passos da camada
 
-Completar os CRUDs dos recursos seguintes de forma incremental. O fluxo de controlo de acesso, ocupação e alertas continua planejado e não deve ser inferido a partir dos CRUDs de `Buildings` e `Floors`.
+Implementar progressivamente os casos de uso restantes. O fluxo de controlo de acesso, ocupação e alertas continua planejado e não deve ser inferido a partir dos CRUDs administrativos já implementados.

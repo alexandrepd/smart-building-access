@@ -172,7 +172,7 @@ Alterar um objeto rastreado não atualiza imediatamente o banco. O SQL é enviad
 
 Para leitura, `AsNoTracking()` evita tracking desnecessário e reduz custo.
 
-Nos repositórios de `Building` e `Floor`, listagem e consulta por ID usam `AsNoTracking` porque apenas materializam respostas. As atualizações carregam entidades rastreadas, alteram os campos e chamam `SaveChangesAsync`.
+Nos repositórios de `Building`, `Floor` e `AccessPoint`, listagem e consulta por ID usam `AsNoTracking` porque apenas materializam respostas. As atualizações e remoções carregam entidades rastreadas, alteram o estado e chamam `SaveChangesAsync`.
 
 ## Fluent API
 
@@ -235,7 +235,7 @@ A chave `1937001` identifica este protocolo de coordenação; o banco não assoc
 
 ## Validação real e ambiente descartável
 
-A migration, o seed e os slices de `Buildings` e `Floors` foram validados num PostgreSQL 18 real, executado temporariamente num container Docker na porta `55432`. Foram confirmadas nove tabelas do domínio, a migration em `__EFMigrationsHistory`, a aquisição do advisory lock e contagens `1|1|1` após o seed. O smoke de Floors confirmou `200/201/200/200/404/409/204/204`, incluindo a FK do edifício pai e o bloqueio de delete por dependente.
+A migration, o seed e os slices de `Buildings`, `Floors` e `AccessPoints` foram validados num PostgreSQL 18 real, executado temporariamente num container Docker na porta `55432`. Foram confirmadas nove tabelas do domínio, a migration em `__EFMigrationsHistory`, a aquisição do advisory lock e contagens `1|1|1` após o seed. O smoke de Floors confirmou `200/201/200/200/404/409/204/204`, incluindo a FK do edifício pai e o bloqueio de delete por dependente. O smoke de AccessPoints confirmou `200/201/200/200/404/409/204`, incluindo piso pai ausente, evento dependente e remoção após limpar o evento; os recursos temporários foram limpos.
 
 Aqui, Docker foi apenas a forma de fornecer um banco isolado e descartável para a validação. A aplicação ainda não ganhou imagem, Compose ou fluxo operacional de containers; portanto, a fase Docker continua planejada.
 
@@ -262,6 +262,8 @@ No delete de `Building`, o repositório primeiro usa `AnyAsync` para devolver ra
 `FloorRepository` aplica a mesma defesa para `AccessPoints` e `OccupancySessions`: consulta dependentes para o fluxo comum e converte uma violação concorrente de FK em `HasDependents`. Na criação e atualização, uma FK inválida para `BuildingId` torna-se `BuildingNotFound`. Capturar qualquer `DbUpdateException` esconderia falhas não relacionadas.
 
 Por isso, o repositório também compara `ConstraintName`: somente as três FKs conhecidas são traduzidas para resultados de negócio. Depois de uma falha esperada, a entidade é removida do change tracker; caso contrário, um segundo `SaveChangesAsync` no mesmo request tentaria repetir a alteração inválida. Se outro request já tiver eliminado o piso, `DbUpdateConcurrencyException` é traduzida para `NotFound`.
+
+`AccessPointRepository` usa `AsNoTracking` para leitura e tracking para atualização e delete. A constraint específica `fk_access_points_floors_floor_id` converte piso pai inexistente em `FloorNotFound`. O delete verifica `AccessPermissions`, `AccessEvents` e `SecurityAlerts`; se surgir uma dependência entre a consulta e a gravação, as FKs `Restrict` protegem o banco e as violações conhecidas viram `HasDependents`. O repositório destaca a entidade do tracker após conflitos esperados, e delete concorrente de um ponto já removido resulta em `NotFound`.
 
 ## Idempotência versus transação
 
@@ -293,6 +295,10 @@ São problemas relacionados, mas diferentes.
 
 > Na atualização, primeiro consulta o piso pelo ID; se não existir, retorna `FloorNotFound`. Se o piso existir, ou na criação, `SaveChangesAsync` deixa a FK validar `BuildingId`; uma `ForeignKeyViolation` específica é convertida em `BuildingNotFound`. Assim, o caso de uso recebe resultados explícitos sem conhecer Npgsql.
 
+**Como o repositório trata integridade referencial no CRUD de AccessPoints?**
+
+> Na criação e atualização, a violação específica da FK de `FloorId` vira `FloorNotFound`. No delete, o repositório consulta `AccessPermissions`, `AccessEvents` e `SecurityAlerts`; as FKs `Restrict` fecham a janela concorrente. Só as constraints conhecidas são traduzidas, a entidade é destacada do tracker após falhas esperadas e um delete concorrente já concluído resulta em `NotFound`.
+
 ## Exercício
 
-Abra `SmartBuildingDbContext` e explique cada `DbSet`. Depois percorra `FloorRepository`: identifique onde tracking é necessário, onde `AsNoTracking` é usado, como a FK do edifício produz `BuildingNotFound` e como as FKs fecham a corrida do delete. Por fim, descreva como transformaria o smoke `200/201/200/200/404/409/204/204` num teste de integração repetível com PostgreSQL isolado.
+Abra `SmartBuildingDbContext` e explique cada `DbSet`. Depois percorra `AccessPointRepository`: identifique onde tracking é necessário, onde `AsNoTracking` é usado, como a FK do piso produz `FloorNotFound`, como permissões, eventos e alertas bloqueiam o delete e como as FKs fecham a corrida concorrente. Por fim, descreva como transformaria o smoke `200/201/200/200/404/409/204` num teste de integração repetível com PostgreSQL isolado.

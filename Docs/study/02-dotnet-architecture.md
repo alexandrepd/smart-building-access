@@ -59,7 +59,7 @@ Ele não conhece EF Core, PostgreSQL ou HTTP. Assim, uma regra como “cartão e
 
 ## Application
 
-Application orquestra casos de uso. Nos slices implementados, `BuildingService` e `FloorService` normalizam entradas, chamam contratos de repositório e devolvem DTOs sem conhecer HTTP ou EF Core. `FloorService` também preserva resultados explícitos como `Success`, `FloorNotFound` e `BuildingNotFound`. Quando a entrada viola um requisito, os serviços lançam `ApplicationValidationException` com a propriedade inválida, em vez de usar uma `ArgumentException` genérica.
+Application orquestra casos de uso. Nos slices implementados, `BuildingService`, `FloorService` e `AccessPointService` normalizam entradas, chamam contratos de repositório e devolvem DTOs sem conhecer HTTP ou EF Core. Os serviços preservam resultados explícitos para sucesso e recursos ou pais inexistentes. Quando a entrada viola um requisito, lançam `ApplicationValidationException` com a propriedade inválida, em vez de usar uma `ArgumentException` genérica.
 
 Um fluxo futuro de controlo de acesso terá uma sequência como:
 
@@ -76,7 +76,7 @@ Application não deve saber se os dados vieram de PostgreSQL, memória ou outro 
 
 ## Infrastructure
 
-Infrastructure implementa detalhes externos. Atualmente contém EF Core, Npgsql, o registro de `SmartBuildingDbContext`, a migration inicial, o seed de desenvolvimento e os repositórios de `Building` e `Floor`, que implementam contratos definidos por Application. Repositórios dos recursos seguintes continuam planejados.
+Infrastructure implementa detalhes externos. Atualmente contém EF Core, Npgsql, o registro de `SmartBuildingDbContext`, a migration inicial, o seed de desenvolvimento e os repositórios de `Building`, `Floor` e `AccessPoint`, que implementam contratos definidos por Application. Os repositórios dos recursos seguintes continuam planejados.
 
 Trocar PostgreSQL por outra tecnologia deveria afetar principalmente Infrastructure, não as regras do Domain.
 
@@ -88,7 +88,7 @@ Um endpoint deve ser fino. Não deve concentrar consultas, regras, persistência
 
 No projeto, a API lê `ConnectionStrings:SmartBuilding` e chama `AddInfrastructure`. Se a configuração estiver ausente, o processo falha cedo. Em `Development`, a API também pede à Infrastructure que aplique migrations e execute o seed antes de servir requests.
 
-Os fluxos de `Buildings` e `Floors` mostram a separação completa: Minimal API mapeia HTTP, o serviço coordena o caso de uso e o repositório executa EF Core. Essa divisão permite testar a Application com um fake sem iniciar servidor ou banco. No caso de Floors, o endpoint traduz `BuildingNotFound` para `404`, mas a Application não conhece esse código HTTP.
+Os fluxos de `Buildings`, `Floors` e `AccessPoints` mostram a separação completa: Minimal API mapeia HTTP, o serviço coordena o caso de uso e o repositório executa EF Core. Essa divisão permite testar a Application com um fake sem iniciar servidor ou banco. No caso de `AccessPoint`, o endpoint traduz `FloorNotFound` para `404` e `HasDependents` para `409`, mas a Application não conhece esses códigos HTTP.
 
 Uma analogia útil é um formulário interno de entrega: a Application informa qual campo está incorreto, mas não decide qual envelope HTTP será usado. Tecnicamente, `ApiExceptionHandler` traduz somente `ApplicationValidationException` para `400` com erros por campo; falhas inesperadas permanecem `500`. Assim, a Application comunica significado sem depender de ASP.NET Core.
 
@@ -189,6 +189,14 @@ SOLID é orientação, não uma meta para maximizar quantidade de classes.
 
 > Porque `ApplicationValidationException` comunica uma falha esperada do caso de uso e identifica a propriedade inválida. A API pode convertê-la em `400` com `ValidationProblemDetails`, sem transformar qualquer `ArgumentException` ou falha inesperada em erro do cliente. Isso preserva a separação entre significado da Application e transporte HTTP.
 
+### Como o CRUD de AccessPoint mantém a separação de camadas?
+
+Analogia: um formulário informa os dados do ponto de acesso; um coordenador valida o pedido e um funcionário de arquivo verifica o piso e grava a ficha.
+
+Definição técnica: a API converte requests em commands e os resultados da Application em HTTP. `AccessPointService` normaliza e valida os dados e chama `IAccessPointRepository`. `AccessPointRepository` implementa o contrato com EF Core e Npgsql. A Application não conhece Problem Details nem constraints PostgreSQL.
+
+Exemplo do projeto: `POST /api/access-points` transforma `FloorNotFound` em `404`; o delete bloqueado por permissões, eventos ou alertas vira `409`. Os flags `SupportsEntry` e `SupportsExit` são dados administrativos do recurso; eles não significam que a decisão de autorização de acesso já foi implementada.
+
 ## Exercício
 
-Explique, sem olhar o código, por que API referencia Application e Infrastructure, por que Infrastructure referencia Application, por que Application referencia Domain e por que Domain não referencia ninguém. Depois desenhe o percurso de `POST /api/floors` desde o request até `SaveChangesAsync` e de volta ao `201 Created`. Acrescente os percursos alternativos de `ApplicationValidationException` até `400`, `BuildingNotFound` até `404` e uma exceção inesperada até `500`.
+Explique, sem olhar o código, por que API referencia Application e Infrastructure, por que Infrastructure referencia Application, por que Application referencia Domain e por que Domain não referencia ninguém. Depois desenhe o percurso de `POST /api/access-points` desde o request até `SaveChangesAsync` e de volta ao `201 Created`. Acrescente os percursos alternativos de `ApplicationValidationException` até `400`, `FloorNotFound` até `404`, dependentes no delete até `409` e uma exceção inesperada até `500`.
