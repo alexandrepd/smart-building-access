@@ -172,6 +172,8 @@ Alterar um objeto rastreado não atualiza imediatamente o banco. O SQL é enviad
 
 Para leitura, `AsNoTracking()` evita tracking desnecessário e reduz custo.
 
+No `BuildingRepository`, listagem e consulta por ID usam `AsNoTracking` porque apenas materializam respostas. A atualização carrega uma entidade rastreada, altera os campos e chama `SaveChangesAsync`.
+
 ## Fluent API
 
 Fluent API configura o modelo sem colocar atributos EF no Domain:
@@ -233,7 +235,7 @@ A chave `1937001` identifica este protocolo de coordenação; o banco não assoc
 
 ## Validação real e ambiente descartável
 
-A migration e o seed foram validados num PostgreSQL 18 real, executado temporariamente num container Docker na porta `55432`. Foram confirmadas nove tabelas do domínio, a migration em `__EFMigrationsHistory`, a aquisição do advisory lock e contagens `1|1|1` após o seed.
+A migration, o seed e o slice de `Buildings` foram validados num PostgreSQL 18 real, executado temporariamente num container Docker na porta `55432`. Foram confirmadas nove tabelas do domínio, a migration em `__EFMigrationsHistory`, a aquisição do advisory lock, contagens `1|1|1` após o seed e respostas HTTP `400`, `404` e `409` com content type `application/problem+json`.
 
 Aqui, Docker foi apenas a forma de fornecer um banco isolado e descartável para a validação. A aplicação ainda não ganhou imagem, Compose ou fluxo operacional de containers; portanto, a fase Docker continua planejada.
 
@@ -250,6 +252,12 @@ Estratégias possíveis:
 - retry apenas para falhas apropriadas.
 
 `DbUpdateConcurrencyException` informa um conflito detectado; não decide sozinho qual resultado é correto para o negócio.
+
+### Corrida entre verificação e delete
+
+Imagine conferir que uma sala está vazia e, antes de fechar a porta, alguém entrar. A primeira conferência não garante que a situação continuará igual.
+
+No delete de `Building`, o repositório primeiro usa `AnyAsync` para devolver rapidamente `HasFloors`. Ainda assim, um `Floor` pode ser criado antes de `SaveChangesAsync`. A FK com `DeleteBehavior.Restrict` é a garantia final; `BuildingRepository` captura especificamente a `ForeignKeyViolation` do PostgreSQL e converte a corrida para o mesmo resultado `HasFloors`. Capturar qualquer `DbUpdateException` esconderia falhas não relacionadas.
 
 ## Idempotência versus transação
 
@@ -273,6 +281,10 @@ São problemas relacionados, mas diferentes.
 
 > O seeder abre uma transação e adquire `pg_advisory_xact_lock(1937001)` antes de consultar ou inserir. O PostgreSQL mantém o lock até commit ou rollback, então outra instância que use a mesma chave aguarda e só verifica os GUIDs depois da primeira terminar. Isso serializa o bootstrap, mas continua sendo um mecanismo cooperativo específico do PostgreSQL.
 
+**Por que verificar dependentes e ainda tratar a violação de FK?**
+
+> A consulta antecipada permite devolver um conflito esperado sem provocar exceção na situação comum, mas existe uma janela concorrente até o delete. A constraint do PostgreSQL continua sendo a fonte final de integridade. Por isso, o repositório trata especificamente a violação de FK e preserva outras falhas como erros reais.
+
 ## Exercício
 
-Abra `SmartBuildingDbContext` e explique cada `DbSet`. Depois escolha `AccessEventConfiguration` e explique PK, FKs, índices, campos obrigatórios e delete behavior. Por fim, descreva como provaria automaticamente que `InitialCreate` aplica e que duas execuções concorrentes do seed terminam com apenas um `Building`, um `Floor` e um `AccessPoint` do conjunto inicial.
+Abra `SmartBuildingDbContext` e explique cada `DbSet`. Depois percorra `BuildingRepository`: identifique onde tracking é necessário, onde `AsNoTracking` é usado e como a FK fecha a corrida do delete. Por fim, descreva como automatizaria a migration, o seed concorrente, o conflito de remoção e a verificação de status e content type num PostgreSQL isolado.

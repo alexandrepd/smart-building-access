@@ -2,13 +2,20 @@
 
 ## Propósito
 
-`SmartBuilding.Application` será responsável por executar casos de uso. Ela coordena regras do Domain e operações externas através de contratos, sem conhecer HTTP, PostgreSQL ou detalhes de interface.
+`SmartBuilding.Application` é responsável por executar casos de uso. Ela coordena regras do Domain e operações externas através de contratos, sem conhecer HTTP, PostgreSQL ou detalhes de interface.
 
 ## Estado atual
 
-O projeto está criado e referencia somente `SmartBuilding.Domain`. Ainda não contém serviços, DTOs, interfaces ou casos de uso.
+O primeiro vertical slice da Fase 4 está implementado para `Buildings` na branch `feat/building-api`. A camada contém:
 
-Esse estado é intencional: a camada foi criada como fronteira arquitetural, mas será preenchida progressivamente quando os primeiros fluxos funcionais forem implementados.
+- `IBuildingService` e `BuildingService` para os cinco casos de uso CRUD;
+- `CreateBuildingCommand` e `UpdateBuildingCommand`;
+- `BuildingDto` como saída da Application;
+- `IBuildingRepository` como contrato de persistência;
+- `DeleteBuildingResult` para distinguir remoção, ausência e conflito com pisos;
+- `AddApplication` para registrar o serviço com lifetime scoped.
+
+Os casos de uso dos demais recursos continuam planejados e serão adicionados progressivamente.
 
 ## Dependências
 
@@ -45,9 +52,24 @@ Exemplo planejado para um pedido de acesso:
 
 Application decide essa sequência, mas não decide como os dados são lidos do PostgreSQL nem como a resposta vira HTTP.
 
-## Estrutura planejada
+## Estrutura atual e planejada
 
-Uma organização possível, criada somente conforme os casos de uso surgirem:
+O slice atual está organizado por funcionalidade:
+
+```text
+SmartBuilding.Application/
+├── Buildings/
+│   ├── BuildingDto.cs
+│   ├── BuildingService.cs
+│   ├── CreateBuildingCommand.cs
+│   ├── DeleteBuildingResult.cs
+│   ├── IBuildingRepository.cs
+│   ├── IBuildingService.cs
+│   └── UpdateBuildingCommand.cs
+└── DependencyInjection.cs
+```
+
+Outras áreas serão criadas somente conforme os casos de uso surgirem, por exemplo:
 
 ```text
 SmartBuilding.Application/
@@ -67,7 +89,9 @@ Essa estrutura é uma direção, não código já implementado.
 
 ## Contratos de persistência
 
-Quando um caso de uso precisar de dados, a Application deve definir o contrato mínimo necessário. Infrastructure implementa esse contrato.
+Quando um caso de uso precisa de dados, a Application define o contrato mínimo necessário. Infrastructure implementa esse contrato.
+
+`IBuildingRepository` demonstra essa direção: oferece listagem, consulta por ID, criação, atualização e remoção sem expor `DbSet`, `IQueryable`, `DbContext` ou tipos HTTP. `BuildingService` depende dessa interface e pode ser testado com uma implementação em memória.
 
 Exemplo conceitual:
 
@@ -88,7 +112,9 @@ Não será criado um `GenericRepository<T>` apenas por convenção. Abstrações
 
 DTOs definem os dados de entrada e saída dos casos de uso. Eles não devem ser entidades EF nem transportar propriedades de navegação.
 
-Categorias planejadas:
+No slice de `Buildings`, commands representam entrada de criação e atualização, enquanto `BuildingDto` representa saída. A API mantém requests e responses próprios e faz o mapeamento na borda.
+
+Categorias ainda planejadas:
 
 - requests de criação e atualização;
 - responses de consulta;
@@ -101,6 +127,8 @@ A API pode reutilizar DTOs de Application quando o contrato do caso de uso e o c
 ## Validação
 
 Application valida requisitos do caso de uso, como formato, presença de dados e combinações inválidas. Domain protege invariantes que devem ser verdadeiras independentemente do caso de uso.
+
+`BuildingService` rejeita nome ou endereço vazios ou compostos apenas por whitespace, remove espaços nas extremidades e limita nome a 200 e endereço a 500 caracteres. Para essas falhas, lança `ApplicationValidationException` com o nome da propriedade inválida. Essa proteção continua válida quando o serviço é chamado sem passar pela validação HTTP.
 
 Exemplos:
 
@@ -120,12 +148,12 @@ Para um acesso concedido, a gravação de `AccessEvent` e a atualização de ocu
 
 ## Erros
 
-Application deve usar resultados ou exceções específicas do caso de uso, sem retornar `IResult`, `ActionResult` ou códigos HTTP. A API traduz esses resultados para o protocolo HTTP.
+Application usa resultados ou exceções específicas do caso de uso, sem retornar `IResult`, `ActionResult` ou códigos HTTP. `ApplicationValidationException` representa entrada inválida na fronteira da Application, enquanto exceções inesperadas não são classificadas como erro do cliente. No delete, `DeleteBuildingResult` informa `Deleted`, `NotFound` ou `HasFloors`; a API traduz esses valores para `204`, `404` ou `409`.
 
 ## Testes
 
-Casos de uso devem ser testados isoladamente com implementações controladas dos contratos. Os testes devem cobrir sucesso, negação, dados inexistentes, limites de validade e cancelamento quando relevante.
+Os nove casos de teste de `BuildingService` usam um repositório fake e cobrem mapeamento completo da lista, consulta inexistente, normalização na criação, nome vazio, atualização inexistente, atualização bem-sucedida, os limites máximos de nome e endereço e conflito de remoção com pisos.
 
 ## Próximos passos da camada
 
-A Application permanece estruturalmente vazia durante a conclusão da Fase 3. O primeiro caso de uso real será introduzido na fase apropriada, sem antecipar toda a arquitetura de uma vez.
+Completar os CRUDs dos demais recursos de forma incremental. O fluxo de controlo de acesso, ocupação e alertas continua planejado e não deve ser inferido a partir do CRUD de `Buildings`.

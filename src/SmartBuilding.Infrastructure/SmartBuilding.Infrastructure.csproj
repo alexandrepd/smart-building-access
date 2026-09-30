@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SmartBuilding.Application\SmartBuilding.Application.csproj" />
     <ProjectReference Include="..\SmartBuilding.Domain\SmartBuilding.Domain.csproj" />
   </ItemGroup>
 

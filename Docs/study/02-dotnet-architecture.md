@@ -59,7 +59,9 @@ Ele não conhece EF Core, PostgreSQL ou HTTP. Assim, uma regra como “cartão e
 
 ## Application
 
-Application orquestra casos de uso. Ela decide a sequência de ações, por exemplo:
+Application orquestra casos de uso. No slice implementado de `Buildings`, `BuildingService` normaliza entrada, chama `IBuildingRepository` e devolve `BuildingDto`, sem conhecer HTTP ou EF Core. Quando nome ou endereço viola um requisito, lança a exceção específica `ApplicationValidationException` com a propriedade inválida, em vez de usar uma `ArgumentException` genérica.
+
+Um fluxo futuro de controlo de acesso terá uma sequência como:
 
 ```text
 buscar cartão
@@ -74,7 +76,7 @@ Application não deve saber se os dados vieram de PostgreSQL, memória ou outro 
 
 ## Infrastructure
 
-Infrastructure implementa detalhes externos. Atualmente contém EF Core, Npgsql, o registro de `SmartBuildingDbContext`, a migration inicial e o seed de desenvolvimento. Futuramente implementará contratos de persistência definidos por Application.
+Infrastructure implementa detalhes externos. Atualmente contém EF Core, Npgsql, o registro de `SmartBuildingDbContext`, a migration inicial, o seed de desenvolvimento e `BuildingRepository`, que implementa um contrato definido por Application. Repositórios dos demais recursos continuam planejados.
 
 Trocar PostgreSQL por outra tecnologia deveria afetar principalmente Infrastructure, não as regras do Domain.
 
@@ -85,6 +87,10 @@ API é a borda HTTP e o composition root. Ela registra dependências e transform
 Um endpoint deve ser fino. Não deve concentrar consultas, regras, persistência e serialização numa única função.
 
 No projeto, a API lê `ConnectionStrings:SmartBuilding` e chama `AddInfrastructure`. Se a configuração estiver ausente, o processo falha cedo. Em `Development`, a API também pede à Infrastructure que aplique migrations e execute o seed antes de servir requests.
+
+O fluxo de `Buildings` mostra a separação completa: Minimal API mapeia HTTP, `BuildingService` coordena o caso de uso e `BuildingRepository` executa EF Core. Essa divisão permite testar a Application com um fake sem iniciar servidor ou banco.
+
+Uma analogia útil é um formulário interno de entrega: a Application informa qual campo está incorreto, mas não decide qual envelope HTTP será usado. Tecnicamente, `ApiExceptionHandler` traduz somente `ApplicationValidationException` para `400` com erros por campo; falhas inesperadas permanecem `500`. Assim, a Application comunica significado sem depender de ASP.NET Core.
 
 ## Dependency Injection
 
@@ -175,6 +181,14 @@ SOLID é orientação, não uma meta para maximizar quantidade de classes.
 
 > Para falhar cedo com uma mensagem clara quando uma dependência obrigatória não foi configurada. No Smart Building, a API valida `ConnectionStrings:SmartBuilding` antes de construir o host e passa o valor para `AddInfrastructure`. Credenciais locais ficam em User Secrets, não no repositório.
 
+**Como a inversão de dependência aparece no CRUD de Buildings?**
+
+> A Application declara `IBuildingRepository` porque esse é o contrato exigido pelo caso de uso. Infrastructure referencia Application e implementa esse contrato com `BuildingRepository`; `BuildingService` não conhece EF Core. A API registra a ligação no composition root. Assim, a política depende da abstração e o detalhe técnico depende dela.
+
+**Por que usar uma exceção específica para validação da Application?**
+
+> Porque `ApplicationValidationException` comunica uma falha esperada do caso de uso e identifica a propriedade inválida. A API pode convertê-la em `400` com `ValidationProblemDetails`, sem transformar qualquer `ArgumentException` ou falha inesperada em erro do cliente. Isso preserva a separação entre significado da Application e transporte HTTP.
+
 ## Exercício
 
-Explique, sem olhar o código, por que API referencia Application e Infrastructure, por que Application referencia Domain e por que Domain não referencia ninguém. Depois desenhe o fluxo de arranque em `Development`, desde a leitura da connection string até migration e seed.
+Explique, sem olhar o código, por que API referencia Application e Infrastructure, por que Infrastructure referencia Application, por que Application referencia Domain e por que Domain não referencia ninguém. Depois desenhe o percurso de `POST /api/buildings` desde o request até `SaveChangesAsync` e de volta ao `201 Created`. Acrescente os percursos alternativos de `ApplicationValidationException` até `400` e de uma exceção inesperada até `500`.
