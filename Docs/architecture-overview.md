@@ -41,28 +41,29 @@ O Domain é o núcleo e não referencia nenhuma outra camada do sistema. Applica
 | Projeto | Responsabilidade principal | Estado |
 |---|---|---|
 | `SmartBuilding.Domain` | Vocabulário, estado e regras puras do negócio | Modelo estrutural implementado; comportamento ainda será evoluído |
-| `SmartBuilding.Application` | Casos de uso, DTOs, contratos e orquestração | Serviço, commands, DTO e contrato de repositório de `Buildings` implementados |
-| `SmartBuilding.Infrastructure` | EF Core, PostgreSQL e implementações técnicas | Persistência base e `BuildingRepository` implementados |
-| `SmartBuilding.Api` | Host HTTP, endpoints, autenticação e composição | Minimal APIs, validação e Problem Details de `Buildings` implementados; autenticação planejada |
-| `SmartBuilding.UnitTests` | Testes unitários, arquiteturais e de persistência | Testes existentes mais nove casos de teste de `BuildingService` |
+| `SmartBuilding.Application` | Casos de uso, DTOs, contratos e orquestração | Serviços e contratos de `Buildings` e `Floors` implementados |
+| `SmartBuilding.Infrastructure` | EF Core, PostgreSQL e implementações técnicas | Persistência base, `BuildingRepository` e `FloorRepository` implementados |
+| `SmartBuilding.Api` | Host HTTP, endpoints, autenticação e composição | Minimal APIs, validação e Problem Details de `Buildings` e `Floors` implementados; autenticação planejada |
+| `SmartBuilding.UnitTests` | Testes unitários, arquiteturais e de persistência | Testes existentes, nove casos de `BuildingService` e oito de `FloorService` |
 
 ## Fluxo atual
 
-Além do endpoint de estado, o primeiro fluxo vertical da Fase 4 atravessa todas as camadas:
+Além do endpoint de estado, os fluxos verticais implementados na Fase 4 atravessam todas as camadas:
 
 ```text
 HTTP /api/buildings
-  -> requests e endpoints em SmartBuilding.Api
-  -> BuildingService e IBuildingRepository em SmartBuilding.Application
-  -> BuildingRepository e SmartBuildingDbContext em SmartBuilding.Infrastructure
+HTTP /api/floors
+  -> requests e endpoints do recurso em SmartBuilding.Api
+  -> serviço e contrato de repositório em SmartBuilding.Application
+  -> repositório e SmartBuildingDbContext em SmartBuilding.Infrastructure
   -> PostgreSQL
 ```
 
-O fluxo implementa listagem, consulta por ID, criação, atualização e remoção de `Building`. O delete retorna conflito quando há `Floor`s associados, inclusive quando uma inserção concorrente causa violação de FK durante a gravação.
+Os fluxos implementam listagem, consulta por ID, criação, atualização e remoção de `Building` e `Floor`. O delete de edifício retorna conflito quando há pisos associados. O delete de piso retorna conflito quando há pontos de acesso ou sessões de ocupação; as FKs também protegem contra dependências inseridas concorrentemente. A criação e atualização de piso distinguem sucesso, piso inexistente e edifício pai inexistente.
 
-Antes de servir endpoints, a API exige `ConnectionStrings:SmartBuilding`. Em `Development`, o bootstrap aplica migrations e executa o seed mínimo. O endpoint `GET /` continua sem acessar o banco, enquanto `/api/buildings` usa a persistência PostgreSQL.
+Antes de servir endpoints, a API exige `ConnectionStrings:SmartBuilding`. Em `Development`, o bootstrap aplica migrations e executa o seed mínimo. O endpoint `GET /` continua sem acessar o banco, enquanto `/api/buildings` e `/api/floors` usam a persistência PostgreSQL.
 
-Esse fluxo existe somente para `Buildings`. CRUDs de `Floor`, `AccessPoint` e dos demais recursos permanecem planejados.
+Os CRUDs de `Buildings` e `Floors` estão implementados. `AccessPoint` e os demais recursos permanecem planejados.
 
 ## Fluxo planejado de uma solicitação de acesso
 
@@ -120,9 +121,9 @@ Cada fase deve terminar com build, testes e um pull request focado. Tecnologias 
 | Foundation | Concluída |
 | Domain estrutural | Concluída pelo Definition of Done atual |
 | Database | Persistência base implementada e validada |
-| API funcional | Primeiro vertical slice implementado para `Buildings` na branch atual; demais CRUDs planejados |
+| API funcional | Vertical slices de `Buildings` e `Floors` implementados; demais CRUDs planejados |
 | Access Control em diante | Não iniciado |
 
-PostgreSQL 18 foi executado num container descartável, na porta isolada `55432`, para validar a migration, o arranque, a idempotência do seed e o slice de `Buildings`. O runtime confirmou respostas `400`, `404` e `409` com content type `application/problem+json`. Isso não significa que a fase futura de Docker foi implementada.
+PostgreSQL 18 foi executado num container descartável, na porta isolada `55432`, para validar a migration, o arranque, a idempotência do seed e os slices de `Buildings` e `Floors`. O runtime de Floors confirmou a sequência `200/201/200/200/404/409/204/204`. Isso não significa que a fase futura de Docker foi implementada.
 
 Consulte [o plano do projeto](smart-building-project-plan.md) para todas as fases e critérios de conclusão.

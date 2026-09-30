@@ -57,3 +57,53 @@ Content-Type: application/json
 }
 
 ###
+
+GET {{SmartBuilding.Api_HostAddress}}/api/floors
+Accept: application/json
+
+###
+
+GET {{SmartBuilding.Api_HostAddress}}/api/floors/20000000-0000-0000-0000-000000000001
+Accept: application/json
+
+###
+
+POST {{SmartBuilding.Api_HostAddress}}/api/floors
+Content-Type: application/json
+
+{
+	"buildingId": "10000000-0000-0000-0000-000000000001",
+	"number": 1,
+	"name": "First Floor"
+}
+
+###
+
+PUT {{SmartBuilding.Api_HostAddress}}/api/floors/20000000-0000-0000-0000-000000000001
+Content-Type: application/json
+
+{
+	"buildingId": "10000000-0000-0000-0000-000000000001",
+	"number": 0,
+	"name": "Ground Floor",
+	"isActive": true
+}
+
+###
+
+# Returns 409 because the seeded floor contains an access point.
+DELETE {{SmartBuilding.Api_HostAddress}}/api/floors/20000000-0000-0000-0000-000000000001
+
+###
+
+# Returns 404 because the parent building does not exist.
+POST {{SmartBuilding.Api_HostAddress}}/api/floors
+Content-Type: application/json
+
+{
+	"buildingId": "00000000-0000-0000-0000-000000000099",
+	"number": 99,
+	"name": "Unknown Building Floor"
+}
+
+###

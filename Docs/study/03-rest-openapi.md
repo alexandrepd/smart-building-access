@@ -186,13 +186,15 @@ OpenAPI é a receita escrita. Swagger é uma família de ferramentas que lê e a
 
 No projeto, `AddOpenApi` e `MapOpenApi` geram o documento em Development. Swagger UI ainda não está implementado.
 
-## Exemplo implementado: Buildings
+## Exemplos implementados: Buildings e Floors
 
 Pense no recurso como uma ficha de edifício: `GET` consulta, `POST` cria uma ficha, `PUT` substitui os campos editáveis e `DELETE` tenta removê-la.
 
 Tecnicamente, o grupo `/api/buildings` usa Minimal APIs e contratos separados das entidades. `POST` retorna `201 Created` com body e `Location`; IDs desconhecidos retornam `404`; DataAnnotations com `AddValidation` rejeitam inclusive valores compostos apenas por whitespace e produzem `400` com `ValidationProblemDetails` e erros por campo. Remover um edifício com pisos retorna `409` por meio de `ProblemHttpResult`; a remoção bem-sucedida retorna `204`.
 
-Os metadados `.WithName`, `.WithSummary`, `.Produces`, `.ProducesValidationProblem` e `.ProducesProblem` alimentam o documento OpenAPI code-first. `404` e `409` são descritos como Problem Details, enquanto `400` é descrito como Validation Problem Details. O ficheiro `SmartBuilding.Api.http` contém requests manuais para os cenários principais. Apenas `Buildings` está implementado; as outras rotas do domínio continuam planejadas.
+O recurso `Floor` segue o mesmo CRUD em `/api/floors`. `POST` retorna `404` quando o `BuildingId` não existe; `PUT` distingue piso e edifício pai inexistentes; `DELETE` retorna `409` quando existem `AccessPoints` ou `OccupancySessions`. Requests e responses são DTOs próprios, e o nome é validado como obrigatório, não composto apenas por whitespace e limitado a 100 caracteres.
+
+Os metadados `.WithName`, `.WithSummary`, `.Produces`, `.ProducesValidationProblem` e `.ProducesProblem` alimentam o documento OpenAPI code-first. `404` e `409` são descritos como Problem Details, enquanto `400` é descrito como Validation Problem Details. O ficheiro `SmartBuilding.Api.http` contém requests manuais para os cenários principais de ambos os recursos. `AccessPoints` e as outras rotas do domínio continuam planejados.
 
 Pense em Problem Details como uma etiqueta de erro com formato previsível: o status muda, mas o cliente sabe onde procurar título, detalhe e erros de campos. No runtime com PostgreSQL real, `400`, `404` e `409` foram confirmados com content type `application/problem+json`, coerente com o contrato OpenAPI.
 
@@ -219,6 +221,10 @@ Antes de versionar, diferencie mudanças compatíveis de breaking changes. Adici
 
 > O request é sintaticamente válido, mas entra em conflito com o estado atual porque existem pisos associados. `409 Conflict` comunica esse impedimento. O endpoint traduz `DeleteBuildingResult.HasFloors` num `ProblemHttpResult`, devolvido como `application/problem+json`, sem levar conceitos HTTP para a Application.
 
+**Por que criar um Floor pode retornar 404 mesmo sendo um POST?**
+
+> Porque o recurso pai indicado por `BuildingId` precisa existir. O payload pode ser válido, mas a relação solicitada aponta para um edifício ausente. `FloorRepository` converte a violação de FK em `BuildingNotFound`, e a API traduz esse resultado para `404` com Problem Details sem expor detalhes do PostgreSQL.
+
 ## Exercício
 
-Abra o documento OpenAPI em Development e compare as cinco operações de `/api/buildings` com `SmartBuilding.Api.http`. Explique o body, `Location`, status e content type de cada cenário. Verifique por que whitespace gera erros por campo em `400` e por que `404` e `409` usam Problem Details. Depois especifique em papel o futuro `POST /api/access/requests`, incluindo autenticação, retry e idempotência, sem descrevê-lo como implementado.
+Abra o documento OpenAPI em Development e compare as cinco operações de `/api/floors` com `SmartBuilding.Api.http`. Explique o body, `Location`, status e content type de cada cenário. Trace como `Success`, `FloorNotFound` e `BuildingNotFound` se tornam respostas HTTP e por que um delete bloqueado usa `409`. Depois especifique em papel o futuro `POST /api/access/requests`, incluindo autenticação, retry e idempotência, sem descrevê-lo como implementado.

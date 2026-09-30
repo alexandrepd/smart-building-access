@@ -10,8 +10,9 @@ Existe um projeto `SmartBuilding.UnitTests` com xUnit. Ele contém:
 
 - um teste arquitetural de independência do Domain;
 - testes dos metadados do modelo EF Core;
-- testes do registro de persistência em Dependency Injection.
-- nove casos de teste unitário de `BuildingService`.
+- testes do registro de persistência em Dependency Injection;
+- nove casos de teste unitário de `BuildingService`;
+- oito casos de teste unitário de `FloorService`.
 
 Ainda não existe `SmartBuilding.IntegrationTests`.
 
@@ -20,13 +21,15 @@ Ainda não existe `SmartBuilding.IntegrationTests`.
 ```text
 SmartBuilding.UnitTests/
 ├── Application/
-│   └── Buildings/
-│       └── BuildingServiceTests.cs
+│   ├── Buildings/
+│   │   └── BuildingServiceTests.cs
+│   └── Floors/
+│       └── FloorServiceTests.cs
 ├── Architecture/
 │   └── DomainDependencyTests.cs
 └── Persistence/
-  ├── DependencyInjectionTests.cs
-  └── ModelMetadataTests.cs
+    ├── DependencyInjectionTests.cs
+    └── ModelMetadataTests.cs
 ```
 
 ## Testes arquiteturais
@@ -78,6 +81,21 @@ Esse teste é rápido e detecta regressões de mapeamento. Ele não prova que um
 
 Esses testes isolam a orquestração da Application. Eles não exercitam Minimal APIs, EF Core ou PostgreSQL.
 
+## Testes unitários de FloorService
+
+`FloorServiceTests` substitui `IFloorRepository` por um fake em memória. Seis métodos de fato e uma teoria com dois cenários executam oito casos de teste que verificam:
+
+1. mapeamento completo dos pisos existentes para DTOs;
+2. normalização do nome na criação;
+3. rejeição de `BuildingId` vazio;
+4. resultado `BuildingNotFound` para edifício pai desconhecido;
+5. substituição completa do estado editável numa atualização bem-sucedida;
+6. resultado `HasDependents` quando a remoção é bloqueada;
+7. rejeição de nome vazio;
+8. rejeição de nome composto apenas por whitespace.
+
+Esses testes exercitam a orquestração e os resultados explícitos da Application, mas não exercitam Minimal APIs, EF Core ou PostgreSQL.
+
 ## Validação manual com PostgreSQL
 
 A persistência também foi validada contra PostgreSQL 18 real num container Docker descartável, exposto na porta isolada `55432`. A verificação confirmou:
@@ -91,7 +109,11 @@ A persistência também foi validada contra PostgreSQL 18 real num container Doc
 
 Essa execução é evidência manual da mudança, não uma suíte de integração repetível. O uso de Docker foi apenas para isolar o PostgreSQL de validação e não representa a implementação da fase Docker.
 
-Após o primeiro slice da Fase 4, um novo smoke test manual atravessou API, Application, Infrastructure e PostgreSQL real. A sequência observada foi `200/201/200/200/204/404/400/409`, cobrindo listagem, criação, consultas, atualização, remoção, recurso ausente, validação e conflito por pisos. Nos três cenários de erro observados, `400`, `404` e `409`, o content type foi `application/problem+json`. Essa evidência confirma o comportamento atual de `Buildings`, mas não substitui testes HTTP e de persistência automatizados.
+Após o slice de `Buildings`, um smoke test manual atravessou API, Application, Infrastructure e PostgreSQL real. A sequência observada foi `200/201/200/200/204/404/400/409`, cobrindo listagem, criação, consultas, atualização, remoção, recurso ausente, validação e conflito por pisos. Nos três cenários de erro observados, `400`, `404` e `409`, o content type foi `application/problem+json`.
+
+O smoke manual de `Floors` observou `200/201/200/200/404/409/204/204`: listagem, criação, consulta, atualização, edifício pai inexistente, conflito por dependente, remoção do piso temporário e limpeza do edifício temporário. Essa evidência confirma o comportamento atual dos dois slices, mas não substitui testes HTTP e de persistência automatizados.
+
+Depois da revisão do repositório, os caminhos associados às constraints específicas foram repetidos no PostgreSQL real: parent inexistente permaneceu `404` e delete com dependente permaneceu `409`. Tracking após falha e deletes simultâneos ainda devem receber testes de integração automatizados numa fase posterior.
 
 ## Categorias planejadas
 
@@ -205,6 +227,13 @@ dotnet test tests/SmartBuilding.UnitTests/SmartBuilding.UnitTests.csproj \
   --filter 'FullyQualifiedName~BuildingServiceTests'
 ```
 
+Executar somente os testes de `FloorService`:
+
+```bash
+dotnet test tests/SmartBuilding.UnitTests/SmartBuilding.UnitTests.csproj \
+  --filter 'FullyQualifiedName~FloorServiceTests'
+```
+
 Build final da solução:
 
 ```bash
@@ -223,4 +252,4 @@ Antes de solicitar commit:
 
 ## Próximos passos
 
-Criar testes de integração automatizados para repetir a aplicação da migration, o seed e o CRUD de `Buildings` em PostgreSQL isolado. Os demais CRUDs e respetivos testes continuam planejados.
+Criar testes de integração automatizados para repetir a aplicação da migration, o seed e os CRUDs de `Buildings` e `Floors` em PostgreSQL isolado. Os CRUDs dos recursos seguintes e respetivos testes continuam planejados.

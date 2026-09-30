@@ -15,7 +15,7 @@ Evite decorar parágrafos inteiros. Memorize a estrutura da resposta.
 
 Modelo de resposta:
 
-> Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Na branch atual implementei o primeiro vertical slice da Fase 4: CRUD REST de `Buildings`, com serviço de Application, repositório EF Core, validação, Problem Details e nove casos de teste unitário. Também validei o fluxo contra PostgreSQL real, incluindo `400`, `404` e `409` com `application/problem+json`. Apenas `Buildings` está implementado; os demais CRUDs, Angular, JWT, SignalR, Docker da aplicação, CI/CD e Kubernetes continuam planejados.
+> Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Na branch atual implementei os vertical slices REST de `Buildings` e `Floors`, com serviços de Application, repositórios EF Core, validação, Problem Details e testes unitários: nove casos para `BuildingService` e oito para `FloorService`. Também validei ambos os fluxos contra PostgreSQL real; o smoke de Floors cobriu `200/201/200/200/404/409/204/204`. Os demais CRUDs, Angular, JWT, SignalR, Docker da aplicação, CI/CD e Kubernetes continuam planejados.
 
 Não diga que uma tecnologia está implementada quando está apenas no roadmap.
 
@@ -61,6 +61,8 @@ Pontos esperados:
 - `ApplicationValidationException` identifica falhas esperadas e a propriedade inválida;
 - `IBuildingRepository` pertence à Application;
 - `BuildingRepository` implementa o contrato com EF Core;
+- `FloorService` usa resultados explícitos para sucesso, piso ausente e edifício pai ausente;
+- `FloorRepository` implementa o segundo contrato com EF Core e protege FKs;
 - Dependency Injection conecta as implementações;
 - o fake do repositório permite testar o serviço isoladamente.
 
@@ -83,9 +85,9 @@ Explique repetição com mesmo efeito final. Use retry do leitor e `ExternalEven
 
 Explique especificação versus ferramentas e code-first versus contract-first.
 
-### Como desenhou os status do CRUD de Buildings?
+### Como desenhou os status dos CRUDs de Buildings e Floors?
 
-Explique `200` para leitura e atualização, `201` com `Location` para criação, `204` para remoção, `404` para ID desconhecido, `400` para validação e `409` quando pisos impedem o delete. Diga que whitespace é rejeitado por DataAnnotations com erros por campo, que o handler converte somente `ApplicationValidationException` em `400` e mantém falhas inesperadas como `500`, e que `404` e `409` seguem Problem Details coerente com OpenAPI. Somente esse recurso está implementado.
+Explique `200` para leitura e atualização, `201` com `Location` para criação, `204` para remoção, `404` para recurso ou edifício pai desconhecido, `400` para validação e `409` quando dependentes impedem o delete. Diga que whitespace é rejeitado por DataAnnotations com erros por campo, que o handler converte somente `ApplicationValidationException` em `400` e mantém falhas inesperadas como `500`, e que `404` e `409` seguem Problem Details coerente com OpenAPI. Somente `Buildings` e `Floors` estão implementados.
 
 ## Perguntas EF Core e PostgreSQL
 
@@ -101,11 +103,17 @@ Entrada para query e alteração de um tipo de entidade. Não é literalmente um
 
 Desativa tracking para leitura, reduzindo memória e processamento quando atualização não será feita.
 
-Exemplo do projeto: `BuildingRepository` usa `AsNoTracking` na lista e na consulta por ID, mas mantém tracking na atualização e remoção.
+Exemplo do projeto: `BuildingRepository` e `FloorRepository` usam `AsNoTracking` na lista e na consulta por ID, mas mantêm tracking na atualização e remoção.
 
 ### Como tratou uma corrida no delete de Building?
 
 Primeiro verifico se existem pisos para retornar um conflito esperado. Como um piso ainda pode ser inserido antes do commit, a FK com `Restrict` é a garantia final. Capturo apenas a `ForeignKeyViolation` e converto esse caso em `HasFloors`; outras falhas não são mascaradas.
+
+### Como tratou integridade referencial no CRUD de Floors?
+
+Na criação e atualização, converto a violação específica da FK de `BuildingId` em `BuildingNotFound`. No delete, verifico `AccessPoints` e `OccupancySessions`; a FK com `Restrict` fecha a janela concorrente e a violação específica torna-se `HasDependents`. A Application recebe resultados explícitos, e a API decide entre `404` e `409`.
+
+Também comparo o nome da constraint, limpo a entidade do change tracker depois de falhas esperadas e converto delete concorrente em `NotFound`. Assim, não escondo outras violações de FK como se fossem regras conhecidas e não deixo uma operação inválida pendente no mesmo `DbContext`.
 
 ### Por que migrations?
 
@@ -208,7 +216,7 @@ Prepare histórias sobre:
 - feedback recebido;
 - decisão com trade-off.
 
-Uma história técnica disponível nesta branch é a proteção em duas camadas do delete: consulta antecipada para o fluxo comum e constraint FK para concorrência. Num PostgreSQL real, o resultado validado foi `409 Conflict` com content type `application/problem+json` quando o edifício possui pisos; `400` e `404` também foram confirmados com esse content type.
+Uma história técnica disponível nesta branch é a proteção em duas camadas do delete: consulta antecipada para o fluxo comum e constraint FK para concorrência. Em `Floors`, a mesma estratégia cobre pontos de acesso e sessões de ocupação, enquanto a FK do edifício pai produz um resultado distinto. Num PostgreSQL real, o smoke confirmou `404` para pai ausente, `409` para conflito, `204` para delete e `204` para a limpeza final.
 
 ## Inglês técnico
 

@@ -6,7 +6,7 @@
 
 ## Estado atual
 
-O modelo EF Core e o bootstrap da persistência estão implementados. Na branch `feat/building-api`, o primeiro repositório funcional da Fase 4 foi adicionado para `Buildings`; a mudança ainda está em desenvolvimento e não foi entregue.
+O modelo EF Core, o bootstrap da persistência e os repositórios dos slices de `Buildings` e `Floors` estão implementados.
 
 Já existem:
 
@@ -23,12 +23,16 @@ Já existem:
 - `BuildingRepository` com operações CRUD assíncronas;
 - consultas de `Building` com `AsNoTracking`;
 - proteção da remoção quando o edifício possui pisos;
+- `FloorRepository` com operações CRUD assíncronas;
+- consultas de `Floor` com `AsNoTracking`;
+- tratamento de edifício pai inexistente em criação e atualização;
+- proteção da remoção quando o piso possui pontos de acesso ou sessões de ocupação;
 - testes dos metadados e do registro do contexto.
 
 Ainda não existem:
 
 - projeto automatizado de testes de integração com PostgreSQL;
-- repositórios para os demais recursos do domínio.
+- repositórios para os recursos seguintes do domínio.
 
 ## Dependências
 
@@ -158,7 +162,17 @@ OccupancySessions -> occupancy_sessions
 
 Antes do delete, o repositório verifica se existem `Floor`s associados. Se existirem, retorna `HasFloors` sem remover o edifício. A verificação melhora a resposta normal, mas não elimina a corrida entre consulta e gravação: se um piso for inserido nesse intervalo, a constraint FK com `Restrict` continua sendo a autoridade. O repositório captura especificamente a `ForeignKeyViolation` do PostgreSQL e também retorna `HasFloors`.
 
-Essa proteção está implementada somente para o CRUD de `Buildings`. Consultas e comandos dos demais recursos continuam planejados.
+## FloorRepository
+
+`FloorRepository` implementa `IFloorRepository`. A listagem e a consulta por ID usam `AsNoTracking`; a listagem ordena primeiro por `BuildingId` e depois por número. Criação e atualização persistem entidades rastreadas com `SaveChangesAsync`.
+
+Na criação ou atualização, uma `ForeignKeyViolation` causada por `BuildingId` inexistente é convertida em `BuildingNotFound`. Na atualização, a ausência do próprio piso produz `FloorNotFound`. Esses resultados explícitos permitem à Application manter significado de caso de uso sem depender de PostgreSQL ou HTTP.
+
+Antes do delete, o repositório verifica dependências em `AccessPoints` e `OccupancySessions`. Se alguma existir, retorna `HasDependents`. A FK com `Restrict` continua sendo a autoridade contra inserções concorrentes, e uma `ForeignKeyViolation` durante `SaveChangesAsync` também é convertida em `HasDependents`.
+
+As violações são classificadas pelo nome exato da constraint, e não apenas pelo código PostgreSQL `23503`. A FK `fk_floors_buildings_building_id` produz `BuildingNotFound`; as FKs `fk_access_points_floors_floor_id` e `fk_occupancy_sessions_floors_floor_id` produzem `HasDependents`. Ao tratar uma falha esperada, o repositório destaca a entidade do change tracker para impedir que outro `SaveChangesAsync` no mesmo scope repita a operação inválida. Um delete concorrente que já removeu a linha produz `NotFound`.
+
+Consultas e comandos dos recursos seguintes continuam planejados.
 
 ## Migrations
 
@@ -221,7 +235,9 @@ Antes de inserir cada registo, o seeder consulta o respetivo GUID. Por isso, rei
 
 `DependencyInjectionTests` resolve o contexto em dois scopes e verifica a mesma instância dentro de um scope e instâncias diferentes entre scopes. Também confirma o provider Npgsql, a coluna `access_point_id` em `snake_case` e a rejeição de connection string vazia ou composta apenas por espaços.
 
-Também foi feita uma validação manual contra PostgreSQL 18 real num container Docker descartável, exposto apenas em `55432`. Além da migration e do seed, o smoke test do slice de `Buildings` observou, em sequência, os status `200/201/200/200/204/404/400/409`. As respostas `404`, `400` e `409` usaram content type `application/problem+json`. Isso confirmou o CRUD, a validação e o bloqueio real de exclusão do edifício sem transformar a verificação em teste automatizado.
+Também foi feita uma validação manual contra PostgreSQL 18 real num container Docker descartável, exposto apenas em `55432`. Além da migration e do seed, o smoke test do slice de `Buildings` observou, em sequência, os status `200/201/200/200/204/404/400/409`. As respostas `404`, `400` e `409` usaram content type `application/problem+json`.
+
+O smoke do slice de `Floors` observou `200/201/200/200/404/409/204/204`: listagem, criação, consulta, atualização, edifício pai inexistente, delete bloqueado por dependente, delete do piso temporário e limpeza do edifício temporário. Isso confirmou o CRUD e as constraints reais sem transformar a verificação em teste automatizado.
 
 O container foi apenas um ambiente isolado de validação da persistência. Isso não implementa a fase futura de Docker da aplicação, nem substitui testes de integração automatizados.
 
