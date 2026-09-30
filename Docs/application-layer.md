@@ -6,14 +6,18 @@
 
 ## Estado atual
 
-O primeiro vertical slice da Fase 4 está implementado para `Buildings` na branch `feat/building-api`. A camada contém:
+Os vertical slices de `Buildings` e `Floors` estão implementados. A camada contém:
 
 - `IBuildingService` e `BuildingService` para os cinco casos de uso CRUD;
 - `CreateBuildingCommand` e `UpdateBuildingCommand`;
 - `BuildingDto` como saída da Application;
 - `IBuildingRepository` como contrato de persistência;
 - `DeleteBuildingResult` para distinguir remoção, ausência e conflito com pisos;
-- `AddApplication` para registrar o serviço com lifetime scoped.
+- `IFloorService` e `FloorService` para os cinco casos de uso CRUD;
+- commands, DTO e contrato de persistência próprios de `Floor`;
+- `FloorSaveResult` e `FloorSaveStatus` para distinguir `Success`, `FloorNotFound` e `BuildingNotFound`;
+- `DeleteFloorResult` para distinguir remoção, ausência e conflito com dependentes;
+- `AddApplication` para registrar os serviços com lifetime scoped.
 
 Os casos de uso dos demais recursos continuam planejados e serão adicionados progressivamente.
 
@@ -66,6 +70,19 @@ SmartBuilding.Application/
 │   ├── IBuildingRepository.cs
 │   ├── IBuildingService.cs
 │   └── UpdateBuildingCommand.cs
+├── Floors/
+│   ├── CreateFloorCommand.cs
+│   ├── DeleteFloorResult.cs
+│   ├── FloorDto.cs
+│   ├── FloorPersistenceResult.cs
+│   ├── FloorSaveResult.cs
+│   ├── FloorSaveStatus.cs
+│   ├── FloorService.cs
+│   ├── IFloorRepository.cs
+│   ├── IFloorService.cs
+│   └── UpdateFloorCommand.cs
+├── Common/
+│   └── ApplicationValidationException.cs
 └── DependencyInjection.cs
 ```
 
@@ -91,7 +108,7 @@ Essa estrutura é uma direção, não código já implementado.
 
 Quando um caso de uso precisa de dados, a Application define o contrato mínimo necessário. Infrastructure implementa esse contrato.
 
-`IBuildingRepository` demonstra essa direção: oferece listagem, consulta por ID, criação, atualização e remoção sem expor `DbSet`, `IQueryable`, `DbContext` ou tipos HTTP. `BuildingService` depende dessa interface e pode ser testado com uma implementação em memória.
+`IBuildingRepository` e `IFloorRepository` demonstram essa direção: oferecem as operações necessárias aos respetivos CRUDs sem expor `DbSet`, `IQueryable`, `DbContext` ou tipos HTTP. Os serviços dependem dessas interfaces e podem ser testados com implementações em memória.
 
 Exemplo conceitual:
 
@@ -112,7 +129,7 @@ Não será criado um `GenericRepository<T>` apenas por convenção. Abstrações
 
 DTOs definem os dados de entrada e saída dos casos de uso. Eles não devem ser entidades EF nem transportar propriedades de navegação.
 
-No slice de `Buildings`, commands representam entrada de criação e atualização, enquanto `BuildingDto` representa saída. A API mantém requests e responses próprios e faz o mapeamento na borda.
+Nos slices de `Buildings` e `Floors`, commands representam entrada de criação e atualização, enquanto `BuildingDto` e `FloorDto` representam saída. A API mantém requests e responses próprios e faz o mapeamento na borda.
 
 Categorias ainda planejadas:
 
@@ -128,7 +145,7 @@ A API pode reutilizar DTOs de Application quando o contrato do caso de uso e o c
 
 Application valida requisitos do caso de uso, como formato, presença de dados e combinações inválidas. Domain protege invariantes que devem ser verdadeiras independentemente do caso de uso.
 
-`BuildingService` rejeita nome ou endereço vazios ou compostos apenas por whitespace, remove espaços nas extremidades e limita nome a 200 e endereço a 500 caracteres. Para essas falhas, lança `ApplicationValidationException` com o nome da propriedade inválida. Essa proteção continua válida quando o serviço é chamado sem passar pela validação HTTP.
+`BuildingService` rejeita nome ou endereço vazios ou compostos apenas por whitespace, remove espaços nas extremidades e limita nome a 200 e endereço a 500 caracteres. `FloorService` exige `BuildingId` diferente de `Guid.Empty`, rejeita nome vazio ou composto apenas por whitespace, remove espaços nas extremidades e limita o nome a 100 caracteres. Para essas falhas, os serviços lançam `ApplicationValidationException` com o nome da propriedade inválida. Essa proteção continua válida quando o serviço é chamado sem passar pela validação HTTP.
 
 Exemplos:
 
@@ -148,12 +165,16 @@ Para um acesso concedido, a gravação de `AccessEvent` e a atualização de ocu
 
 ## Erros
 
-Application usa resultados ou exceções específicas do caso de uso, sem retornar `IResult`, `ActionResult` ou códigos HTTP. `ApplicationValidationException` representa entrada inválida na fronteira da Application, enquanto exceções inesperadas não são classificadas como erro do cliente. No delete, `DeleteBuildingResult` informa `Deleted`, `NotFound` ou `HasFloors`; a API traduz esses valores para `204`, `404` ou `409`.
+Application usa resultados ou exceções específicas do caso de uso, sem retornar `IResult`, `ActionResult` ou códigos HTTP. `ApplicationValidationException` representa entrada inválida na fronteira da Application, enquanto exceções inesperadas não são classificadas como erro do cliente. No delete de edifício, `DeleteBuildingResult` informa `Deleted`, `NotFound` ou `HasFloors`. Para pisos, `FloorSaveStatus` informa `Success`, `FloorNotFound` ou `BuildingNotFound`, e `DeleteFloorResult` informa `Deleted`, `NotFound` ou `HasDependents`. A API traduz esses resultados para a semântica HTTP correspondente.
+
+`FloorPersistenceResult` e `FloorSaveResult` possuem factories restritas: sucesso sempre transporta uma entidade ou DTO, enquanto falhas não podem carregar esses valores. Isso evita estados contraditórios antes do mapeamento HTTP.
 
 ## Testes
 
 Os nove casos de teste de `BuildingService` usam um repositório fake e cobrem mapeamento completo da lista, consulta inexistente, normalização na criação, nome vazio, atualização inexistente, atualização bem-sucedida, os limites máximos de nome e endereço e conflito de remoção com pisos.
 
+Os oito casos de teste de `FloorService` também usam um repositório fake e cobrem mapeamento da lista, normalização na criação, `BuildingId` vazio, edifício inexistente, substituição do estado editável, conflito de remoção e nomes vazio ou composto apenas por whitespace.
+
 ## Próximos passos da camada
 
-Completar os CRUDs dos demais recursos de forma incremental. O fluxo de controlo de acesso, ocupação e alertas continua planejado e não deve ser inferido a partir do CRUD de `Buildings`.
+Completar os CRUDs dos recursos seguintes de forma incremental. O fluxo de controlo de acesso, ocupação e alertas continua planejado e não deve ser inferido a partir dos CRUDs de `Buildings` e `Floors`.

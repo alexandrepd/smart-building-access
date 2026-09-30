@@ -39,5 +39,6 @@ app.MapGet("/", () => Results.Ok(new
 }));
 
 app.MapBuildingEndpoints();
+app.MapFloorEndpoints();
 
 app.Run();

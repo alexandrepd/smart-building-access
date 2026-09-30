@@ -15,7 +15,8 @@ A API contém:
 - redirecionamento HTTPS;
 - endpoint `GET /` para indicar que o processo está ativo;
 - grupo de Minimal APIs em `/api/buildings` com listagem, consulta por ID, criação, substituição e remoção;
-- contratos HTTP próprios para requests e responses de `Building`;
+- grupo de Minimal APIs em `/api/floors` com as mesmas cinco operações CRUD;
+- contratos HTTP próprios para requests e responses de `Building` e `Floor`;
 - validação automática com DataAnnotations e `AddValidation`;
 - Problem Details para validação, conflitos e falhas inesperadas;
 - referências para Application e Infrastructure;
@@ -26,7 +27,7 @@ A API contém:
 
 Ainda não contém:
 
-- CRUDs dos demais recursos do domínio;
+- CRUDs dos recursos seguintes do domínio;
 - autenticação JWT;
 - autorização por papéis;
 - SignalR;
@@ -78,14 +79,14 @@ O endpoint atual responde aproximadamente:
 
 Isoladamente, esse endpoint confirma apenas que o host iniciou. Na validação realizada em `Development`, o arranque anterior ao request também aplicou a migration e o seed com sucesso num PostgreSQL real.
 
-## Fluxo implementado para Buildings
+## Fluxos implementados para Buildings e Floors
 
 ```mermaid
 flowchart LR
     Request[HTTP Request] --> Middleware[Middleware]
-  Middleware --> Endpoint[Minimal API de Buildings]
-  Endpoint --> App[IBuildingService]
-  App --> Repo[IBuildingRepository]
+  Middleware --> Endpoint[Minimal APIs de Buildings ou Floors]
+  Endpoint --> App[Serviço da Application]
+  App --> Repo[Contrato de repositório]
   Repo --> PostgreSQL[(PostgreSQL)]
   PostgreSQL --> Repo
   Repo --> App
@@ -93,7 +94,7 @@ flowchart LR
   Endpoint --> Response[HTTP Response ou Problem Details]
 ```
 
-Os endpoints são finos: mapeiam requests para commands, chamam `IBuildingService` e convertem `BuildingDto` em `BuildingResponse`. Eles não usam `DbContext` diretamente.
+Os endpoints são finos: mapeiam requests para commands, chamam `IBuildingService` ou `IFloorService` e convertem os DTOs da Application em responses HTTP. Eles não usam `DbContext` diretamente.
 
 ## Composition root
 
@@ -105,7 +106,7 @@ builder.Services.AddInfrastructure(connectionString);
 
 `AddInfrastructure` encapsula `AddDbContext`, `UseNpgsql` e `UseSnakeCaseNamingConvention`. O contexto mantém o lifetime scoped padrão do EF Core.
 
-`AddApplication` registra `IBuildingService`, enquanto `AddInfrastructure` liga `IBuildingRepository` a `BuildingRepository`. A API conhece os dois lados apenas para realizar essa composição.
+`AddApplication` registra `IBuildingService` e `IFloorService`, enquanto `AddInfrastructure` liga os contratos aos respetivos `BuildingRepository` e `FloorRepository`. A API conhece os dois lados apenas para realizar essa composição.
 
 ## Contratos HTTP
 
@@ -123,7 +124,7 @@ Os recursos usam substantivos plurais em kebab-case:
 
 DTOs devem representar explicitamente requests e responses. Entidades EF não devem ser serializadas diretamente, porque isso acopla o contrato público ao esquema interno e pode expor propriedades de navegação.
 
-O slice implementado expõe:
+Os slices implementados expõem:
 
 | Método e rota | Resultado de sucesso | Outros resultados |
 |---|---|---|
@@ -133,9 +134,19 @@ O slice implementado expõe:
 | `PUT /api/buildings/{id}` | `200 OK` com o estado substituído | `400 Bad Request`, `404 Not Found` |
 | `DELETE /api/buildings/{id}` | `204 No Content` | `404 Not Found`, `409 Conflict` quando existem pisos |
 
+| Método e rota | Resultado de sucesso | Outros resultados |
+|---|---|---|
+| `GET /api/floors` | `200 OK` com lista ordenada por edifício e número | — |
+| `GET /api/floors/{id}` | `200 OK` com `FloorResponse` | `404 Not Found` |
+| `POST /api/floors` | `201 Created`, body e header `Location` | `400 Bad Request`, `404 Not Found` quando o edifício não existe |
+| `PUT /api/floors/{id}` | `200 OK` com o estado substituído | `400 Bad Request`, `404 Not Found` para piso ou edifício inexistente |
+| `DELETE /api/floors/{id}` | `204 No Content` | `404 Not Found`, `409 Conflict` quando existem pontos de acesso ou sessões de ocupação |
+
 `CreateBuildingRequest` exige `Name` até 200 caracteres e `Address` até 500. `UpdateBuildingRequest` possui os mesmos limites e também exige `IsActive`. `BuildingResponse` contém `Id`, `Name`, `Address`, `IsActive` e `CreatedAt`.
 
-Somente `Buildings` possui CRUD nesta branch. Rotas de `Floors`, `AccessPoints`, cartões, permissões, eventos, ocupação e alertas continuam planejadas.
+`CreateFloorRequest` e `UpdateFloorRequest` exigem `BuildingId`, `Number` e `Name` não vazio com até 100 caracteres; a atualização também exige `IsActive`. `FloorResponse` contém `Id`, `BuildingId`, `Number`, `Name` e `IsActive`.
+
+`Buildings` e `Floors` possuem CRUD nesta branch. Rotas de `AccessPoints`, cartões, permissões, eventos, ocupação e alertas continuam planejadas.
 
 ## Códigos de resposta
 
@@ -155,17 +166,17 @@ Os endpoints usam semântica HTTP consistente:
 
 `AddProblemDetails`, `UseExceptionHandler` e `ApiExceptionHandler` formam o tratamento global. Somente `ApplicationValidationException`, exceção específica da Application, vira `400 Bad Request`; o handler preserva o nome da propriedade e produz `ValidationProblemDetails` com erros por campo. Exceções inesperadas viram `500 Internal Server Error` e são registradas no log, sem expor stack trace.
 
-O bloqueio de remoção de um edifício com pisos é um conflito de estado conhecido. O endpoint inclui `ProblemHttpResult` no resultado tipado e retorna `409 Conflict` com Problem Details. Respostas vazias `404` e outros status sem body passam por `UseStatusCodePages` para manter o formato de erro consistente. Os contratos OpenAPI declaram `ValidationProblemDetails` para `400` e Problem Details para `404` e `409`.
+O bloqueio de remoção de um edifício com pisos e o bloqueio de remoção de um piso com pontos de acesso ou sessões de ocupação são conflitos de estado conhecidos. Os endpoints retornam `409 Conflict` com Problem Details. A criação ou atualização de um piso cujo `BuildingId` não existe retorna `404` com Problem Details; um piso desconhecido também retorna `404`. Respostas vazias `404` e outros status sem body passam por `UseStatusCodePages` para manter o formato de erro consistente. Os contratos OpenAPI declaram `ValidationProblemDetails` para `400` e Problem Details para `404` e `409`.
 
 ## Validação
 
-A API valida o formato do transporte com DataAnnotations e `AddValidation`. Campos ausentes, valores compostos apenas por whitespace e comprimentos inválidos produzem `ValidationProblemDetails` com `400 Bad Request` e erros associados a cada campo. A Application também normaliza espaços e protege os mesmos requisitos para chamadas que não atravessem HTTP, lançando `ApplicationValidationException` com o nome da propriedade inválida.
+A API valida o formato do transporte com DataAnnotations e `AddValidation`. Campos ausentes, valores compostos apenas por whitespace e comprimentos inválidos produzem `ValidationProblemDetails` com `400 Bad Request` e erros associados a cada campo. Nos contratos de `Floor`, o nome aceita no máximo 100 caracteres e o número pode ser negativo para representar pisos subterrâneos. A Application também normaliza espaços e protege os requisitos para chamadas que não atravessem HTTP, incluindo a rejeição de `Guid.Empty` como `BuildingId`.
 
-No smoke test com PostgreSQL real, as respostas de validação, recurso inexistente e conflito foram confirmadas, respetivamente, como `400`, `404` e `409`, todas com content type `application/problem+json`.
+No smoke test de `Buildings` com PostgreSQL real, as respostas de validação, recurso inexistente e conflito foram confirmadas, respetivamente, como `400`, `404` e `409`, todas com content type `application/problem+json`. O smoke de `Floors` confirmou listagem `200`, criação `201`, consulta `200`, atualização `200`, edifício pai inexistente `404`, conflito de remoção `409`, remoção `204` e limpeza do edifício temporário `204`.
 
 ## OpenAPI e Swagger
 
-`MapOpenApi` publica o documento somente em Development. Os endpoints de `Buildings` declaram nomes, resumos, tipos de sucesso e status alternativos para geração code-first. Uma UI interativa ainda não foi adicionada.
+`MapOpenApi` publica o documento somente em Development. Os endpoints de `Buildings` e `Floors` declaram nomes, resumos, tipos de sucesso e status alternativos para geração code-first. Uma UI interativa ainda não foi adicionada.
 
 Cada endpoint futuro deve documentar tipos de resposta, status possíveis, autenticação e exemplos úteis.
 
@@ -191,4 +202,4 @@ O futuro hub `/accessHub` notificará eventos, alertas e alterações de ocupaç
 
 ## Próximos passos
 
-O primeiro vertical slice da Fase 4 está implementado para `Buildings` na branch `feat/building-api`, incluindo CRUD, validação HTTP, Problem Details e exemplos no ficheiro `.http`. Os CRUDs dos demais recursos, autenticação, autorização e a UI Swagger continuam planejados para as respetivas etapas.
+Os vertical slices de `Buildings` e `Floors` estão implementados, incluindo CRUD, validação HTTP, Problem Details e exemplos no ficheiro `.http`. Os CRUDs dos recursos seguintes, autenticação, autorização e a UI Swagger continuam planejados para as respetivas etapas.

@@ -172,7 +172,7 @@ Alterar um objeto rastreado não atualiza imediatamente o banco. O SQL é enviad
 
 Para leitura, `AsNoTracking()` evita tracking desnecessário e reduz custo.
 
-No `BuildingRepository`, listagem e consulta por ID usam `AsNoTracking` porque apenas materializam respostas. A atualização carrega uma entidade rastreada, altera os campos e chama `SaveChangesAsync`.
+Nos repositórios de `Building` e `Floor`, listagem e consulta por ID usam `AsNoTracking` porque apenas materializam respostas. As atualizações carregam entidades rastreadas, alteram os campos e chamam `SaveChangesAsync`.
 
 ## Fluent API
 
@@ -235,7 +235,7 @@ A chave `1937001` identifica este protocolo de coordenação; o banco não assoc
 
 ## Validação real e ambiente descartável
 
-A migration, o seed e o slice de `Buildings` foram validados num PostgreSQL 18 real, executado temporariamente num container Docker na porta `55432`. Foram confirmadas nove tabelas do domínio, a migration em `__EFMigrationsHistory`, a aquisição do advisory lock, contagens `1|1|1` após o seed e respostas HTTP `400`, `404` e `409` com content type `application/problem+json`.
+A migration, o seed e os slices de `Buildings` e `Floors` foram validados num PostgreSQL 18 real, executado temporariamente num container Docker na porta `55432`. Foram confirmadas nove tabelas do domínio, a migration em `__EFMigrationsHistory`, a aquisição do advisory lock e contagens `1|1|1` após o seed. O smoke de Floors confirmou `200/201/200/200/404/409/204/204`, incluindo a FK do edifício pai e o bloqueio de delete por dependente.
 
 Aqui, Docker foi apenas a forma de fornecer um banco isolado e descartável para a validação. A aplicação ainda não ganhou imagem, Compose ou fluxo operacional de containers; portanto, a fase Docker continua planejada.
 
@@ -257,7 +257,11 @@ Estratégias possíveis:
 
 Imagine conferir que uma sala está vazia e, antes de fechar a porta, alguém entrar. A primeira conferência não garante que a situação continuará igual.
 
-No delete de `Building`, o repositório primeiro usa `AnyAsync` para devolver rapidamente `HasFloors`. Ainda assim, um `Floor` pode ser criado antes de `SaveChangesAsync`. A FK com `DeleteBehavior.Restrict` é a garantia final; `BuildingRepository` captura especificamente a `ForeignKeyViolation` do PostgreSQL e converte a corrida para o mesmo resultado `HasFloors`. Capturar qualquer `DbUpdateException` esconderia falhas não relacionadas.
+No delete de `Building`, o repositório primeiro usa `AnyAsync` para devolver rapidamente `HasFloors`. Ainda assim, um `Floor` pode ser criado antes de `SaveChangesAsync`. A FK com `DeleteBehavior.Restrict` é a garantia final; `BuildingRepository` captura especificamente a `ForeignKeyViolation` do PostgreSQL e converte a corrida para o mesmo resultado `HasFloors`.
+
+`FloorRepository` aplica a mesma defesa para `AccessPoints` e `OccupancySessions`: consulta dependentes para o fluxo comum e converte uma violação concorrente de FK em `HasDependents`. Na criação e atualização, uma FK inválida para `BuildingId` torna-se `BuildingNotFound`. Capturar qualquer `DbUpdateException` esconderia falhas não relacionadas.
+
+Por isso, o repositório também compara `ConstraintName`: somente as três FKs conhecidas são traduzidas para resultados de negócio. Depois de uma falha esperada, a entidade é removida do change tracker; caso contrário, um segundo `SaveChangesAsync` no mesmo request tentaria repetir a alteração inválida. Se outro request já tiver eliminado o piso, `DbUpdateConcurrencyException` é traduzida para `NotFound`.
 
 ## Idempotência versus transação
 
@@ -285,6 +289,10 @@ São problemas relacionados, mas diferentes.
 
 > A consulta antecipada permite devolver um conflito esperado sem provocar exceção na situação comum, mas existe uma janela concorrente até o delete. A constraint do PostgreSQL continua sendo a fonte final de integridade. Por isso, o repositório trata especificamente a violação de FK e preserva outras falhas como erros reais.
 
+**Como o repositório diferencia um Floor ausente de um Building pai ausente?**
+
+> Na atualização, primeiro consulta o piso pelo ID; se não existir, retorna `FloorNotFound`. Se o piso existir, ou na criação, `SaveChangesAsync` deixa a FK validar `BuildingId`; uma `ForeignKeyViolation` específica é convertida em `BuildingNotFound`. Assim, o caso de uso recebe resultados explícitos sem conhecer Npgsql.
+
 ## Exercício
 
-Abra `SmartBuildingDbContext` e explique cada `DbSet`. Depois percorra `BuildingRepository`: identifique onde tracking é necessário, onde `AsNoTracking` é usado e como a FK fecha a corrida do delete. Por fim, descreva como automatizaria a migration, o seed concorrente, o conflito de remoção e a verificação de status e content type num PostgreSQL isolado.
+Abra `SmartBuildingDbContext` e explique cada `DbSet`. Depois percorra `FloorRepository`: identifique onde tracking é necessário, onde `AsNoTracking` é usado, como a FK do edifício produz `BuildingNotFound` e como as FKs fecham a corrida do delete. Por fim, descreva como transformaria o smoke `200/201/200/200/404/409/204/204` num teste de integração repetível com PostgreSQL isolado.
