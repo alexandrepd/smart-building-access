@@ -12,7 +12,8 @@ Existe um projeto `SmartBuilding.UnitTests` com xUnit. Ele contém:
 - testes dos metadados do modelo EF Core;
 - testes do registro de persistência em Dependency Injection;
 - nove casos de teste unitário de `BuildingService`;
-- oito casos de teste unitário de `FloorService`.
+- oito casos de teste unitário de `FloorService`;
+- dez casos de teste unitário de `AccessPointService`.
 
 Ainda não existe `SmartBuilding.IntegrationTests`.
 
@@ -23,8 +24,10 @@ SmartBuilding.UnitTests/
 ├── Application/
 │   ├── Buildings/
 │   │   └── BuildingServiceTests.cs
-│   └── Floors/
-│       └── FloorServiceTests.cs
+│   ├── Floors/
+│   │   └── FloorServiceTests.cs
+│   └── AccessPoints/
+│       └── AccessPointServiceTests.cs
 ├── Architecture/
 │   └── DomainDependencyTests.cs
 └── Persistence/
@@ -96,6 +99,10 @@ Esses testes isolam a orquestração da Application. Eles não exercitam Minimal
 
 Esses testes exercitam a orquestração e os resultados explícitos da Application, mas não exercitam Minimal APIs, EF Core ou PostgreSQL.
 
+## Testes unitários de AccessPointService
+
+`AccessPointServiceTests` usa um fake de `IAccessPointRepository` e cobre dez casos: mapeamento dos indicadores `SupportsEntry` e `SupportsExit`, normalização de texto na criação, `FloorId` vazio, piso inexistente, substituição do estado editável, ponto inexistente, conflito de remoção e três combinações de nome/localização vazios ou compostos apenas por whitespace. Esses testes validam Application isoladamente; não executam endpoint, EF Core nem PostgreSQL.
+
 ## Validação manual com PostgreSQL
 
 A persistência também foi validada contra PostgreSQL 18 real num container Docker descartável, exposto na porta isolada `55432`. A verificação confirmou:
@@ -111,7 +118,9 @@ Essa execução é evidência manual da mudança, não uma suíte de integraçã
 
 Após o slice de `Buildings`, um smoke test manual atravessou API, Application, Infrastructure e PostgreSQL real. A sequência observada foi `200/201/200/200/204/404/400/409`, cobrindo listagem, criação, consultas, atualização, remoção, recurso ausente, validação e conflito por pisos. Nos três cenários de erro observados, `400`, `404` e `409`, o content type foi `application/problem+json`.
 
-O smoke manual de `Floors` observou `200/201/200/200/404/409/204/204`: listagem, criação, consulta, atualização, edifício pai inexistente, conflito por dependente, remoção do piso temporário e limpeza do edifício temporário. Essa evidência confirma o comportamento atual dos dois slices, mas não substitui testes HTTP e de persistência automatizados.
+O smoke manual de `Floors` observou `200/201/200/200/404/409/204/204`: listagem, criação, consulta, atualização, edifício pai inexistente, conflito por dependente, remoção do piso temporário e limpeza do edifício temporário. Essa evidência confirma o comportamento atual dos três slices administrativos, mas não substitui testes HTTP e de persistência automatizados.
+
+O smoke manual de `AccessPoints` observou `200/201/200/200/404/409/204`: listagem, criação, consulta, atualização, piso pai inexistente, conflito por evento dependente e remoção após a limpeza desse evento. Os recursos temporários também foram limpos. A execução confirma o caminho HTTP e a persistência real para esse cenário, mas continua sendo validação manual, não uma suíte de integração repetível.
 
 Depois da revisão do repositório, os caminhos associados às constraints específicas foram repetidos no PostgreSQL real: parent inexistente permaneceu `404` e delete com dependente permaneceu `409`. Tracking após falha e deletes simultâneos ainda devem receber testes de integração automatizados numa fase posterior.
 
@@ -252,4 +261,4 @@ Antes de solicitar commit:
 
 ## Próximos passos
 
-Criar testes de integração automatizados para repetir a aplicação da migration, o seed e os CRUDs de `Buildings` e `Floors` em PostgreSQL isolado. Os CRUDs dos recursos seguintes e respetivos testes continuam planejados.
+Criar testes de integração automatizados para repetir a aplicação da migration, o seed e os CRUDs administrativos implementados em PostgreSQL isolado. O processamento de autorização, eventos, ocupação e alertas, bem como seus testes, continua planejado.

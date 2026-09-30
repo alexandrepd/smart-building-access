@@ -6,7 +6,7 @@
 
 ## Estado atual
 
-O modelo EF Core, o bootstrap da persistência e os repositórios dos slices de `Buildings` e `Floors` estão implementados.
+O modelo EF Core, o bootstrap da persistência e os repositórios dos slices CRUD de `Buildings`, `Floors` e `AccessPoints` estão implementados.
 
 Já existem:
 
@@ -27,6 +27,11 @@ Já existem:
 - consultas de `Floor` com `AsNoTracking`;
 - tratamento de edifício pai inexistente em criação e atualização;
 - proteção da remoção quando o piso possui pontos de acesso ou sessões de ocupação;
+- `AccessPointRepository` com operações CRUD assíncronas;
+- consultas de `AccessPoint` com `AsNoTracking`;
+- validação da FK específica `FloorId` na criação e atualização;
+- proteção de remoção quando existem `AccessPermissions`, `AccessEvents` ou `SecurityAlerts` dependentes;
+- limpeza do change tracker após conflitos esperados e tratamento de delete concorrente;
 - testes dos metadados e do registro do contexto.
 
 Ainda não existem:
@@ -172,7 +177,15 @@ Antes do delete, o repositório verifica dependências em `AccessPoints` e `Occu
 
 As violações são classificadas pelo nome exato da constraint, e não apenas pelo código PostgreSQL `23503`. A FK `fk_floors_buildings_building_id` produz `BuildingNotFound`; as FKs `fk_access_points_floors_floor_id` e `fk_occupancy_sessions_floors_floor_id` produzem `HasDependents`. Ao tratar uma falha esperada, o repositório destaca a entidade do change tracker para impedir que outro `SaveChangesAsync` no mesmo scope repita a operação inválida. Um delete concorrente que já removeu a linha produz `NotFound`.
 
-Consultas e comandos dos recursos seguintes continuam planejados.
+## AccessPointRepository
+
+`AccessPointRepository` implementa `IAccessPointRepository`. Listagem e consulta por ID usam `AsNoTracking`; a lista é ordenada por `FloorId` e nome. Criação e atualização mantêm a entidade rastreada durante `SaveChangesAsync`.
+
+Na criação e atualização, somente a violação da FK `fk_access_points_floors_floor_id` é convertida em `FloorNotFound`; a entidade afetada é destacada do change tracker após essa falha esperada. Outras violações de banco não são mascaradas.
+
+Antes da remoção, o repositório verifica referências em `AccessPermissions`, `AccessEvents` e `SecurityAlerts`. Se houver dependentes, retorna `HasDependents`. As FKs `Restrict` continuam sendo a proteção final contra uma inserção concorrente; as violações dessas constraints específicas também viram `HasDependents`. Depois da falha, a entidade removida é destacada do tracker. Se outro request já tiver removido o ponto, o conflito de concorrência resulta em `NotFound`.
+
+Consultas e comandos dos demais recursos continuam planejados.
 
 ## Migrations
 
@@ -238,6 +251,8 @@ Antes de inserir cada registo, o seeder consulta o respetivo GUID. Por isso, rei
 Também foi feita uma validação manual contra PostgreSQL 18 real num container Docker descartável, exposto apenas em `55432`. Além da migration e do seed, o smoke test do slice de `Buildings` observou, em sequência, os status `200/201/200/200/204/404/400/409`. As respostas `404`, `400` e `409` usaram content type `application/problem+json`.
 
 O smoke do slice de `Floors` observou `200/201/200/200/404/409/204/204`: listagem, criação, consulta, atualização, edifício pai inexistente, delete bloqueado por dependente, delete do piso temporário e limpeza do edifício temporário. Isso confirmou o CRUD e as constraints reais sem transformar a verificação em teste automatizado.
+
+O smoke do slice de `AccessPoints` observou `200/201/200/200/404/409/204`: listagem, criação, consulta, atualização, piso pai inexistente, delete bloqueado por evento dependente e delete após a limpeza do evento. Os recursos temporários foram removidos ao final. Essa validação manual confirmou o fluxo contra PostgreSQL real, mas não cria testes de integração automatizados.
 
 O container foi apenas um ambiente isolado de validação da persistência. Isso não implementa a fase futura de Docker da aplicação, nem substitui testes de integração automatizados.
 

@@ -15,7 +15,7 @@ Evite decorar parágrafos inteiros. Memorize a estrutura da resposta.
 
 Modelo de resposta:
 
-> Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Na branch atual implementei os vertical slices REST de `Buildings` e `Floors`, com serviços de Application, repositórios EF Core, validação, Problem Details e testes unitários: nove casos para `BuildingService` e oito para `FloorService`. Também validei ambos os fluxos contra PostgreSQL real; o smoke de Floors cobriu `200/201/200/200/404/409/204/204`. Os demais CRUDs, Angular, JWT, SignalR, Docker da aplicação, CI/CD e Kubernetes continuam planejados.
+> Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Na branch `feat/access-point-api` implementei os vertical slices REST de `Buildings`, `Floors` e `AccessPoints`, com serviços de Application, repositórios EF Core, validação, Problem Details e testes unitários: nove casos para `BuildingService`, oito para `FloorService` e dez para `AccessPointService`. O smoke de AccessPoints contra PostgreSQL real cobriu `200/201/200/200/404/409/204`, limpando os recursos temporários. A decisão de autorização e o processamento de eventos/ocupação/alertas, Angular, JWT, SignalR, Docker da aplicação, CI/CD e Kubernetes continuam planejados.
 
 Não diga que uma tecnologia está implementada quando está apenas no roadmap.
 
@@ -61,8 +61,8 @@ Pontos esperados:
 - `ApplicationValidationException` identifica falhas esperadas e a propriedade inválida;
 - `IBuildingRepository` pertence à Application;
 - `BuildingRepository` implementa o contrato com EF Core;
-- `FloorService` usa resultados explícitos para sucesso, piso ausente e edifício pai ausente;
-- `FloorRepository` implementa o segundo contrato com EF Core e protege FKs;
+- `FloorService` e `AccessPointService` usam resultados explícitos para sucesso e recursos/pais ausentes;
+- `FloorRepository` e `AccessPointRepository` implementam contratos com EF Core e protegem FKs;
 - Dependency Injection conecta as implementações;
 - o fake do repositório permite testar o serviço isoladamente.
 
@@ -85,9 +85,9 @@ Explique repetição com mesmo efeito final. Use retry do leitor e `ExternalEven
 
 Explique especificação versus ferramentas e code-first versus contract-first.
 
-### Como desenhou os status dos CRUDs de Buildings e Floors?
+### Como desenhou os status dos CRUDs de Buildings, Floors e AccessPoints?
 
-Explique `200` para leitura e atualização, `201` com `Location` para criação, `204` para remoção, `404` para recurso ou edifício pai desconhecido, `400` para validação e `409` quando dependentes impedem o delete. Diga que whitespace é rejeitado por DataAnnotations com erros por campo, que o handler converte somente `ApplicationValidationException` em `400` e mantém falhas inesperadas como `500`, e que `404` e `409` seguem Problem Details coerente com OpenAPI. Somente `Buildings` e `Floors` estão implementados.
+Explique `200` para leitura e atualização, `201` com `Location` para criação, `204` para remoção, `404` para recurso ou piso pai desconhecido, `400` para validação e `409` quando permissões, eventos ou alertas impedem o delete de um `AccessPoint`. Diga que whitespace é rejeitado com erros por campo, que o handler converte somente `ApplicationValidationException` em `400` e mantém falhas inesperadas como `500`, e que `404` e `409` seguem Problem Details coerente com OpenAPI. O CRUD de AccessPoint está implementado; processamento de autorização e eventos não.
 
 ## Perguntas EF Core e PostgreSQL
 
@@ -103,7 +103,7 @@ Entrada para query e alteração de um tipo de entidade. Não é literalmente um
 
 Desativa tracking para leitura, reduzindo memória e processamento quando atualização não será feita.
 
-Exemplo do projeto: `BuildingRepository` e `FloorRepository` usam `AsNoTracking` na lista e na consulta por ID, mas mantêm tracking na atualização e remoção.
+Exemplo do projeto: `BuildingRepository`, `FloorRepository` e `AccessPointRepository` usam `AsNoTracking` na lista e na consulta por ID, mas mantêm tracking na atualização e remoção.
 
 ### Como tratou uma corrida no delete de Building?
 
@@ -217,6 +217,8 @@ Prepare histórias sobre:
 - decisão com trade-off.
 
 Uma história técnica disponível nesta branch é a proteção em duas camadas do delete: consulta antecipada para o fluxo comum e constraint FK para concorrência. Em `Floors`, a mesma estratégia cobre pontos de acesso e sessões de ocupação, enquanto a FK do edifício pai produz um resultado distinto. Num PostgreSQL real, o smoke confirmou `404` para pai ausente, `409` para conflito, `204` para delete e `204` para a limpeza final.
+
+Em `AccessPoints`, essa defesa também cobre `AccessPermissions`, `AccessEvents` e `SecurityAlerts`; a FK de `FloorId` retorna resultado distinto para piso inexistente. O smoke manual confirmou a sequência CRUD, `404` para pai ausente, `409` com evento dependente e `204` após limpar o evento.
 
 ## Inglês técnico
 

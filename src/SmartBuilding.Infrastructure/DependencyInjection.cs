@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using SmartBuilding.Application.AccessPoints;
 using SmartBuilding.Application.Buildings;
 using SmartBuilding.Application.Floors;
 using SmartBuilding.Infrastructure.Data;
@@ -21,6 +22,7 @@ public static class DependencyInjection
                 .UseNpgsql(connectionString)
                 .UseSnakeCaseNamingConvention());
         services.AddScoped<IBuildingRepository, BuildingRepository>();
+        services.AddScoped<IAccessPointRepository, AccessPointRepository>();
         services.AddScoped<IFloorRepository, FloorRepository>();
         services.AddScoped<DevelopmentDataSeeder>();
 

@@ -107,3 +107,59 @@ Content-Type: application/json
 }
 
 ###
+
+GET {{SmartBuilding.Api_HostAddress}}/api/access-points
+Accept: application/json
+
+###
+
+GET {{SmartBuilding.Api_HostAddress}}/api/access-points/30000000-0000-0000-0000-000000000001
+Accept: application/json
+
+###
+
+POST {{SmartBuilding.Api_HostAddress}}/api/access-points
+Content-Type: application/json
+
+{
+	"floorId": "20000000-0000-0000-0000-000000000001",
+	"name": "North Entrance",
+	"location": "North Lobby",
+	"supportsEntry": true,
+	"supportsExit": false
+}
+
+###
+
+PUT {{SmartBuilding.Api_HostAddress}}/api/access-points/30000000-0000-0000-0000-000000000001
+Content-Type: application/json
+
+{
+	"floorId": "20000000-0000-0000-0000-000000000001",
+	"name": "Main Entrance",
+	"location": "Ground Floor Lobby",
+	"isActive": true,
+	"supportsEntry": true,
+	"supportsExit": true
+}
+
+###
+
+# Returns 204 because the seeded point has no dependent events, permissions, or alerts.
+DELETE {{SmartBuilding.Api_HostAddress}}/api/access-points/30000000-0000-0000-0000-000000000001
+
+###
+
+# Returns 404 because the parent floor does not exist.
+POST {{SmartBuilding.Api_HostAddress}}/api/access-points
+Content-Type: application/json
+
+{
+	"floorId": "00000000-0000-0000-0000-000000000099",
+	"name": "Unknown Floor Access",
+	"location": "Unknown",
+	"supportsEntry": true,
+	"supportsExit": true
+}
+
+###

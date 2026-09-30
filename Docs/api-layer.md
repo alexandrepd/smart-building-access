@@ -16,7 +16,8 @@ A API contém:
 - endpoint `GET /` para indicar que o processo está ativo;
 - grupo de Minimal APIs em `/api/buildings` com listagem, consulta por ID, criação, substituição e remoção;
 - grupo de Minimal APIs em `/api/floors` com as mesmas cinco operações CRUD;
-- contratos HTTP próprios para requests e responses de `Building` e `Floor`;
+- grupo de Minimal APIs em `/api/access-points` com as mesmas cinco operações CRUD;
+- contratos HTTP próprios para requests e responses de `Building`, `Floor` e `AccessPoint`;
 - validação automática com DataAnnotations e `AddValidation`;
 - Problem Details para validação, conflitos e falhas inesperadas;
 - referências para Application e Infrastructure;
@@ -27,7 +28,8 @@ A API contém:
 
 Ainda não contém:
 
-- CRUDs dos recursos seguintes do domínio;
+- CRUDs dos recursos seguintes do domínio, como cartões e permissões;
+- processamento de pedidos de acesso, eventos, sessões de ocupação ou alertas;
 - autenticação JWT;
 - autorização por papéis;
 - SignalR;
@@ -142,11 +144,21 @@ Os slices implementados expõem:
 | `PUT /api/floors/{id}` | `200 OK` com o estado substituído | `400 Bad Request`, `404 Not Found` para piso ou edifício inexistente |
 | `DELETE /api/floors/{id}` | `204 No Content` | `404 Not Found`, `409 Conflict` quando existem pontos de acesso ou sessões de ocupação |
 
+| Método e rota | Resultado de sucesso | Outros resultados |
+|---|---|---|
+| `GET /api/access-points` | `200 OK` com lista ordenada por piso e nome | — |
+| `GET /api/access-points/{id}` | `200 OK` com `AccessPointResponse` | `404 Not Found` |
+| `POST /api/access-points` | `201 Created`, body e header `Location` | `400 Bad Request`, `404 Not Found` quando o piso não existe |
+| `PUT /api/access-points/{id}` | `200 OK` com o estado substituído | `400 Bad Request`, `404 Not Found` para ponto ou piso inexistente |
+| `DELETE /api/access-points/{id}` | `204 No Content` | `404 Not Found`, `409 Conflict` quando existem permissões, eventos ou alertas dependentes |
+
 `CreateBuildingRequest` exige `Name` até 200 caracteres e `Address` até 500. `UpdateBuildingRequest` possui os mesmos limites e também exige `IsActive`. `BuildingResponse` contém `Id`, `Name`, `Address`, `IsActive` e `CreatedAt`.
 
 `CreateFloorRequest` e `UpdateFloorRequest` exigem `BuildingId`, `Number` e `Name` não vazio com até 100 caracteres; a atualização também exige `IsActive`. `FloorResponse` contém `Id`, `BuildingId`, `Number`, `Name` e `IsActive`.
 
-`Buildings` e `Floors` possuem CRUD nesta branch. Rotas de `AccessPoints`, cartões, permissões, eventos, ocupação e alertas continuam planejadas.
+`CreateAccessPointRequest` e `UpdateAccessPointRequest` exigem `FloorId`, `Name` não vazio com até 150 caracteres e `Location` não vazia com até 250 caracteres; ambos incluem `SupportsEntry` e `SupportsExit`, e a atualização também exige `IsActive`. `AccessPointResponse` contém `Id`, `FloorId`, `Name`, `Location`, `IsActive`, `SupportsEntry`, `SupportsExit` e `CreatedAt`.
+
+Os CRUDs de `Buildings`, `Floors` e `AccessPoints` estão implementados nesta branch. O processamento de acessos, cartões, permissões, eventos, ocupação e alertas continua planejado.
 
 ## Códigos de resposta
 
@@ -154,7 +166,7 @@ Os endpoints usam semântica HTTP consistente:
 
 - `200 OK`: consulta ou operação concluída com representação;
 - `201 Created`: criação de recurso;
-- `204 No Content`: atualização ou remoção sem corpo;
+- `204 No Content`: remoção sem corpo;
 - `400 Bad Request`: contrato inválido;
 - `401 Unauthorized`: autenticação ausente ou inválida;
 - `403 Forbidden`: identidade válida sem permissão;
@@ -166,13 +178,13 @@ Os endpoints usam semântica HTTP consistente:
 
 `AddProblemDetails`, `UseExceptionHandler` e `ApiExceptionHandler` formam o tratamento global. Somente `ApplicationValidationException`, exceção específica da Application, vira `400 Bad Request`; o handler preserva o nome da propriedade e produz `ValidationProblemDetails` com erros por campo. Exceções inesperadas viram `500 Internal Server Error` e são registradas no log, sem expor stack trace.
 
-O bloqueio de remoção de um edifício com pisos e o bloqueio de remoção de um piso com pontos de acesso ou sessões de ocupação são conflitos de estado conhecidos. Os endpoints retornam `409 Conflict` com Problem Details. A criação ou atualização de um piso cujo `BuildingId` não existe retorna `404` com Problem Details; um piso desconhecido também retorna `404`. Respostas vazias `404` e outros status sem body passam por `UseStatusCodePages` para manter o formato de erro consistente. Os contratos OpenAPI declaram `ValidationProblemDetails` para `400` e Problem Details para `404` e `409`.
+O bloqueio de remoção de um edifício com pisos, de um piso com pontos de acesso ou sessões de ocupação, e de um ponto de acesso com permissões, eventos ou alertas são conflitos de estado conhecidos. Os endpoints retornam `409 Conflict` com Problem Details. A criação ou atualização de um piso cujo `BuildingId` não existe retorna `404` com Problem Details; de forma equivalente, criar ou atualizar um ponto de acesso com `FloorId` inexistente retorna `404`. Recursos desconhecidos também retornam `404`. Respostas vazias `404` e outros status sem body passam por `UseStatusCodePages` para manter o formato de erro consistente. Os contratos OpenAPI declaram `ValidationProblemDetails` para `400` e Problem Details para `404` e `409`.
 
 ## Validação
 
 A API valida o formato do transporte com DataAnnotations e `AddValidation`. Campos ausentes, valores compostos apenas por whitespace e comprimentos inválidos produzem `ValidationProblemDetails` com `400 Bad Request` e erros associados a cada campo. Nos contratos de `Floor`, o nome aceita no máximo 100 caracteres e o número pode ser negativo para representar pisos subterrâneos. A Application também normaliza espaços e protege os requisitos para chamadas que não atravessem HTTP, incluindo a rejeição de `Guid.Empty` como `BuildingId`.
 
-No smoke test de `Buildings` com PostgreSQL real, as respostas de validação, recurso inexistente e conflito foram confirmadas, respetivamente, como `400`, `404` e `409`, todas com content type `application/problem+json`. O smoke de `Floors` confirmou listagem `200`, criação `201`, consulta `200`, atualização `200`, edifício pai inexistente `404`, conflito de remoção `409`, remoção `204` e limpeza do edifício temporário `204`.
+No smoke test de `Buildings` com PostgreSQL real, as respostas de validação, recurso inexistente e conflito foram confirmadas, respetivamente, como `400`, `404` e `409`, todas com content type `application/problem+json`. O smoke de `Floors` confirmou listagem `200`, criação `201`, consulta `200`, atualização `200`, edifício pai inexistente `404`, conflito de remoção `409`, remoção `204` e limpeza do edifício temporário `204`. Para `AccessPoints`, o smoke confirmou listagem/criação/consulta/atualização com `200/201/200/200`, piso pai inexistente `404`, delete bloqueado por evento dependente `409` e, após limpar o evento, delete `204`; os recursos temporários foram limpos.
 
 ## OpenAPI e Swagger
 
@@ -202,4 +214,4 @@ O futuro hub `/accessHub` notificará eventos, alertas e alterações de ocupaç
 
 ## Próximos passos
 
-Os vertical slices de `Buildings` e `Floors` estão implementados, incluindo CRUD, validação HTTP, Problem Details e exemplos no ficheiro `.http`. Os CRUDs dos recursos seguintes, autenticação, autorização e a UI Swagger continuam planejados para as respetivas etapas.
+Os vertical slices de `Buildings`, `Floors` e `AccessPoints` estão implementados, incluindo CRUD, validação HTTP, Problem Details e requests manuais no ficheiro `.http`. O processamento de acessos e os CRUDs dos demais recursos, autenticação, autorização e a UI Swagger continuam planejados para as respetivas etapas.
