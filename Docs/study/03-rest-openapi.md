@@ -196,7 +196,15 @@ O recurso `Floor` segue o mesmo CRUD em `/api/floors`. `POST` retorna `404` quan
 
 `AccessPoint` também possui CRUD em `/api/access-points`. Pense nele como a ficha de um leitor físico: descreve em que piso está, onde fica e se suporta entrada ou saída. Tecnicamente, `POST` devolve `201` com `Location`, `PUT` devolve `200` com o recurso atualizado e `DELETE` devolve `204`; o piso pai inexistente resulta em `404`, enquanto permissões, eventos ou alertas dependentes impedem o delete com `409` e Problem Details. Os contratos próprios validam nome obrigatório até 150 caracteres e localização obrigatória até 250; `SupportsEntry` e `SupportsExit` são explícitos no request e response.
 
-Os metadados `.WithName`, `.WithSummary`, `.Produces`, `.ProducesValidationProblem` e `.ProducesProblem` alimentam o documento OpenAPI code-first. `404` e `409` são descritos como Problem Details, enquanto `400` é descrito como Validation Problem Details. O ficheiro `SmartBuilding.Api.http` contém requests manuais para os cenários principais dos três recursos. CRUD de cartões e outros recursos continuam planejados; a decisão e o processamento de pedidos de acesso também não estão implementados.
+Os metadados `.WithName`, `.WithSummary`, `.Produces`, `.ProducesValidationProblem` e `.ProducesProblem` alimentam o documento OpenAPI code-first. `404` e `409` são descritos como Problem Details, enquanto `400` é descrito como Validation Problem Details. O ficheiro `SmartBuilding.Api.http` contém requests manuais para os cenários principais dos quatro recursos. CRUD de cartões e outros recursos continuam planejados; a decisão e o processamento de pedidos de acesso também não estão implementados.
+
+O recurso `Users` também possui CRUD em `/api/users`: listagem e consulta retornam `200`, criação retorna `201` com `Location`, update retorna `200` e delete retorna `204`. Email duplicado na criação ou atualização resulta em `409`; IDs inexistentes em consulta/update/delete resultam em `404`; dados inválidos resultam em `400`. `CreateUserRequest` exige nome de até 200 caracteres, email de até 320 e password de 12 a 128 caracteres. `TrimmedEmailAddressAttribute` valida o email após `Trim`, então whitespace externo é aceito; `UserService` remove-o e canonicaliza para lowercase antes de persistir. `UpdateUserRequest` não inclui password e `UserResponse` nunca inclui password ou hash. Hashing e a primitiva de verificação do Identity estão testados, mas login, verificação de credenciais no fluxo da aplicação, JWT e autorização continuam planejados.
+
+No smoke PostgreSQL, `  Alex@Example.com  ` foi criado com `201` e armazenado como `alex@example.com`; repetição do email retornou `409`. O fluxo também confirmou update `200`, delete `204`, hash persistido e ausência de password/hash na response. Cartões bloqueiam o delete com `409`; `AccessEvent` sobrevive à remoção de User com `UserId` nulo.
+
+### Validar e normalizar email
+
+Analogia: conferir se um envelope tem um endereço legível é diferente de confirmar quem mora nele. Tecnicamente, `TrimmedEmailAddressAttribute` remove whitespace externo para validar o formato no transporte; `UserService` depois aplica `Trim` e lowercase para produzir o valor canônico persistido. No projeto, `  Alex@Example.com  ` passa pela validação HTTP e fica armazenado como `alex@example.com`. Isso não autentica a pessoa nem confirma que ela controla a caixa postal.
 
 Pense em Problem Details como uma etiqueta de erro com formato previsível: o status muda, mas o cliente sabe onde procurar título, detalhe e erros de campos. No runtime com PostgreSQL real, `400`, `404` e `409` foram confirmados com content type `application/problem+json`, coerente com o contrato OpenAPI.
 
@@ -231,6 +239,14 @@ Antes de versionar, diferencie mudanças compatíveis de breaking changes. Adici
 
 > O request é válido, mas remover o ponto apagaria a referência necessária para preservar o histórico do evento. A API retorna `409 Conflict` com Problem Details; a Application comunica `HasDependents` e não depende de HTTP. A verificação antecipada cobre o caminho comum, enquanto a FK `Restrict` protege contra dependências concorrentes.
 
+**Por que password só aparece no POST de Users?**
+
+> A password inicial é necessária para criar a credencial, mas é convertida em hash antes de persistir e nunca aparece na response. `PUT /api/users/{id}` altera somente nome, email e estado ativo; assim, uma atualização de perfil não troca silenciosamente a credencial. Fluxo explícito de alteração de password e login ainda estão planejados.
+
+**Por que aceitar whitespace externo no email?**
+
+> A validação HTTP verifica o formato do valor depois de `Trim`, e a Application remove os espaços e canonicaliza para lowercase antes de persistir. Assim, o contrato aceita uma entrada tolerante sem criar variantes inconsistentes no índice único. Isso não valida a propriedade da caixa postal nem autentica o utilizador.
+
 ## Exercício
 
-Abra o documento OpenAPI em Development e compare as cinco operações de `/api/access-points` com `SmartBuilding.Api.http`. Explique o body, `Location`, status e content type de cada cenário. Trace como sucesso, `FloorNotFound` e dependentes se tornam respostas HTTP e por que o delete bloqueado usa `409`. Depois especifique em papel o futuro `POST /api/access/requests`, incluindo autenticação, retry e idempotência, sem descrevê-lo como implementado.
+Abra o documento OpenAPI em Development e compare as cinco operações de `/api/access-points` com `SmartBuilding.Api.http`. Explique o body, `Location`, status e content type de cada cenário. Trace como sucesso, `FloorNotFound` e dependentes se tornam respostas HTTP e por que o delete bloqueado usa `409`. Para Users, envie um email com whitespace externo e explique a diferença entre validação do formato e normalização; descreva como o teste de hash com password errada difere de um login, que ainda não existe. Depois especifique em papel o futuro `POST /api/access/requests`, incluindo autenticação, retry e idempotência, sem descrevê-lo como implementado.

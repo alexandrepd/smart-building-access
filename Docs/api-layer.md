@@ -17,8 +17,10 @@ A API contém:
 - grupo de Minimal APIs em `/api/buildings` com listagem, consulta por ID, criação, substituição e remoção;
 - grupo de Minimal APIs em `/api/floors` com as mesmas cinco operações CRUD;
 - grupo de Minimal APIs em `/api/access-points` com as mesmas cinco operações CRUD;
-- contratos HTTP próprios para requests e responses de `Building`, `Floor` e `AccessPoint`;
+- grupo de Minimal APIs em `/api/users` com as mesmas cinco operações CRUD;
+- contratos HTTP próprios para requests e responses de `Building`, `Floor`, `AccessPoint` e `User`;
 - validação automática com DataAnnotations e `AddValidation`;
+- validação de email de User que ignora whitespace externo ao verificar o formato;
 - Problem Details para validação, conflitos e falhas inesperadas;
 - referências para Application e Infrastructure;
 - leitura obrigatória de `ConnectionStrings:SmartBuilding`;
@@ -108,7 +110,7 @@ builder.Services.AddInfrastructure(connectionString);
 
 `AddInfrastructure` encapsula `AddDbContext`, `UseNpgsql` e `UseSnakeCaseNamingConvention`. O contexto mantém o lifetime scoped padrão do EF Core.
 
-`AddApplication` registra `IBuildingService` e `IFloorService`, enquanto `AddInfrastructure` liga os contratos aos respetivos `BuildingRepository` e `FloorRepository`. A API conhece os dois lados apenas para realizar essa composição.
+`AddApplication` registra os serviços de Buildings, Floors, AccessPoints e Users, enquanto `AddInfrastructure` liga os contratos aos respetivos repositórios e registra o serviço de hash. A API conhece os dois lados apenas para realizar essa composição.
 
 ## Contratos HTTP
 
@@ -152,13 +154,29 @@ Os slices implementados expõem:
 | `PUT /api/access-points/{id}` | `200 OK` com o estado substituído | `400 Bad Request`, `404 Not Found` para ponto ou piso inexistente |
 | `DELETE /api/access-points/{id}` | `204 No Content` | `404 Not Found`, `409 Conflict` quando existem permissões, eventos ou alertas dependentes |
 
+| Método e rota | Resultado de sucesso | Outros resultados |
+|---|---|---|
+| `GET /api/users` | `200 OK` com lista ordenada por nome | — |
+| `GET /api/users/{id}` | `200 OK` com `UserResponse` | `404 Not Found` |
+| `POST /api/users` | `201 Created`, body e header `Location` | `400 Bad Request`, `409 Conflict` para email duplicado |
+| `PUT /api/users/{id}` | `200 OK` com o perfil e estado atualizados | `400 Bad Request`, `404 Not Found`, `409 Conflict` para email duplicado |
+| `DELETE /api/users/{id}` | `204 No Content` | `404 Not Found`, `409 Conflict` quando existem cartões, permissões ou sessões de ocupação |
+
 `CreateBuildingRequest` exige `Name` até 200 caracteres e `Address` até 500. `UpdateBuildingRequest` possui os mesmos limites e também exige `IsActive`. `BuildingResponse` contém `Id`, `Name`, `Address`, `IsActive` e `CreatedAt`.
 
 `CreateFloorRequest` e `UpdateFloorRequest` exigem `BuildingId`, `Number` e `Name` não vazio com até 100 caracteres; a atualização também exige `IsActive`. `FloorResponse` contém `Id`, `BuildingId`, `Number`, `Name` e `IsActive`.
 
 `CreateAccessPointRequest` e `UpdateAccessPointRequest` exigem `FloorId`, `Name` não vazio com até 150 caracteres e `Location` não vazia com até 250 caracteres; ambos incluem `SupportsEntry` e `SupportsExit`, e a atualização também exige `IsActive`. `AccessPointResponse` contém `Id`, `FloorId`, `Name`, `Location`, `IsActive`, `SupportsEntry`, `SupportsExit` e `CreatedAt`.
 
-Os CRUDs de `Buildings`, `Floors` e `AccessPoints` estão implementados nesta branch. O processamento de acessos, cartões, permissões, eventos, ocupação e alertas continua planejado.
+Os CRUDs de `Buildings`, `Floors`, `AccessPoints` e `Users` estão implementados nesta branch. O processamento de acessos, cartões, permissões, eventos, ocupação e alertas continua planejado.
+
+## Fluxo implementado para Users
+
+`UserEndpoints` mapeia `/api/users` para `IUserService`; a Application normaliza e valida os dados e usa `IUserRepository`, implementado pelo `UserRepository`. Na criação, a password precisa ter de 12 a 128 caracteres e é convertida em hash pelo `IPasswordHashService`. A resposta contém apenas `Id`, `Name`, `Email`, `IsActive` e `CreatedAt`: não expõe password nem hash. O `PUT` aceita nome, email e estado ativo, sem campo de password, portanto não altera credenciais.
+
+Nome e email são obrigatórios, têm limites de 200 e 320 caracteres, e a password de criação deve ter entre 12 e 128 caracteres. `TrimmedEmailAddressAttribute` remove whitespace externo apenas para validar o formato; depois, `UserService` remove esse whitespace e converte o email para lowercase antes da persistência. Assim, `  Alex@Example.com  ` passa pela validação HTTP e é armazenado como `alex@example.com`. Email inválido produz `400`; email duplicado na criação ou atualização resulta em `409`. A remoção bem-sucedida resulta em `204` e é bloqueada com `409` quando o utilizador ainda tem cartões, permissões ou sessões de ocupação. Eventos de auditoria não bloqueiam a remoção: a FK opcional `AccessEvent.UserId` usa `ON DELETE SET NULL`, preservando o evento.
+
+O ficheiro `SmartBuilding.Api.http` contém requests manuais do CRUD. No smoke com PostgreSQL real, um email uppercase com espaços externos foi criado com `201` e canonicalizado para lowercase; email duplicado resultou em `409`, seguido de consulta `200`, atualização `200` e remoção `204`. O banco armazenou um hash gerado por `PasswordHasher<User>`, e a response não continha password nem hash. Um cartão bloqueou o delete com `409`; um evento de auditoria não bloqueou e permaneceu com `UserId = NULL` após `204`.
 
 ## Códigos de resposta
 
@@ -182,7 +200,7 @@ O bloqueio de remoção de um edifício com pisos, de um piso com pontos de aces
 
 ## Validação
 
-A API valida o formato do transporte com DataAnnotations e `AddValidation`. Campos ausentes, valores compostos apenas por whitespace e comprimentos inválidos produzem `ValidationProblemDetails` com `400 Bad Request` e erros associados a cada campo. Nos contratos de `Floor`, o nome aceita no máximo 100 caracteres e o número pode ser negativo para representar pisos subterrâneos. A Application também normaliza espaços e protege os requisitos para chamadas que não atravessem HTTP, incluindo a rejeição de `Guid.Empty` como `BuildingId`.
+A API valida o formato do transporte com DataAnnotations e `AddValidation`. Campos ausentes, valores compostos apenas por whitespace quando o campo não os permite e comprimentos inválidos produzem `ValidationProblemDetails` com `400 Bad Request` e erros associados a cada campo. Em Users, nome só com whitespace é rejeitado, mas whitespace externo ao email é aceito porque `TrimmedEmailAddressAttribute` valida o endereço após `Trim`; a Application normaliza o valor antes de persistir. Nos contratos de `Floor`, o nome aceita no máximo 100 caracteres e o número pode ser negativo para representar pisos subterrâneos. A Application também normaliza espaços e protege os requisitos para chamadas que não atravessem HTTP, incluindo a rejeição de `Guid.Empty` como `BuildingId`.
 
 No smoke test de `Buildings` com PostgreSQL real, as respostas de validação, recurso inexistente e conflito foram confirmadas, respetivamente, como `400`, `404` e `409`, todas com content type `application/problem+json`. O smoke de `Floors` confirmou listagem `200`, criação `201`, consulta `200`, atualização `200`, edifício pai inexistente `404`, conflito de remoção `409`, remoção `204` e limpeza do edifício temporário `204`. Para `AccessPoints`, o smoke confirmou listagem/criação/consulta/atualização com `200/201/200/200`, piso pai inexistente `404`, delete bloqueado por evento dependente `409` e, após limpar o evento, delete `204`; os recursos temporários foram limpos.
 
@@ -202,7 +220,7 @@ Planejado para fase própria:
 - policies aplicadas no servidor;
 - endpoints protegidos por autorização.
 
-JWT não deve carregar dados sensíveis. Autorização da API nunca deve depender apenas da interface Angular.
+O hash de password na criação de Users já está implementado, mas login, verificação de credenciais no fluxo de autenticação e emissão de JWT continuam planejados para a fase 6. O teste da primitiva `VerifyHashedPassword` não implementa esse caso de uso. JWT não deve carregar dados sensíveis. Autorização da API nunca deve depender apenas da interface Angular.
 
 ## Paginação
 
@@ -214,4 +232,4 @@ O futuro hub `/accessHub` notificará eventos, alertas e alterações de ocupaç
 
 ## Próximos passos
 
-Os vertical slices de `Buildings`, `Floors` e `AccessPoints` estão implementados, incluindo CRUD, validação HTTP, Problem Details e requests manuais no ficheiro `.http`. O processamento de acessos e os CRUDs dos demais recursos, autenticação, autorização e a UI Swagger continuam planejados para as respetivas etapas.
+Os vertical slices de `Buildings`, `Floors`, `AccessPoints` e `Users` estão implementados, incluindo CRUD, validação HTTP, Problem Details e requests manuais no ficheiro `.http`. O processamento de acessos e os CRUDs dos demais recursos, login, JWT, autorização e a UI Swagger continuam planejados para as respetivas etapas.

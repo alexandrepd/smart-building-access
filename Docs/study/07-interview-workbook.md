@@ -15,7 +15,7 @@ Evite decorar parágrafos inteiros. Memorize a estrutura da resposta.
 
 Modelo de resposta:
 
-> Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Na branch `feat/access-point-api` implementei os vertical slices REST de `Buildings`, `Floors` e `AccessPoints`, com serviços de Application, repositórios EF Core, validação, Problem Details e testes unitários: nove casos para `BuildingService`, oito para `FloorService` e dez para `AccessPointService`. O smoke de AccessPoints contra PostgreSQL real cobriu `200/201/200/200/404/409/204`, limpando os recursos temporários. A decisão de autorização e o processamento de eventos/ocupação/alertas, Angular, JWT, SignalR, Docker da aplicação, CI/CD e Kubernetes continuam planejados.
+> Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Na branch `feat/user-api`, implementei CRUDs REST de `Buildings`, `Floors`, `AccessPoints` e `Users`, com validação, Problem Details e testes unitários. No slice Users, email externo com espaços é validado e canonicalizado para lowercase, a password é hasheada na criação e nunca é devolvida; update não altera password e eventos de auditoria sobrevivem ao delete do utilizador. Há 20 testes focados em User/hash/API. O smoke PostgreSQL confirmou criação `201`, duplicidade `409`, consulta `200`, atualização `200` e remoção `204`, além das regras de dependências. Login, verificação de credenciais no fluxo da aplicação, JWT, autorização, processamento de acesso/eventos/ocupação/alertas, Angular, SignalR, Docker da aplicação, CI/CD e Kubernetes continuam planejados.
 
 Não diga que uma tecnologia está implementada quando está apenas no roadmap.
 
@@ -65,6 +65,10 @@ Pontos esperados:
 - `FloorRepository` e `AccessPointRepository` implementam contratos com EF Core e protegem FKs;
 - Dependency Injection conecta as implementações;
 - o fake do repositório permite testar o serviço isoladamente.
+- `UserService` normaliza email, valida password de criação e delega hash por `IPasswordHashService`;
+- `UserRepository` trata email duplicado e dependências sem fazer a Application depender de PostgreSQL.
+
+O slice User tem 20 casos focados: 15 testes de `UserService`, três do hash Identity e dois da validação HTTP do email.
 
 ## Perguntas REST
 
@@ -217,6 +221,8 @@ Prepare histórias sobre:
 - decisão com trade-off.
 
 Uma história técnica disponível nesta branch é a proteção em duas camadas do delete: consulta antecipada para o fluxo comum e constraint FK para concorrência. Em `Floors`, a mesma estratégia cobre pontos de acesso e sessões de ocupação, enquanto a FK do edifício pai produz um resultado distinto. Num PostgreSQL real, o smoke confirmou `404` para pai ausente, `409` para conflito, `204` para delete e `204` para a limpeza final.
+
+No slice de Users, o hash Identity mantém password fora da response e a atualização não troca credenciais; a remoção bloqueia cartões, permissões e sessões, mas mantém `AccessEvent` com `UserId` nulo. O atributo HTTP aceita whitespace externo no email para validação e a Application o canonicaliza. A verificação da password correta/incorreta foi testada na primitiva Identity, mas login e verificação de credenciais no fluxo da aplicação ainda não foram implementados.
 
 Em `AccessPoints`, essa defesa também cobre `AccessPermissions`, `AccessEvents` e `SecurityAlerts`; a FK de `FloorId` retorna resultado distinto para piso inexistente. O smoke manual confirmou a sequência CRUD, `404` para pai ausente, `409` com evento dependente e `204` após limpar o evento.
 

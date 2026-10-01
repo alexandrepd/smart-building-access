@@ -41,10 +41,10 @@ O Domain é o núcleo e não referencia nenhuma outra camada do sistema. Applica
 | Projeto | Responsabilidade principal | Estado |
 |---|---|---|
 | `SmartBuilding.Domain` | Vocabulário, estado e regras puras do negócio | Modelo estrutural implementado; comportamento ainda será evoluído |
-| `SmartBuilding.Application` | Casos de uso, DTOs, contratos e orquestração | Serviços e contratos CRUD de `Buildings`, `Floors` e `AccessPoints` implementados |
-| `SmartBuilding.Infrastructure` | EF Core, PostgreSQL e implementações técnicas | Persistência base e repositórios de `Building`, `Floor` e `AccessPoint` implementados |
-| `SmartBuilding.Api` | Host HTTP, endpoints, autenticação e composição | Minimal APIs, validação e Problem Details dos três CRUDs implementados; autenticação planejada |
-| `SmartBuilding.UnitTests` | Testes unitários, arquiteturais e de persistência | Testes existentes, nove casos de `BuildingService`, oito de `FloorService` e dez de `AccessPointService` |
+| `SmartBuilding.Application` | Casos de uso, DTOs, contratos e orquestração | Serviços e contratos CRUD de `Buildings`, `Floors`, `AccessPoints` e `Users` implementados |
+| `SmartBuilding.Infrastructure` | EF Core, PostgreSQL e implementações técnicas | Persistência base, repositórios dos quatro slices e hash Identity de password implementados |
+| `SmartBuilding.Api` | Host HTTP, endpoints, autenticação e composição | Minimal APIs, validação e Problem Details dos quatro CRUDs implementados; login e autorização planejados |
+| `SmartBuilding.UnitTests` | Testes unitários, arquiteturais e de persistência | Inclui nove casos de `BuildingService`, oito de `FloorService`, dez de `AccessPointService` e 20 casos focados em User/hash/API: 15 de `UserService`, três do hash Identity e dois de validação HTTP |
 
 ## Fluxo atual
 
@@ -65,6 +65,8 @@ Os fluxos implementam listagem, consulta por ID, criação, atualização e remo
 Antes de servir endpoints, a API exige `ConnectionStrings:SmartBuilding`. Em `Development`, o bootstrap aplica migrations e executa o seed mínimo. O endpoint `GET /` continua sem acessar o banco, enquanto `/api/buildings`, `/api/floors` e `/api/access-points` usam a persistência PostgreSQL.
 
 Os CRUDs administrativos de `Buildings`, `Floors` e `AccessPoints` estão implementados. A decisão de conceder ou negar acesso e o processamento de eventos/ocupação/alertas, além dos demais recursos, permanecem planejados.
+
+O CRUD administrativo de `Users` também está implementado em `/api/users`. A validação HTTP verifica o email após remover whitespace externo, e a Application normaliza-o para lowercase antes de persistir; solicita hash da password na criação e as responses omitem password e hash. Updates não alteram credenciais e email duplicado na atualização também é tratado como conflito. O repositório protege email único e bloqueia remoção com cartões, permissões ou sessões de ocupação. Eventos de auditoria são preservados com `UserId` nulo. Hashing de password e testes da primitiva de verificação não significam que login, verificação de credenciais no fluxo da aplicação, JWT ou autorização já existam: esses itens continuam planejados para a fase 6.
 
 ## Fluxo planejado de uma solicitação de acesso
 
@@ -122,9 +124,9 @@ Cada fase deve terminar com build, testes e um pull request focado. Tecnologias 
 | Foundation | Concluída |
 | Domain estrutural | Concluída pelo Definition of Done atual |
 | Database | Persistência base implementada e validada |
-| API funcional | CRUDs de `Buildings`, `Floors` e `AccessPoints` implementados; autorização e demais recursos planejados |
+| API funcional | CRUDs de `Buildings`, `Floors`, `AccessPoints` e `Users` implementados; autorização e demais recursos planejados |
 | Access Control em diante | Não iniciado |
 
-PostgreSQL 18 foi executado num container descartável, na porta isolada `55432`, para validar a migration, o arranque, a idempotência do seed e os slices de `Buildings`, `Floors` e `AccessPoints`. O runtime de AccessPoints confirmou `200/201/200/200/404/409/204`, incluindo piso pai ausente, evento dependente e delete após limpar o evento. Isso não significa que a fase futura de Docker da aplicação foi implementada.
+PostgreSQL 18 foi executado num container descartável, na porta isolada `55432`, para validar a migration, o arranque, a idempotência do seed e os slices de `Buildings`, `Floors`, `AccessPoints` e `Users`. Para Users, o smoke confirmou email uppercase com espaços externos criado em `201` e canonicalizado para lowercase, duplicidade `409`, consulta `200`, atualização `200` e remoção `204`; também confirmou hash armazenado pelo `PasswordHasher<User>`, response sem password/hash, delete bloqueado por cartão com `409` e evento preservado com `UserId` nulo. Isso não significa que a fase futura de Docker da aplicação foi implementada.
 
 Consulte [o plano do projeto](smart-building-project-plan.md) para todas as fases e critérios de conclusão.

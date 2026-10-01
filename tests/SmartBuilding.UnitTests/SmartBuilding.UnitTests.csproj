@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\SmartBuilding.Api\SmartBuilding.Api.csproj" />
     <ProjectReference Include="..\..\src\SmartBuilding.Application\SmartBuilding.Application.csproj" />
     <ProjectReference Include="..\..\src\SmartBuilding.Domain\SmartBuilding.Domain.csproj" />
     <ProjectReference Include="..\..\src\SmartBuilding.Infrastructure\SmartBuilding.Infrastructure.csproj" />

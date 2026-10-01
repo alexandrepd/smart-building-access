@@ -61,7 +61,7 @@ Validação na API melhora a experiência. Constraint no banco protege dados mes
 
 Índice é uma estrutura auxiliar que acelera certas consultas. Ele custa espaço e torna escritas mais caras porque também precisa ser atualizado.
 
-No projeto, `occurred_at` será usado para consultar eventos por período. Email e número de cartão têm índices únicos.
+No projeto, `occurred_at` será usado para consultar eventos por período. `users.email` tem o índice único `ix_users_email`; número de cartão também tem índice único.
 
 Índice comum não impede duplicação. Índice ou constraint unique impede.
 
@@ -237,6 +237,8 @@ A chave `1937001` identifica este protocolo de coordenação; o banco não assoc
 
 A migration, o seed e os slices de `Buildings`, `Floors` e `AccessPoints` foram validados num PostgreSQL 18 real, executado temporariamente num container Docker na porta `55432`. Foram confirmadas nove tabelas do domínio, a migration em `__EFMigrationsHistory`, a aquisição do advisory lock e contagens `1|1|1` após o seed. O smoke de Floors confirmou `200/201/200/200/404/409/204/204`, incluindo a FK do edifício pai e o bloqueio de delete por dependente. O smoke de AccessPoints confirmou `200/201/200/200/404/409/204`, incluindo piso pai ausente, evento dependente e remoção após limpar o evento; os recursos temporários foram limpos.
 
+No smoke de Users, um email uppercase com espaços externos foi criado com `201` e persistido em lowercase; duplicidade retornou `409`, e consulta/update/delete produziram `200/200/204`. O hash do `PasswordHasher<User>` foi armazenado sem aparecer na response. Cartões bloquearam a remoção com `409`, enquanto `AccessEvent` sobreviveu com `UserId` nulo. É validação manual de API e PostgreSQL, não teste automatizado de integração.
+
 Aqui, Docker foi apenas a forma de fornecer um banco isolado e descartável para a validação. A aplicação ainda não ganhou imagem, Compose ou fluxo operacional de containers; portanto, a fase Docker continua planejada.
 
 ## Concorrência
@@ -264,6 +266,10 @@ No delete de `Building`, o repositório primeiro usa `AnyAsync` para devolver ra
 Por isso, o repositório também compara `ConstraintName`: somente as três FKs conhecidas são traduzidas para resultados de negócio. Depois de uma falha esperada, a entidade é removida do change tracker; caso contrário, um segundo `SaveChangesAsync` no mesmo request tentaria repetir a alteração inválida. Se outro request já tiver eliminado o piso, `DbUpdateConcurrencyException` é traduzida para `NotFound`.
 
 `AccessPointRepository` usa `AsNoTracking` para leitura e tracking para atualização e delete. A constraint específica `fk_access_points_floors_floor_id` converte piso pai inexistente em `FloorNotFound`. O delete verifica `AccessPermissions`, `AccessEvents` e `SecurityAlerts`; se surgir uma dependência entre a consulta e a gravação, as FKs `Restrict` protegem o banco e as violações conhecidas viram `HasDependents`. O repositório destaca a entidade do tracker após conflitos esperados, e delete concorrente de um ponto já removido resulta em `NotFound`.
+
+`UserRepository` também usa `AsNoTracking` nas leituras e trata a violação do índice único `ix_users_email` como email duplicado. Antes de remover um `User`, verifica `AccessCards`, `AccessPermissions` e `OccupancySessions`; as FKs `Restrict` protegem a mesma regra contra concorrência. `AccessEvent.UserId`, ao contrário, é opcional e usa `SetNull`: o user pode ser removido sem apagar o `AccessEvent`, cuja referência fica nula para preservar auditoria.
+
+Passwords não são guardadas em texto simples. `IdentityPasswordHashService` usa `PasswordHasher<User>` do ASP.NET Core Identity, que gera hashes com salt aleatório; portanto, duas codificações da mesma password não são iguais. Os testes usam `VerifyHashedPassword` para aceitar a password correta e rejeitar a incorreta. Isso valida a primitiva de hash, não autenticação/verificação de credenciais num fluxo da aplicação; login continua planejado.
 
 ## Idempotência versus transação
 
@@ -298,6 +304,10 @@ São problemas relacionados, mas diferentes.
 **Como o repositório trata integridade referencial no CRUD de AccessPoints?**
 
 > Na criação e atualização, a violação específica da FK de `FloorId` vira `FloorNotFound`. No delete, o repositório consulta `AccessPermissions`, `AccessEvents` e `SecurityAlerts`; as FKs `Restrict` fecham a janela concorrente. Só as constraints conhecidas são traduzidas, a entidade é destacada do tracker após falhas esperadas e um delete concorrente já concluído resulta em `NotFound`.
+
+**Por que remover um User não apaga um AccessEvent?**
+
+> O evento é histórico de auditoria, enquanto o vínculo com User é opcional. A FK usa `ON DELETE SET NULL`, preservando o evento e limpando apenas `UserId`. Cartões, permissões e sessões de ocupação são dependências que bloqueiam o delete com conflito.
 
 ## Exercício
 

@@ -59,7 +59,7 @@ Ele não conhece EF Core, PostgreSQL ou HTTP. Assim, uma regra como “cartão e
 
 ## Application
 
-Application orquestra casos de uso. Nos slices implementados, `BuildingService`, `FloorService` e `AccessPointService` normalizam entradas, chamam contratos de repositório e devolvem DTOs sem conhecer HTTP ou EF Core. Os serviços preservam resultados explícitos para sucesso e recursos ou pais inexistentes. Quando a entrada viola um requisito, lançam `ApplicationValidationException` com a propriedade inválida, em vez de usar uma `ArgumentException` genérica.
+Application orquestra casos de uso. Nos slices implementados, `BuildingService`, `FloorService`, `AccessPointService` e `UserService` normalizam entradas, chamam contratos de repositório e devolvem DTOs sem conhecer HTTP ou EF Core. `UserService` normaliza email para lowercase e usa `IPasswordHashService` para não persistir password em texto simples. Updates de Users alteram perfil e estado, não a password. Os serviços preservam resultados explícitos para sucesso e recursos ou pais inexistentes. Quando a entrada viola um requisito, lançam `ApplicationValidationException` com a propriedade inválida, em vez de usar uma `ArgumentException` genérica.
 
 Um fluxo futuro de controlo de acesso terá uma sequência como:
 
@@ -76,7 +76,7 @@ Application não deve saber se os dados vieram de PostgreSQL, memória ou outro 
 
 ## Infrastructure
 
-Infrastructure implementa detalhes externos. Atualmente contém EF Core, Npgsql, o registro de `SmartBuildingDbContext`, a migration inicial, o seed de desenvolvimento e os repositórios de `Building`, `Floor` e `AccessPoint`, que implementam contratos definidos por Application. Os repositórios dos recursos seguintes continuam planejados.
+Infrastructure implementa detalhes externos. Atualmente contém EF Core, Npgsql, o registro de `SmartBuildingDbContext`, a migration inicial, o seed de desenvolvimento e repositórios dos CRUDs implementados. `UserRepository` persiste Users e trata duplicidade por índice único; `IdentityPasswordHashService` usa `PasswordHasher<User>` do ASP.NET Core Identity. A verificação de credenciais e o login continuam planejados.
 
 Trocar PostgreSQL por outra tecnologia deveria afetar principalmente Infrastructure, não as regras do Domain.
 
@@ -88,7 +88,7 @@ Um endpoint deve ser fino. Não deve concentrar consultas, regras, persistência
 
 No projeto, a API lê `ConnectionStrings:SmartBuilding` e chama `AddInfrastructure`. Se a configuração estiver ausente, o processo falha cedo. Em `Development`, a API também pede à Infrastructure que aplique migrations e execute o seed antes de servir requests.
 
-Os fluxos de `Buildings`, `Floors` e `AccessPoints` mostram a separação completa: Minimal API mapeia HTTP, o serviço coordena o caso de uso e o repositório executa EF Core. Essa divisão permite testar a Application com um fake sem iniciar servidor ou banco. No caso de `AccessPoint`, o endpoint traduz `FloorNotFound` para `404` e `HasDependents` para `409`, mas a Application não conhece esses códigos HTTP.
+Os fluxos de `Buildings`, `Floors`, `AccessPoints` e `Users` mostram a separação completa: Minimal API mapeia HTTP, o serviço coordena o caso de uso e o repositório executa EF Core. Essa divisão permite testar a Application com um fake sem iniciar servidor ou banco. No caso de `AccessPoint`, o endpoint traduz `FloorNotFound` para `404` e `HasDependents` para `409`; em Users, traduz email duplicado e dependências para `409`. A Application não conhece esses códigos HTTP.
 
 Uma analogia útil é um formulário interno de entrega: a Application informa qual campo está incorreto, mas não decide qual envelope HTTP será usado. Tecnicamente, `ApiExceptionHandler` traduz somente `ApplicationValidationException` para `400` com erros por campo; falhas inesperadas permanecem `500`. Assim, a Application comunica significado sem depender de ASP.NET Core.
 
@@ -196,6 +196,12 @@ Analogia: um formulário informa os dados do ponto de acesso; um coordenador val
 Definição técnica: a API converte requests em commands e os resultados da Application em HTTP. `AccessPointService` normaliza e valida os dados e chama `IAccessPointRepository`. `AccessPointRepository` implementa o contrato com EF Core e Npgsql. A Application não conhece Problem Details nem constraints PostgreSQL.
 
 Exemplo do projeto: `POST /api/access-points` transforma `FloorNotFound` em `404`; o delete bloqueado por permissões, eventos ou alertas vira `409`. Os flags `SupportsEntry` e `SupportsExit` são dados administrativos do recurso; eles não significam que a decisão de autorização de acesso já foi implementada.
+
+### Como guardar passwords sem expô-las na API?
+
+Analogia: guardar uma impressão da chave, não uma cópia. Tecnicamente, `UserService` envia a password de criação a `IPasswordHashService`, cuja implementação Infrastructure usa `PasswordHasher<User>`; DTOs e `UserResponse` omitem password e hash, e o endpoint de update não recebe password. Testes confirmam que a primitiva Identity verifica o hash com a password correta e rejeita uma incorreta. Isso não é um fluxo de verificação de credenciais da aplicação: login, verificação no caso de uso, JWT e autorização continuam planejados para a fase 6.
+
+No request HTTP, `TrimmedEmailAddressAttribute` valida o formato do email depois de remover whitespace externo. Em seguida, `UserService` remove esses espaços e converte o email para lowercase antes de persistir; assim, a validação do contrato e a normalização da Application são coerentes.
 
 ## Exercício
 

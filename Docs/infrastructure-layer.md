@@ -28,6 +28,8 @@ Já existem:
 - tratamento de edifício pai inexistente em criação e atualização;
 - proteção da remoção quando o piso possui pontos de acesso ou sessões de ocupação;
 - `AccessPointRepository` com operações CRUD assíncronas;
+- `UserRepository` com operações CRUD assíncronas e tratamento de email duplicado;
+- `IdentityPasswordHashService` com `PasswordHasher<User>` do ASP.NET Core Identity;
 - consultas de `AccessPoint` com `AsNoTracking`;
 - validação da FK específica `FloorId` na criação e atualização;
 - proteção de remoção quando existem `AccessPermissions`, `AccessEvents` ou `SecurityAlerts` dependentes;
@@ -37,7 +39,7 @@ Já existem:
 Ainda não existem:
 
 - projeto automatizado de testes de integração com PostgreSQL;
-- repositórios para os recursos seguintes do domínio.
+- repositórios para os demais recursos do domínio.
 
 ## Dependências
 
@@ -121,7 +123,7 @@ Cada configuração é responsável por:
 | `Building` | `buildings` | chave primária |
 | `Floor` | `floors` | `building_id` |
 | `AccessPoint` | `access_points` | `floor_id` |
-| `User` | `users` | `email` único |
+| `User` | `users` | índice único `ix_users_email` |
 | `AccessCard` | `access_cards` | `card_number` único e `user_id` |
 | `AccessPermission` | `access_permissions` | `user_id` e `access_point_id` |
 | `AccessEvent` | `access_events` | instante, ponto, cartão e utilizador |
@@ -187,6 +189,14 @@ Antes da remoção, o repositório verifica referências em `AccessPermissions`,
 
 Consultas e comandos dos demais recursos continuam planejados.
 
+## UserRepository e hash de password
+
+`UserRepository` implementa `IUserRepository`. Leituras usam `AsNoTracking` e a listagem ordena por nome. Criação e atualização persistem com `SaveChangesAsync`; a violação do índice único `ix_users_email` é convertida em resultado `EmailAlreadyExists`, que a API apresenta como `409 Conflict`.
+
+O delete consulta `AccessCards`, `AccessPermissions` e `OccupancySessions` e retorna conflito quando há dependentes. As FKs `Restrict` são a proteção final para inserções concorrentes; violações das três constraints conhecidas também viram `HasDependents`, e a entidade é destacada do change tracker. `AccessEvents` não bloqueia o delete: `AccessEvent.UserId` é opcional e seu relacionamento usa `DeleteBehavior.SetNull`, preservando o registo de auditoria com `user_id` nulo.
+
+`IdentityPasswordHashService` implementa `IPasswordHashService` com `Microsoft.AspNetCore.Identity.PasswordHasher<User>`. O serviço persiste apenas o resultado de `HashPassword`; o formato inclui salt aleatório, portanto hashes da mesma password não são iguais. Testes exercitam `VerifyHashedPassword` com password correta e incorreta para verificar essa primitiva. Isso não implementa verificação de credenciais num caso de uso nem login: ambos permanecem planejados.
+
 ## Migrations
 
 Migrations são o histórico versionado do esquema. A migration `InitialCreate` foi gerada para as nove tabelas do domínio, respetivas chaves, foreign keys e índices.
@@ -248,11 +258,15 @@ Antes de inserir cada registo, o seeder consulta o respetivo GUID. Por isso, rei
 
 `DependencyInjectionTests` resolve o contexto em dois scopes e verifica a mesma instância dentro de um scope e instâncias diferentes entre scopes. Também confirma o provider Npgsql, a coluna `access_point_id` em `snake_case` e a rejeição de connection string vazia ou composta apenas por espaços.
 
+`IdentityPasswordHashServiceTests` verifica que o hash não é texto puro, duas codificações da mesma password diferem por causa do salt, `VerifyHashedPassword` aceita a password correta e rejeita uma incorreta. Estes testes cobrem a primitiva de hashing/verificação do Identity, não autenticação ou login da aplicação.
+
 Também foi feita uma validação manual contra PostgreSQL 18 real num container Docker descartável, exposto apenas em `55432`. Além da migration e do seed, o smoke test do slice de `Buildings` observou, em sequência, os status `200/201/200/200/204/404/400/409`. As respostas `404`, `400` e `409` usaram content type `application/problem+json`.
 
 O smoke do slice de `Floors` observou `200/201/200/200/404/409/204/204`: listagem, criação, consulta, atualização, edifício pai inexistente, delete bloqueado por dependente, delete do piso temporário e limpeza do edifício temporário. Isso confirmou o CRUD e as constraints reais sem transformar a verificação em teste automatizado.
 
 O smoke do slice de `AccessPoints` observou `200/201/200/200/404/409/204`: listagem, criação, consulta, atualização, piso pai inexistente, delete bloqueado por evento dependente e delete após a limpeza do evento. Os recursos temporários foram removidos ao final. Essa validação manual confirmou o fluxo contra PostgreSQL real, mas não cria testes de integração automatizados.
+
+O smoke de `Users` contra PostgreSQL real criou com `201` um email uppercase com espaços externos e confirmou sua canonicalização para lowercase. Email duplicado, consulta, atualização e remoção produziram `409/200/200/204`. A resposta não continha password nem hash, e o banco armazenou um hash de `PasswordHasher<User>`. Delete com cartão retornou `409`; delete com evento de auditoria retornou `204` e preservou o evento com `UserId` nulo. Continua sendo validação manual, não teste automatizado de integração.
 
 O container foi apenas um ambiente isolado de validação da persistência. Isso não implementa a fase futura de Docker da aplicação, nem substitui testes de integração automatizados.
 
