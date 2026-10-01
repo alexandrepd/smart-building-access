@@ -163,3 +163,40 @@ Content-Type: application/json
 }
 
 ###
+
+GET {{SmartBuilding.Api_HostAddress}}/api/users
+Accept: application/json
+
+###
+
+POST {{SmartBuilding.Api_HostAddress}}/api/users
+Content-Type: application/json
+
+{
+	"name": "Alex Example",
+	"email": "alex@example.com",
+	"password": "Example password for local testing"
+}
+
+###
+
+GET {{SmartBuilding.Api_HostAddress}}/api/users/00000000-0000-0000-0000-000000000001
+Accept: application/json
+
+###
+
+PUT {{SmartBuilding.Api_HostAddress}}/api/users/00000000-0000-0000-0000-000000000001
+Content-Type: application/json
+
+{
+	"name": "Alex Example Updated",
+	"email": "alex.updated@example.com",
+	"isActive": true
+}
+
+###
+
+# Returns 409 while cards, permissions, or occupancy sessions reference the user.
+DELETE {{SmartBuilding.Api_HostAddress}}/api/users/00000000-0000-0000-0000-000000000001
+
+###

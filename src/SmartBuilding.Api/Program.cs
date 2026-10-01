@@ -41,5 +41,6 @@ app.MapGet("/", () => Results.Ok(new
 app.MapBuildingEndpoints();
 app.MapFloorEndpoints();
 app.MapAccessPointEndpoints();
+app.MapUserEndpoints();
 
 app.Run();

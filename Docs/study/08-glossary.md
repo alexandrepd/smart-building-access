@@ -9,6 +9,7 @@
 - **JSON:** formato textual de troca de dados.
 - **REST:** estilo arquitetural orientado a recursos e interface uniforme.
 - **DTO:** objeto de transporte entre fronteiras.
+- **Password hash:** representação unidirecional usada para armazenar uma password sem guardar o texto original.
 - **Middleware:** etapa transversal do pipeline HTTP.
 - **CORS:** política do browser para requests entre origens.
 - **JWT:** formato de token assinado com claims.
@@ -44,6 +45,7 @@
 - **Constraint:** regra garantida pelo banco.
 - **Índice:** estrutura que acelera consultas específicas.
 - **Unique:** regra que impede duplicação.
+- **Salt:** valor aleatório incorporado ao hash para que passwords iguais produzam hashes diferentes.
 - **ORM:** mapeamento entre objetos e banco relacional.
 - **EF Core:** ORM .NET usado pelo projeto.
 - **Npgsql:** provider .NET para PostgreSQL.
@@ -56,6 +58,8 @@
 - **Transação:** grupo atómico de operações.
 - **Concorrência:** operações simultâneas sobre estado relacionado.
 - **AsNoTracking:** consulta sem tracking para leitura.
+
+No Smart Building, `PasswordHasher<User>` do ASP.NET Core Identity gera o hash na criação do utilizador. O hash nunca é devolvido pela API, e testes confirmam a verificação da password correta e rejeição da incorreta pela primitiva Identity. Login e verificação de credenciais no fluxo da aplicação continuam planejados.
 
 ## Angular
 

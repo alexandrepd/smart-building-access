@@ -13,7 +13,12 @@ Existe um projeto `SmartBuilding.UnitTests` com xUnit. Ele contém:
 - testes do registro de persistência em Dependency Injection;
 - nove casos de teste unitário de `BuildingService`;
 - oito casos de teste unitário de `FloorService`;
-- dez casos de teste unitário de `AccessPointService`.
+- dez casos de teste unitário de `AccessPointService`;
+- 15 casos de teste unitário de `UserService`;
+- três casos de `IdentityPasswordHashService`;
+- dois casos de validação HTTP do request de User.
+
+Os testes focados em User/hash/API totalizam 20 casos: 15 de Application, três de Infrastructure e dois de API.
 
 Ainda não existe `SmartBuilding.IntegrationTests`.
 
@@ -26,10 +31,17 @@ SmartBuilding.UnitTests/
 │   │   └── BuildingServiceTests.cs
 │   ├── Floors/
 │   │   └── FloorServiceTests.cs
-│   └── AccessPoints/
-│       └── AccessPointServiceTests.cs
+│   ├── AccessPoints/
+│   │   └── AccessPointServiceTests.cs
+│   └── Users/
+│       └── UserServiceTests.cs
+├── Api/
+│   └── Users/
+│       └── UserRequestValidationTests.cs
 ├── Architecture/
 │   └── DomainDependencyTests.cs
+├── Infrastructure/
+│   └── IdentityPasswordHashServiceTests.cs
 └── Persistence/
     ├── DependencyInjectionTests.cs
     └── ModelMetadataTests.cs
@@ -103,6 +115,10 @@ Esses testes exercitam a orquestração e os resultados explícitos da Applicati
 
 `AccessPointServiceTests` usa um fake de `IAccessPointRepository` e cobre dez casos: mapeamento dos indicadores `SupportsEntry` e `SupportsExit`, normalização de texto na criação, `FloorId` vazio, piso inexistente, substituição do estado editável, ponto inexistente, conflito de remoção e três combinações de nome/localização vazios ou compostos apenas por whitespace. Esses testes validam Application isoladamente; não executam endpoint, EF Core nem PostgreSQL.
 
+`UserServiceTests` usa fakes de `IUserRepository` e `IPasswordHashService` e cobre 15 casos, incluindo email canonicalizado e persistência somente do hash, DTO de listagem sem material de password, email inválido ou duplicado tanto na criação quanto na atualização, password abaixo/acima dos limites, nome acima do limite ou composto apenas por whitespace, email acima do limite, atualização sem alterar o hash, utilizador inexistente e delete com/sem dependentes.
+
+`IdentityPasswordHashServiceTests` cobre três casos: hash diferente do texto original, salt aleatório e verificação da password correta versus rejeição da incorreta. `UserRequestValidationTests` cobre dois casos do atributo HTTP: email válido com whitespace externo é aceito e email inválido é rejeitado. Somados, são 20 casos focados em User/hash/API. A validação de hash é teste da primitiva Identity; não existe ainda caso de uso de login ou verificação de credenciais.
+
 ## Validação manual com PostgreSQL
 
 A persistência também foi validada contra PostgreSQL 18 real num container Docker descartável, exposto na porta isolada `55432`. A verificação confirmou:
@@ -118,9 +134,11 @@ Essa execução é evidência manual da mudança, não uma suíte de integraçã
 
 Após o slice de `Buildings`, um smoke test manual atravessou API, Application, Infrastructure e PostgreSQL real. A sequência observada foi `200/201/200/200/204/404/400/409`, cobrindo listagem, criação, consultas, atualização, remoção, recurso ausente, validação e conflito por pisos. Nos três cenários de erro observados, `400`, `404` e `409`, o content type foi `application/problem+json`.
 
-O smoke manual de `Floors` observou `200/201/200/200/404/409/204/204`: listagem, criação, consulta, atualização, edifício pai inexistente, conflito por dependente, remoção do piso temporário e limpeza do edifício temporário. Essa evidência confirma o comportamento atual dos três slices administrativos, mas não substitui testes HTTP e de persistência automatizados.
+O smoke manual de `Floors` observou `200/201/200/200/404/409/204/204`: listagem, criação, consulta, atualização, edifício pai inexistente, conflito por dependente, remoção do piso temporário e limpeza do edifício temporário. Essa evidência confirma os três slices administrativos então validados, mas não substitui testes HTTP e de persistência automatizados.
 
 O smoke manual de `AccessPoints` observou `200/201/200/200/404/409/204`: listagem, criação, consulta, atualização, piso pai inexistente, conflito por evento dependente e remoção após a limpeza desse evento. Os recursos temporários também foram limpos. A execução confirma o caminho HTTP e a persistência real para esse cenário, mas continua sendo validação manual, não uma suíte de integração repetível.
+
+O smoke manual de `Users` contra PostgreSQL real aceitou email uppercase com espaços externos: criação `201` e valor canonicalizado para lowercase. Email duplicado retornou `409`; consulta, atualização e remoção retornaram `200/200/204`. O banco armazenou hash do `PasswordHasher<User>` e a response não continha password nem hash. Delete com cartão retornou `409`; delete com evento de auditoria retornou `204`, mantendo o evento com `UserId` nulo. Essa validação atravessou API e persistência real, mas não substitui testes de integração automatizados.
 
 Depois da revisão do repositório, os caminhos associados às constraints específicas foram repetidos no PostgreSQL real: parent inexistente permaneceu `404` e delete com dependente permaneceu `409`. Tracking após falha e deletes simultâneos ainda devem receber testes de integração automatizados numa fase posterior.
 

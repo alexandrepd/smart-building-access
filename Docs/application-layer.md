@@ -24,8 +24,13 @@ Os vertical slices CRUD de `Buildings`, `Floors` e `AccessPoints` estão impleme
 - `AccessPointSaveResult` e `AccessPointSaveStatus` para distinguir sucesso e ausência do ponto ou piso;
 - `AccessPointPersistenceResult` e `DeleteAccessPointResult` para representar persistência e remoção bloqueada por dependentes;
 - `AddApplication` para registrar os serviços com lifetime scoped.
+- `IUserService` e `UserService` para os cinco casos de uso CRUD;
+- commands, `UserDto`, `IUserRepository` e resultados explícitos de gravação e remoção;
+- `IPasswordHashService` como abstração para hash da password na criação.
 
 O processamento de pedidos de acesso, permissões, eventos, ocupação e alertas continua planejado e será adicionado progressivamente.
+
+No slice `Users`, `UserService` normaliza nome e email, converte email para lowercase, valida o formato do endereço e exige password entre 12 e 128 caracteres na criação. A password é encaminhada para `IPasswordHashService`; a atualização recebe apenas nome, email e `IsActive`, nunca uma password.
 
 ## Dependências
 
@@ -146,7 +151,7 @@ Não será criado um `GenericRepository<T>` apenas por convenção. Abstrações
 
 DTOs definem os dados de entrada e saída dos casos de uso. Eles não devem ser entidades EF nem transportar propriedades de navegação.
 
-Nos slices de `Buildings`, `Floors` e `AccessPoints`, commands representam entrada de criação e atualização, enquanto `BuildingDto`, `FloorDto` e `AccessPointDto` representam saída. Para `AccessPoint`, o serviço remove espaços nas extremidades de nome e localização, valida os limites de 150 e 250 caracteres e preserva `SupportsEntry` e `SupportsExit`. A API mantém requests e responses próprios e faz o mapeamento na borda.
+Nos slices de `Buildings`, `Floors`, `AccessPoints` e `Users`, commands representam entrada de criação e atualização, enquanto DTOs próprios representam saída. `UserDto` não contém password nem hash. `CreateUserCommand` transporta a password somente até ao serviço de criação; `UpdateUserCommand` não possui esse campo. Para `AccessPoint`, o serviço remove espaços nas extremidades de nome e localização, valida os limites de 150 e 250 caracteres e preserva `SupportsEntry` e `SupportsExit`. A API mantém requests e responses próprios e faz o mapeamento na borda.
 
 Categorias ainda planejadas:
 
@@ -163,6 +168,8 @@ A API pode reutilizar DTOs de Application quando o contrato do caso de uso e o c
 Application valida requisitos do caso de uso, como formato, presença de dados e combinações inválidas. Domain protege invariantes que devem ser verdadeiras independentemente do caso de uso.
 
 `BuildingService` rejeita nome ou endereço vazios ou compostos apenas por whitespace, remove espaços nas extremidades e limita nome a 200 e endereço a 500 caracteres. `FloorService` exige `BuildingId` diferente de `Guid.Empty`, rejeita nome vazio ou composto apenas por whitespace, remove espaços nas extremidades e limita o nome a 100 caracteres. Para essas falhas, os serviços lançam `ApplicationValidationException` com o nome da propriedade inválida. Essa proteção continua válida quando o serviço é chamado sem passar pela validação HTTP.
+
+`UserService` exige nome não vazio de até 200 caracteres, email não vazio e válido de até 320 caracteres e password de 12 a 128 caracteres na criação. Espaços externos são removidos e o email é convertido para lowercase invariável. O serviço encaminha a password original para `IPasswordHashService` e recebe o hash antes de persistir; nenhum DTO de saída contém material de password.
 
 Exemplos:
 
@@ -188,6 +195,8 @@ Application usa resultados ou exceções específicas do caso de uso, sem retorn
 
 `AccessPointPersistenceResult` e `AccessPointSaveResult` seguem a mesma proteção: os construtores são privados, sucesso é criado com `Succeeded` e os resultados `AccessPointNotFound` ou `FloorNotFound` são criados sem entidade/DTO. Assim, cada factory mantém consistente o status com o valor transportado.
 
+Para Users, `UserSaveResult` distingue sucesso, utilizador inexistente e email duplicado; `DeleteUserResult` distingue remoção, ausência e dependências. Esses resultados mantêm a Application independente dos status HTTP.
+
 ## Testes
 
 Os nove casos de teste de `BuildingService` usam um repositório fake e cobrem mapeamento completo da lista, consulta inexistente, normalização na criação, nome vazio, atualização inexistente, atualização bem-sucedida, os limites máximos de nome e endereço e conflito de remoção com pisos.
@@ -195,6 +204,8 @@ Os nove casos de teste de `BuildingService` usam um repositório fake e cobrem m
 Os oito casos de teste de `FloorService` também usam um repositório fake e cobrem mapeamento da lista, normalização na criação, `BuildingId` vazio, edifício inexistente, substituição do estado editável, conflito de remoção e nomes vazio ou composto apenas por whitespace.
 
 Os dez casos de teste de `AccessPointService` usam um repositório fake e cobrem mapeamento dos indicadores de direção, normalização de nome e localização, `FloorId` vazio, piso inexistente, substituição do estado editável, ponto inexistente, conflito de remoção e texto obrigatório vazio ou composto apenas por whitespace.
+
+Os 15 casos de `UserService` cobrem normalização de email e persistência somente do hash, DTOs sem material de password, email inválido ou duplicado na criação e atualização, consulta e atualização de utilizador inexistente, atualização sem alterar o hash existente, remoção com e sem dependentes, nome/email/password fora dos limites e nome composto apenas por whitespace. Testes separados verificam o hash Identity e a validação do atributo HTTP; o conjunto focado em User/hash/API totaliza 20 casos. A verificação de uma password correta ou incorreta testa a primitiva do hasher, não um fluxo de login.
 
 ## Próximos passos da camada
 
