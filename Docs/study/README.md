@@ -20,6 +20,8 @@ Se você não consegue explicar um conceito com palavras simples, ainda não o d
 
 ## Módulos
 
+Para ler a preparação completa num único ficheiro, abra o [README de Entrevista](../../README-ENTREVISTA.md).
+
 1. [Web e desenvolvimento Full-Stack](01-web-full-stack.md)
 2. [.NET e arquitetura em camadas](02-dotnet-architecture.md)
 3. [REST, HTTP, OpenAPI e idempotência](03-rest-openapi.md)
@@ -28,25 +30,39 @@ Se você não consegue explicar um conceito com palavras simples, ainda não o d
 6. [Git, CI/CD, containers e operação](06-git-delivery-operations.md)
 7. [Preparação prática para a entrevista](07-interview-workbook.md)
 8. [Glossário rápido](08-glossary.md)
+9. [Angular: revisão intensiva para entrevista](09-angular-interview-review.md)
 
 ## Mapa da job description
 
-| Requisito da vaga | Onde estudar | Onde praticar no projeto |
-|---|---|---|
-| Frontend Angular | Módulo 5 | Fase 7 |
-| Backend .NET | Módulo 2 | Todas as fases backend |
-| RESTful APIs | Módulo 3 | Fases 4 e 5 |
-| Swagger specifications | Módulo 3 | Fase 4 |
-| Manutenção e bugs | Módulos 2 e 7 | Cada branch e pull request |
-| Git | Módulo 6 | Desde a primeira fase |
-| PostgreSQL | Módulo 4 | Fase 3 |
-| EF Migrations | Módulo 4 | Fase 3 |
-| Docker e containers | Módulo 6 | Fase 13 |
-| GitHub Actions e CI/CD | Módulo 6 | Fase 14 |
-| Kubernetes | Módulo 6 | Fase 15 |
-| Windows Server | Módulo 6 | Estudo complementar |
-| Colaboração | Módulos 6 e 7 | Branches, reviews e PRs |
-| Inglês técnico | Módulo 7 | Respostas e vocabulário |
+| Requisito da vaga | Onde estudar | Evidência/ligação ao projeto | Estado |
+|---|---|---|---|
+| Frontend Angular sólido | Módulos 5 e 9 | Arquitetura planejada do dashboard | Angular ainda não implementado; estudar conceitos e demonstrar exercícios separados |
+| UX intuitiva para self-service | Módulos 1, 5 e 9 | Fluxos futuros de administração e ocupação | Princípios documentados; UI ainda não implementada |
+| Backend .NET ou Java | Módulo 2 | API, Application, Domain e Infrastructure em .NET 10 | .NET aplicado no projeto; Java é alternativa da vaga, não requisito para duplicar a stack |
+| RESTful APIs | Módulo 3 | CRUDs iniciais de Buildings, Floors, AccessPoints e Users | Implementado parcialmente; acesso, ocupação e alertas continuam planejados |
+| OpenAPI/Swagger specifications | Módulo 3 | Metadados OpenAPI gerados a partir dos endpoints | Documento OpenAPI code-first; Swagger UI não está implementado |
+| Manutenção, bugs e novas features | Módulos 2, 7 e 9 | testes, branches focadas, tratamento de erros e exemplos de debugging | Praticar cada alteração com reprodução, causa raiz e teste de regressão |
+| Git fundamental | Módulo 6 | branches, Conventional Commits, PRs e reviews | Fluxo usado neste repositório |
+| PostgreSQL e EF migrations | Módulo 4 | EF Core, Npgsql, migration e seed | Persistência implementada e validada em PostgreSQL |
+| Colaboração e qualidade | Módulos 6 e 7 | PR pequeno, revisão, testes e documentação | Praticar comunicação técnica e resposta a feedback |
+| Containers e deployment frontend | Módulo 6 | Angular em Nginx é um caminho planejado | Fase Docker ainda não implementada |
+| CI/CD e GitHub Actions | Módulo 6 | pipeline planejado | Fase CI ainda não implementada |
+| Kubernetes | Módulo 6 | manifests planejados | Fase futura; conhecimento valorizado, não baseline atual |
+| Windows Server | Módulo 6 | IIS, Kestrel, TLS e logs | Estudo conceitual complementar |
+| Inglês fluente | Workbook e módulo 9 | respostas técnicas e vocabulário em inglês | Preparar exemplos próprios e praticar em voz alta |
+
+### Como falar das lacunas
+
+Este repositório prova trabalho prático em .NET, APIs, PostgreSQL, EF Core, migrations e testes. Não prova experiência profissional ou experiência Angular em produção: o frontend ainda não foi iniciado. Não transforme conteúdo estudado em experiência que não teve. Explique o que já construiu, demonstre o modelo Angular com um exercício e seja claro sobre o que ainda precisa praticar.
+
+## O que a vaga também avalia
+
+- **Self-service UX:** reduzir passos, preservar dados válidos, explicar erros, mostrar loading/sucesso e suportar teclado, acessibilidade e mobile.
+- **Manutenção e bugs:** reproduzir o problema, recolher evidências, identificar a camada, corrigir a causa e criar teste de regressão.
+- **Swagger/OpenAPI:** manter o contrato sincronizado com implementação e discutir mudanças incompatíveis.
+- **Colaboração:** PRs pequenos, review respeitoso, comunicação de bloqueios e coordenação de contratos entre frontend/backend.
+- **Entrega:** explicar build, teste, image/container, CI/CD e promoção a ambientes, distinguindo o que já praticou do que só estudou.
+- **Inglês:** comunicar decisões e trade-offs de forma clara; treine as respostas em voz alta, não apenas vocabulário isolado.
 
 ## O que não precisamos adicionar ao projeto
 
@@ -56,12 +72,14 @@ Windows Server também será estudado conceitualmente. O deployment principal do
 
 ## Ordem recomendada
 
-Enquanto a Fase 3 é implementada:
+Estado atual do produto: APIs CRUD iniciais de Buildings, Floors, AccessPoints e Users estão implementadas; Cards e Permissions faltam à Fase 4. Access Control e Authentication também estão por implementar. O frontend Angular ainda não começou e continua planeado para a Fase 7; Docker, CI/CD e Kubernetes continuam nas fases posteriores.
 
-1. estudar os módulos 1 a 4;
-2. explicar o código de persistência sem consultar notas;
-3. responder às perguntas do workbook;
-4. avançar para Angular quando a Fase 7 começar;
+Para preparação de entrevista, pode estudar Angular agora sem alterar a ordem de implementação:
+
+1. revisar o [módulo Angular](05-angular-rxjs.md);
+2. usar a [revisão intensiva](09-angular-interview-review.md) para perguntas e respostas em voz alta;
+3. ligar os conceitos ao futuro dashboard Smart Building;
+4. continuar a implementação das fases backend sem antecipar Angular no produto;
 5. estudar deployment em profundidade nas fases 13 a 15.
 
 ## Regra para respostas fortes
