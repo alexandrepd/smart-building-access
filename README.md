@@ -2,6 +2,8 @@
 
 Plataforma de controlo de acessos e monitorização de ocupação para um edifício empresarial.
 
+Preparação para entrevista: [README-ENTREVISTA.md](README-ENTREVISTA.md).
+
 ## Estado atual
 
 - solução .NET 10;

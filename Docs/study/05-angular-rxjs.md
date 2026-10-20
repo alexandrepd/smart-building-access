@@ -1,5 +1,7 @@
 # Angular e RxJS
 
+Para uma revisão de véspera de entrevista, consulte também o [guia intensivo de Angular](09-angular-interview-review.md).
+
 ## O que é Angular?
 
 ### Como explicar para uma criança
