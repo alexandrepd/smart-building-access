@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using SmartBuilding.Api.Contracts.AccessControl;
+using SmartBuilding.Api.Security;
 using SmartBuilding.Application.AccessControl;
 
 namespace SmartBuilding.Api.Endpoints;
@@ -19,19 +20,22 @@ internal static class AccessControlEndpoints
                 "Returns HTTP 200 for a processed request; inspect the result field to determine whether access was granted or denied. Every processed request is audited.")
             .Produces<AccessEventResponse>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireAuthorization(AuthorizationPolicies.AccessOperations);
 
         group.MapGet("/events", GetEventsAsync)
             .WithName("GetAccessEvents")
             .WithSummary("List access decision events")
             .WithDescription("Returns access attempts ordered newest first.")
-            .Produces<IReadOnlyList<AccessEventResponse>>(StatusCodes.Status200OK);
+            .Produces<IReadOnlyList<AccessEventResponse>>(StatusCodes.Status200OK)
+            .RequireAuthorization(AuthorizationPolicies.AccessOperations);
 
         group.MapGet("/events/{id:guid}", GetEventByIdAsync)
             .WithName("GetAccessEventById")
             .WithSummary("Get an access decision event by ID")
             .Produces<AccessEventResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireAuthorization(AuthorizationPolicies.AccessOperations);
 
         return endpoints;
     }

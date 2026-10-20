@@ -2409,9 +2409,10 @@ AccessPoint desconhecido retorna `404` sem evento porque `AccessEvent` exige
 FK válida. A ordem das condições e os limites do escopo estão descritos em
 [Camada API](api-layer.md) e [Camada Application](application-layer.md).
 
-Este estado não antecipa as fases seguintes: atualização de
-`OccupancySession`, notificações SignalR, processamento de alertas,
-autenticação e autorização permanecem futuros.
+Nesta branch, a autenticação e autorização JWT da Fase 6 estão implementadas.
+Continuam por implementar a experiência de login na interface Angular,
+atualização de `OccupancySession`, notificações SignalR e processamento de
+alertas; a ordem e o escopo das fases seguintes permanecem conforme este plano.
 
 ---
 

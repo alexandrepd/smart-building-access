@@ -1,3 +1,5 @@
+using SmartBuilding.Domain.Enums;
+
 namespace SmartBuilding.Domain.Entities;
 
 public class User
@@ -11,6 +13,8 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
 
     public bool IsActive { get; set; } = true;
+
+    public UserRole Role { get; set; } = UserRole.SecurityOperator;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

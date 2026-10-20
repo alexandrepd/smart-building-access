@@ -9,9 +9,10 @@ Este diretório reúne o plano do produto e a documentação da arquitetura impl
 3. [Camada Application](application-layer.md)
 4. [Camada Infrastructure](infrastructure-layer.md)
 5. [Camada API](api-layer.md)
-6. [Estratégia de testes](testing-layer.md)
-7. [Plano completo do projeto](smart-building-project-plan.md)
-8. [Trilha de estudo para entrevistas](study/README.md)
+6. [Autenticação e autorização](authentication-authorization.md)
+7. [Estratégia de testes](testing-layer.md)
+8. [Plano completo do projeto](smart-building-project-plan.md)
+9. [Trilha de estudo para entrevistas](study/README.md)
 
 ## Estado da documentação
 
@@ -31,3 +32,7 @@ O fluxo de Access Control desta branch está descrito em
 [Camada API](api-layer.md#access-control-pedido-e-eventos),
 [Camada Application](application-layer.md#papel-na-arquitetura) e no
 [exemplo progressivo para entrevistas](study/03-rest-openapi.md#exemplo-do-projeto-decisão-de-acesso-e-auditoria).
+
+A autenticação JWT e a autorização por papéis implementadas nesta branch
+estão descritas em [Autenticação e autorização](authentication-authorization.md)
+e no [módulo progressivo de estudo](study/10-authentication-authorization.md).

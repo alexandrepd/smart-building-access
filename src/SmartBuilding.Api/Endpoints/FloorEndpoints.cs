@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using SmartBuilding.Api.Contracts.Floors;
+using SmartBuilding.Api.Security;
 using SmartBuilding.Application.Floors;
 
 namespace SmartBuilding.Api.Endpoints;
@@ -9,7 +10,8 @@ internal static class FloorEndpoints
     internal static IEndpointRouteBuilder MapFloorEndpoints(this IEndpointRouteBuilder endpoints)
     {
         RouteGroupBuilder group = endpoints.MapGroup("/api/floors")
-            .WithTags("Floors");
+            .WithTags("Floors")
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         group.MapGet("/", GetAllAsync)
             .WithName("GetFloors")

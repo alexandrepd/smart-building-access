@@ -80,7 +80,7 @@ praticar uma resposta de entrevista, consulte o
 
 ## Infrastructure
 
-Infrastructure implementa detalhes externos. Atualmente contém EF Core, Npgsql, o registro de `SmartBuildingDbContext`, a migration inicial, o seed de desenvolvimento e repositórios dos CRUDs implementados. `UserRepository` persiste Users e trata duplicidade por índice único; `AccessCardRepository` persiste cartões e traduz violações do índice único do número e da FK de User em resultados explícitos. `IdentityPasswordHashService` usa `PasswordHasher<User>` do ASP.NET Core Identity. A verificação de credenciais e o login continuam planejados.
+Infrastructure implementa detalhes externos. Atualmente contém EF Core, Npgsql, o registro de `SmartBuildingDbContext`, migrations, o seed de desenvolvimento e repositórios dos CRUDs implementados. `UserRepository` persiste Users e trata duplicidade por índice único; `AccessCardRepository` persiste cartões e traduz violações do índice único do número e da FK de User em resultados explícitos. `IdentityPasswordHashService` usa `PasswordHasher<User>` do ASP.NET Core Identity. O caso de uso de login vive na Application; bootstrap de Admin e armazenamento/hash são apoiados pela Infrastructure.
 
 Trocar PostgreSQL por outra tecnologia deveria afetar principalmente Infrastructure, não as regras do Domain.
 
@@ -199,11 +199,11 @@ Analogia: um formulário informa os dados do ponto de acesso; um coordenador val
 
 Definição técnica: a API converte requests em commands e os resultados da Application em HTTP. `AccessPointService` normaliza e valida os dados e chama `IAccessPointRepository`. `AccessPointRepository` implementa o contrato com EF Core e Npgsql. A Application não conhece Problem Details nem constraints PostgreSQL.
 
-Exemplo do projeto: `POST /api/access-points` transforma `FloorNotFound` em `404`; o delete bloqueado por permissões, eventos ou alertas vira `409`. Os flags `SupportsEntry` e `SupportsExit` são dados administrativos do recurso; eles não significam que a decisão de autorização de acesso já foi implementada.
+Exemplo do projeto: `POST /api/access-points` transforma `FloorNotFound` em `404`; o delete bloqueado por permissões, eventos ou alertas vira `409`. Os flags `SupportsEntry` e `SupportsExit` são dados administrativos do recurso; a decisão de autorização de acesso é um caso de uso separado, protegido pela policy `AccessOperations`.
 
 ### Como guardar passwords sem expô-las na API?
 
-Analogia: guardar uma impressão da chave, não uma cópia. Tecnicamente, `UserService` envia a password de criação a `IPasswordHashService`, cuja implementação Infrastructure usa `PasswordHasher<User>`; DTOs e `UserResponse` omitem password e hash, e o endpoint de update não recebe password. Testes confirmam que a primitiva Identity verifica o hash com a password correta e rejeita uma incorreta. Isso não é um fluxo de verificação de credenciais da aplicação: login, verificação no caso de uso, JWT e autorização continuam planejados para a fase 6.
+Analogia: guardar uma impressão da chave, não uma cópia. Tecnicamente, `UserService` envia a password de criação a `IPasswordHashService`, cuja implementação Infrastructure usa `PasswordHasher<User>`; DTOs e `UserResponse` omitem password e hash, e o endpoint de update não recebe password. A primitiva Identity verifica hashes, enquanto o caso de uso implementado `AuthenticationService` procura o User, verifica a password e rejeita utilizadores inativos com uma resposta genérica. A API emite e valida tokens JWT e aplica policies de papel. O login no cliente Angular, refresh/revogação, MFA e provedor externo ainda não estão implementados.
 
 No request HTTP, `TrimmedEmailAddressAttribute` valida o formato do email depois de remover whitespace externo. Em seguida, `UserService` remove esses espaços e converte o email para lowercase antes de persistir; assim, a validação do contrato e a normalização da Application são coerentes.
 

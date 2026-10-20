@@ -130,7 +130,7 @@ As entidades continuam sendo modelos mutáveis com propriedades públicas, valor
 - detectar saída sem sessão aberta;
 - controlar transições válidas de `AlertStatus`.
 
-Essas regras devem ser adicionadas juntamente com testes unitários. Não devem ser implementadas em endpoints ou configurações EF. Autenticação permanece futura; a decisão descrita não autentica o cliente.
+Essas regras devem ser adicionadas juntamente com testes unitários. Não devem ser implementadas em endpoints ou configurações EF. O Domain não autentica o cliente: o login e a autorização HTTP são implementados nas camadas Application/API; a decisão de acesso continua sendo uma regra distinta e não é alterada pela identidade do chamador.
 
 ## Datas e tempo
 

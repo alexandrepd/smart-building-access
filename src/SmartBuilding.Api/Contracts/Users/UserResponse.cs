@@ -1,4 +1,5 @@
 using SmartBuilding.Application.Users;
+using SmartBuilding.Domain.Enums;
 
 namespace SmartBuilding.Api.Contracts.Users;
 
@@ -8,7 +9,8 @@ public sealed record UserResponse(
     string Name,
     string Email,
     bool IsActive,
-    DateTimeOffset CreatedAt)
+    DateTimeOffset CreatedAt,
+    UserRole Role)
 {
     internal static UserResponse FromDto(UserDto user)
     {
@@ -17,6 +19,7 @@ public sealed record UserResponse(
             user.Name,
             user.Email,
             user.IsActive,
-            new DateTimeOffset(user.CreatedAt));
+            new DateTimeOffset(user.CreatedAt),
+            user.Role);
     }
 }

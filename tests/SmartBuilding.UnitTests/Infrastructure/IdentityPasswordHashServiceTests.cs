@@ -46,5 +46,23 @@ public class IdentityPasswordHashServiceTests
         Assert.Equal(
             PasswordVerificationResult.Failed,
             verifier.VerifyHashedPassword(user, passwordHash, "a different password"));
+        Assert.False(service.VerifyPassword(passwordHash, "a different password"));
+    }
+
+    [Fact]
+    public void VerifyPassword_CorrectPassword_ReturnsTrue()
+    {
+        var service = new IdentityPasswordHashService();
+        string hash = service.HashPassword("A secure password for testing");
+
+        Assert.True(service.VerifyPassword(hash, "A secure password for testing"));
+    }
+
+    [Fact]
+    public void VerifyPassword_NullHash_ReturnsFalse()
+    {
+        var service = new IdentityPasswordHashService();
+
+        Assert.False(service.VerifyPassword(null, "A secure password for testing"));
     }
 }

@@ -31,9 +31,12 @@ Os vertical slices CRUD de `Buildings`, `Floors` e `AccessPoints` estão impleme
 - commands, `AccessPermissionDto`, `IAccessPermissionRepository` e resultados explícitos para persistência e referências inexistentes.
 - `IAccessControlService` e `AccessControlService` para processar pedidos, consultar eventos e obter um evento por ID;
 - commands, DTOs, contexto da decisão e resultados explícitos do fluxo de acesso;
+- `IAuthenticationService` e `AuthenticationService` para normalizar email, verificar credenciais de User ativo e solicitar emissão de token;
+- commands e resultados explícitos para login, além do contrato de `IAccessTokenService` fornecido pela API;
+- extensão do caso de uso de Users para atribuir papel, incluindo a proteção contra rebaixar o último Admin;
 - `TimeProvider` para obter o instante UTC de forma substituível em testes.
 
-O processamento/decisão e a auditoria por `AccessEvent` estão implementados. A atualização de `OccupancySession`, notificações SignalR, processamento de alertas e autenticação permanecem planejados para fases futuras. A gestão CRUD de `AccessPermission` e a decisão no momento do pedido são casos de uso distintos.
+O processamento/decisão, auditoria por `AccessEvent` e caso de uso de login estão implementados. A Application valida credenciais e delega a criação do token ao contrato `IAccessTokenService`; assinatura e transporte JWT pertencem à API. A atualização de `OccupancySession`, notificações SignalR e processamento de alertas permanecem planejados para fases futuras. A gestão CRUD de `AccessPermission` e a decisão no momento do pedido são casos de uso distintos.
 
 No slice `Users`, `UserService` normaliza nome e email, converte email para lowercase, valida o formato do endereço e exige password entre 12 e 128 caracteres na criação. A password é encaminhada para `IPasswordHashService`; a atualização recebe apenas nome, email e `IsActive`, nunca uma password.
 

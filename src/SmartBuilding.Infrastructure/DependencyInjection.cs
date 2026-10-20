@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPasswordHashService, IdentityPasswordHashService>();
         services.AddScoped<DevelopmentDataSeeder>();
+        services.AddScoped<BootstrapAdminSeeder>();
 
         return services;
     }

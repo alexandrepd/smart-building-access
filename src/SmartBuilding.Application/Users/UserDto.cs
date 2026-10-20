@@ -1,3 +1,5 @@
+using SmartBuilding.Domain.Enums;
+
 namespace SmartBuilding.Application.Users;
 
 public sealed record UserDto(
@@ -5,4 +7,5 @@ public sealed record UserDto(
     string Name,
     string Email,
     bool IsActive,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    UserRole Role);

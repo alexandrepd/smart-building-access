@@ -1,3 +1,5 @@
+using SmartBuilding.Domain.Enums;
+
 namespace SmartBuilding.Application.Users;
 
 public interface IUserService
@@ -16,4 +18,9 @@ public interface IUserService
         CancellationToken cancellationToken);
 
     Task<DeleteUserResult> DeleteAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<UserRoleUpdateResult> UpdateRoleAsync(
+        Guid id,
+        UserRole role,
+        CancellationToken cancellationToken);
 }

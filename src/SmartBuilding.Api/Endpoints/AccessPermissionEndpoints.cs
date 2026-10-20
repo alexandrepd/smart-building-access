@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using SmartBuilding.Api.Contracts.AccessPermissions;
+using SmartBuilding.Api.Security;
 using SmartBuilding.Application.AccessPermissions;
 
 namespace SmartBuilding.Api.Endpoints;
@@ -10,7 +11,8 @@ internal static class AccessPermissionEndpoints
         this IEndpointRouteBuilder endpoints)
     {
         RouteGroupBuilder group = endpoints.MapGroup("/api/permissions")
-            .WithTags("Access Permissions");
+            .WithTags("Access Permissions")
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         group.MapGet("/", GetAllAsync)
             .WithName("GetAccessPermissions")

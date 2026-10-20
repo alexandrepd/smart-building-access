@@ -21,6 +21,9 @@ A API contém:
 - grupo de Minimal APIs em `/api/cards` para listar, consultar, emitir, substituir e ativar/desativar cartões;
 - grupo de Minimal APIs em `/api/permissions` para listar, consultar, criar, substituir e remover permissões;
 - grupo de Minimal APIs em `/api/access` para processar pedidos e consultar `AccessEvent`s;
+- endpoint anónimo `POST /api/auth/login` que valida credenciais e emite JWT Bearer;
+- autenticação de tokens JWT (esquema HTTP Bearer) e policies `AdminOnly`/`AccessOperations` aplicadas no servidor;
+- CRUD administrativo protegido por `Admin` e operações de Access Control permitidas a `Admin` ou `SecurityOperator`;
 - contratos HTTP próprios para requests e responses de `Building`, `Floor`, `AccessPoint`, `User`, `AccessCard` e `AccessPermission`;
 - validação automática com DataAnnotations e `AddValidation`;
 - validação de email de User que ignora whitespace externo ao verificar o formato;
@@ -34,8 +37,6 @@ A API contém:
 Ainda não contém:
 
 - atualização de `OccupancySession`, processamento de alertas ou notificações SignalR;
-- autenticação JWT;
-- autorização por papéis;
 - Swagger UI interativo;
 - health checks completos.
 
@@ -64,9 +65,11 @@ Ainda não contém:
 1. cria WebApplicationBuilder;
 2. lê e valida ConnectionStrings:SmartBuilding;
 3. registra OpenAPI, validação, Problem Details, Application e Infrastructure;
-4. constrói a aplicação;
-5. em Development, publica OpenAPI e inicializa o banco;
-6. configura o tratamento global de erros, páginas de status e endpoints.
+4. lê e valida a configuração JWT e registra autenticação e policies;
+5. constrói a aplicação;
+6. em Development, publica OpenAPI e inicializa o banco com migrations;
+7. garante o bootstrap do primeiro Admin se ainda não houver um;
+8. configura middleware de autenticação/autorização e endpoints.
 ```
 
 Se a connection string estiver ausente ou vazia, a API falha imediatamente com `InvalidOperationException`. Isso evita iniciar um processo parcialmente configurado. User Secrets está habilitado para desenvolvimento local e nenhum segredo foi versionado.
@@ -163,10 +166,11 @@ JSON serializam `direction` e `result` como strings (por exemplo `"Entry"` e
 string. `occurredAt` representa o instante UTC em formato de data/hora com
 offset `Z`.
 
-Esse fluxo não altera `OccupancySession`, não envia notificações SignalR, não
-executa worker/regras de alertas e não autentica nem autoriza o chamador. Esses
-comportamentos pertencem às fases futuras; o `200` do resultado da decisão não
-significa que a autenticação já exista.
+Esse fluxo não altera `OccupancySession`, não envia notificações SignalR nem
+executa worker/regras de alertas. O middleware de autenticação e as policies
+autorizam o chamador antes de executar os endpoints; isso não altera a regra
+de decisão de acesso nem atualiza ocupação. O `200` indica que a decisão foi
+processada e auditada, não que a sessão de ocupação foi atualizada.
 
 ## Composition root
 
@@ -323,15 +327,36 @@ Os endpoints de `AccessCards` também declaram tipos de resposta e status altern
 
 ## Autenticação e autorização
 
-Planejado para fase própria:
+Autenticação JWT no esquema HTTP Bearer e autorização por papéis estão **implementadas nesta
+branch**. O fluxo completo, configuração de secrets, bootstrap do Admin,
+limites e lacunas estão em [Autenticação e autorização](authentication-authorization.md).
 
-- login com password verificada por hash;
-- emissão de JWT;
-- papéis `Admin` e `SecurityOperator`;
-- policies aplicadas no servidor;
-- endpoints protegidos por autorização.
+Em resumo, `POST /api/auth/login` é anónimo; valida email/password e emite
+`accessToken` e `expiresAt`. User inexistente, inativo ou com password
+incorreta recebe a mesma resposta genérica `401`. `GET /` também é anónimo.
+Os endpoints administrativos requerem `AdminOnly`; os endpoints de decisão e
+consulta de `AccessEvent` requerem `AccessOperations`, que aceita `Admin` ou
+`SecurityOperator`. Sem token válido, endpoints protegidos respondem `401`;
+identidade válida sem papel permitido responde `403`.
 
-O hash de password na criação de Users já está implementado, mas login, verificação de credenciais no fluxo de autenticação e emissão de JWT continuam planejados para a fase 6. O teste da primitiva `VerifyHashedPassword` não implementa esse caso de uso. JWT não deve carregar dados sensíveis. Autorização da API nunca deve depender apenas da interface Angular.
+Users criados recebem `SecurityOperator` por omissão. Apenas `Admin` pode
+alterar papel em `PUT /api/users/{id}/role`, e o último Admin não pode ser
+rebaixado. A migration `AddUserRole` dá aos Users existentes o default
+`SecurityOperator`.
+
+`Authentication:SigningKey` é obrigatória, deve ter pelo menos 32 bytes UTF-8
+e só deve ser fornecida por User Secrets ou variável de ambiente. Issuer e
+audience são obrigatórios; lifetime usa 15 minutos por omissão e aceita 5–60.
+O bearer exige assinatura HMAC-SHA-256, issuer, audience e validade temporal.
+JWT é assinado, não cifrado, e não deve conter dados sensíveis.
+
+O bootstrap do primeiro Admin requer `Authentication:BootstrapAdmin:Email` e
+`Authentication:BootstrapAdmin:Password` via configuração segura quando não
+existe Admin. `Development` aplica migrations automaticamente; em produção e
+nos demais ambientes, a equipa de deployment deve aplicar `AddUserRole` antes
+de iniciar esta versão. Angular/login no cliente, refresh/revogação de tokens,
+MFA e provedor externo não estão implementados. O roadmap não é alterado por
+esta documentação de comportamento já existente no código.
 
 ## Paginação
 
@@ -343,4 +368,4 @@ O futuro hub `/accessHub` notificará eventos, alertas e alterações de ocupaç
 
 ## Próximos passos
 
-Os vertical slices de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O processamento/decisão de acesso e as três rotas de `AccessEvent` documentadas acima estão implementados. Atualização de ocupação, alertas, SignalR, login, JWT, autorização e a UI Swagger continuam planejados para as respetivas fases.
+Os vertical slices de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O processamento/decisão de acesso e as três rotas de `AccessEvent` documentadas acima estão implementados. Login JWT e autorização por papéis também estão implementados nesta branch. Atualização de ocupação, alertas, SignalR e a UI Swagger continuam planejados. O frontend Angular ainda não existe, e a aplicação de migrations fora de Development permanece responsabilidade do deployment.
