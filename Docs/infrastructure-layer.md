@@ -29,6 +29,7 @@ Já existem:
 - proteção da remoção quando o piso possui pontos de acesso ou sessões de ocupação;
 - `AccessPointRepository` com operações CRUD assíncronas;
 - `AccessPermissionRepository` com consultas, criação, substituição e remoção assíncronas;
+- `AccessControlRepository` para carregar o contexto da decisão e criar/listar/consultar `AccessEvent`s;
 - `UserRepository` com operações CRUD assíncronas e tratamento de email duplicado;
 - `IdentityPasswordHashService` com `PasswordHasher<User>` do ASP.NET Core Identity;
 - consultas de `AccessPermission` com `AsNoTracking` e tradução das FKs de User e AccessPoint para resultados explícitos;
@@ -41,7 +42,8 @@ Já existem:
 Ainda não existem:
 
 - projeto automatizado de testes de integração com PostgreSQL;
-- repositórios para os demais recursos do domínio.
+- implementação de `OccupancySession`/`SecurityAlert` ou publicação SignalR;
+- autenticação e autorização.
 
 ## Dependências
 
@@ -164,6 +166,27 @@ OccupancySessions -> occupancy_sessions
 ```
 
 `AddInfrastructure` registra `SmartBuildingDbContext` como scoped e aplica `UseNpgsql(connectionString)` seguido de `UseSnakeCaseNamingConvention()`.
+
+## AccessControlRepository
+
+`AccessControlRepository` implementa `IAccessControlRepository`. Para contexto
+de decisão, procura primeiro o `AccessPoint`; quando ele não existe, devolve
+`null` sem consultar nem persistir tentativa. Para um ponto existente, carrega
+o cartão pelo número e o respetivo `User`, e consulta permissões ativas para o
+User/AccessPoint. O instante da decisão é recebido pela Application e usado
+para verificar `ValidFrom <= occurredAt` e
+`ValidUntil == null || ValidUntil > occurredAt`.
+
+O repositório cria o `AccessEvent` com `SaveChangesAsync`. O `AccessPointId`
+obrigatório do evento é uma FK: não há evento sem um ponto válido. A consulta
+de eventos usa `AsNoTracking`, ordena por `OccurredAt` decrescente e depois
+por ID; a consulta individual procura pelo ID. Cada pedido processado para
+um AccessPoint existente é persistido, quer `Granted` quer negado. `AccessCardId`
+e `UserId` podem ser nulos em tentativas sem cartão conhecido.
+
+O serviço fornece o mesmo `occurredAt` UTC para validar a permissão e registar
+o evento. Isto evita que uma requisição use instantes diferentes em cada etapa
+da decisão.
 
 ## BuildingRepository
 

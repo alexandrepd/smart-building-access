@@ -54,6 +54,104 @@ Authorization: Bearer <token>
 }
 ```
 
+## Exemplo do projeto: decisão de acesso e auditoria
+
+> O exemplo HTTP anterior representa um cliente autenticado previsto para uma
+> fase futura. Hoje, `POST /api/access/requests` está implementado sem
+> autenticação; não envie nem dependa de um token neste fluxo atual.
+
+### 1. Analogia simples
+
+Imagine um segurança que recebe um crachá num leitor. Primeiro confirma o
+crachá e a pessoa, depois confirma se o leitor aceita aquela direção e se a
+autorização ainda vale. O segurança anota cada decisão para que seja possível
+consultá-la depois. Se o leitor não existir no cadastro, não há um ponto
+válido ao qual anexar essa anotação.
+
+### 2. Definição técnica
+
+`POST /api/access/requests` é um endpoint de comando: recebe `cardNumber`,
+`accessPointId` e `direction`, executa a decisão e grava um `AccessEvent`.
+Quando a decisão foi processada para AccessPoint conhecido, retorna `200 OK`
+tanto para conceder como para negar; o consumidor verifica `result` e
+`reason`. Request inválido retorna `400` com RFC 7807
+`ValidationProblemDetails`. AccessPoint desconhecido retorna `404`, pois
+`AccessEvent.AccessPointId` é uma FK obrigatória e não se grava evento sem
+ponto válido. As rotas `GET /api/access/events` e
+`GET /api/access/events/{id}` listam o histórico e consultam um evento.
+
+A avaliação usa esta ordem (a primeira condição aplicável encerra a decisão):
+
+1. cartão ausente → `CardNotFound`;
+2. cartão inativo → `CardInactive`;
+3. cartão expirado → `CardExpired`;
+4. utilizador inativo → `UserInactive`;
+5. AccessPoint inativo → `AccessPointInactive`;
+6. direção não suportada → `DirectionNotSupported`;
+7. nenhuma permissão ativa → `NoPermission`;
+8. permissão ativa fora da janela temporal → `PermissionExpired`;
+9. nenhuma condição anterior → `Granted`.
+
+Uma permissão ativa está no intervalo de validade quando
+`ValidFrom <= now < ValidUntil`; `ValidUntil` pode ser nulo e, nesse caso, não
+há limite final. O mesmo instante `now` UTC é usado na decisão e em
+`occurredAt`. A API serializa os enums `direction` e `result` como strings
+JSON, por exemplo `"Entry"` e `"Granted"`. Datas são instantes UTC, expostos
+com offset `Z`.
+
+### 3. Exemplo concreto no Smart Building
+
+```http
+POST /api/access/requests
+Content-Type: application/json
+
+{
+  "cardNumber": "CARD-1001",
+  "accessPointId": "30000000-0000-0000-0000-000000000001",
+  "direction": "Entry"
+}
+```
+
+O fluxo é `AccessControlEndpoints` → `IAccessControlService` /
+`AccessControlService` → `IAccessControlRepository` /
+`AccessControlRepository` → PostgreSQL. Um cartão inexistente num
+AccessPoint válido gera `200` e um evento com `result: "CardNotFound"` e
+`accessCardId`/`userId` nulos. Um AccessPoint inexistente gera `404` e nenhum
+evento. Eventos podem ser lidos pelas duas rotas GET. Falhas de validação não
+são decisões negadas e não criam evento.
+
+O fluxo implementado ainda não atualiza `OccupancySession`, publica
+notificações SignalR, processa alertas ou autentica/autoriza o chamador.
+Esses pontos pertencem a fases posteriores; o endpoint não deve ser descrito
+como protegido ou como fonte de estado de ocupação.
+
+### 4. Resposta de entrevista
+
+> “O endpoint de acesso é um comando, não um CRUD de permissão. Ele valida a
+> entrada, avalia as condições em ordem e persiste um `AccessEvent` para toda
+> decisão processada quando o AccessPoint existe. Retorna `200` para
+> concessão ou negação, porque ambas são decisões válidas do domínio; `400`
+> representa request inválido e `404` representa AccessPoint desconhecido,
+> que não pode ser referenciado pela FK do evento. O evento inclui direção,
+> resultado e instante UTC. O fluxo não atualiza ocupação nem autentica o
+> chamador.”
+
+### 5. Exercício prático
+
+1. Envie um request válido em `SmartBuilding.Api.http` e registe status,
+   `result`, `reason` e `occurredAt`.
+2. Repita com cartão inexistente e confirme conceitualmente que a resposta
+   continua sendo `200` com `CardNotFound`.
+3. Use um AccessPoint desconhecido: explique por que o resultado passa a
+   `404` e por que não pode haver `AccessEvent`.
+4. Altere `direction` para enum inválido ou omita um campo e identifique o
+   `400` de validação, distinguindo-o de uma decisão negada.
+5. Explique com um instante `now` por que `ValidUntil == now` já está fora do
+   intervalo, enquanto `ValidFrom == now` ainda está dentro.
+
+Consulte a [documentação técnica da API](../api-layer.md) para a tabela
+completa de respostas e limites de implementação.
+
 ## JSON
 
 JSON é um formato textual de dados. HTTP é o protocolo; JSON é uma representação possível do body.
@@ -196,7 +294,7 @@ O recurso `Floor` segue o mesmo CRUD em `/api/floors`. `POST` retorna `404` quan
 
 `AccessPoint` também possui CRUD em `/api/access-points`. Pense nele como a ficha de um leitor físico: descreve em que piso está, onde fica e se suporta entrada ou saída. Tecnicamente, `POST` devolve `201` com `Location`, `PUT` devolve `200` com o recurso atualizado e `DELETE` devolve `204`; o piso pai inexistente resulta em `404`, enquanto permissões, eventos ou alertas dependentes impedem o delete com `409` e Problem Details. Os contratos próprios validam nome obrigatório até 150 caracteres e localização obrigatória até 250; `SupportsEntry` e `SupportsExit` são explícitos no request e response.
 
-Os metadados `.WithName`, `.WithSummary`, `.Produces`, `.ProducesValidationProblem` e `.ProducesProblem` alimentam o documento OpenAPI code-first. `404` e `409` são descritos como Problem Details, enquanto `400` é descrito como Validation Problem Details. O ficheiro `SmartBuilding.Api.http` contém requests manuais para os cenários dos recursos administrativos; também inclui exemplos de listagem, criação, consulta, substituição e mudança de estado de cartões. O gerenciamento de cartões está implementado; permissões e a decisão/processamento de pedidos de acesso ainda não estão.
+Os metadados `.WithName`, `.WithSummary`, `.Produces`, `.ProducesValidationProblem` e `.ProducesProblem` alimentam o documento OpenAPI code-first. `404` e `409` são descritos como Problem Details, enquanto `400` é descrito como Validation Problem Details. O ficheiro `SmartBuilding.Api.http` contém requests manuais para os cenários dos recursos administrativos; também inclui exemplos de listagem, criação, consulta, substituição e mudança de estado de cartões, além de requests do Access Control. O gerenciamento de cartões, a gestão de permissões e a decisão/processamento de pedidos de acesso estão implementados. Consulte a seção de Access Control acima para o contrato e seus limites.
 
 O recurso `Users` também possui CRUD em `/api/users`: listagem e consulta retornam `200`, criação retorna `201` com `Location`, update retorna `200` e delete retorna `204`. Email duplicado na criação ou atualização resulta em `409`; IDs inexistentes em consulta/update/delete resultam em `404`; dados inválidos resultam em `400`. `CreateUserRequest` exige nome de até 200 caracteres, email de até 320 e password de 12 a 128 caracteres. `TrimmedEmailAddressAttribute` valida o email após `Trim`, então whitespace externo é aceito; `UserService` remove-o e canonicaliza para lowercase antes de persistir. `UpdateUserRequest` não inclui password e `UserResponse` nunca inclui password ou hash. Hashing e a primitiva de verificação do Identity estão testados, mas login, verificação de credenciais no fluxo da aplicação, JWT e autorização continuam planejados.
 
@@ -212,7 +310,7 @@ O recurso `Users` também possui CRUD em `/api/users`: listagem e consulta retor
 
 **Exercício prático:** use o ficheiro `SmartBuilding.Api.http` para listar, criar, consultar, substituir, ativar e desativar um cartão. Tente um número já existente e um `UserId` desconhecido e identifique os status esperados. Envie `ExpiresAt` com um offset diferente de `Z`, depois consulte a resposta e explique por que o instante permanece igual, embora a representação seja UTC. Desenhe o percurso do request pelas quatro partes (endpoint, serviço, interface do repositório e implementação) e indique em que camada cada status HTTP é escolhido.
 
-O gerenciamento de `AccessCards` está **implementado nesta branch**. A gestão CRUD de permissões também está implementada, mas isso não significa que a autorização de acesso esteja pronta: decidir/processar pedidos, criar `AccessEvent`s e atualizar `OccupancySession`s continuam por implementar.
+O gerenciamento de `AccessCards` está **implementado nesta branch**. A gestão CRUD de permissões e a decisão/processamento do pedido com criação de `AccessEvent` também estão implementados. Isso não significa que a autorização de clientes da API esteja pronta: autenticação, JWT e autorização por papéis, assim como a atualização de `OccupancySession`, continuam futuras.
 
 No smoke PostgreSQL, `  Alex@Example.com  ` foi criado com `201` e armazenado como `alex@example.com`; repetição do email retornou `409`. O fluxo também confirmou update `200`, delete `204`, hash persistido e ausência de password/hash na response. Cartões bloqueiam o delete com `409`; `AccessEvent` sobrevive à remoção de User com `UserId` nulo.
 
@@ -220,15 +318,15 @@ No smoke PostgreSQL, `  Alex@Example.com  ` foi criado com `201` e armazenado co
 
 **Analogia simples:** é como o funcionário que mantém a lista de pessoas autorizadas a entrar numa sala. Cadastrar ou corrigir a lista não é o mesmo que verificar, no momento da tentativa, o crachá, o leitor e todas as regras para abrir a porta.
 
-**Definição técnica:** `AccessPermission` é um recurso administrativo que associa um `User` a um `AccessPoint`, com início, fim opcional e estado ativo. A API expõe operações CRUD sobre esse recurso; elas não implementam o caso de uso de processamento/decisão de um pedido de acesso. A decisão ainda deverá avaliar os dados relevantes e produzir os resultados do fluxo de acesso.
+**Definição técnica:** `AccessPermission` é um recurso administrativo que associa um `User` a um `AccessPoint`, com início, fim opcional e estado ativo. A API expõe operações CRUD sobre esse recurso. Separadamente, o caso de uso implementado de Access Control avalia as permissões no momento do pedido e produz um `AccessEvent`.
 
 **Exemplo do projeto:** em `/api/permissions`, `GET` lista ou consulta por ID (`200`, ou `404` para ID desconhecido); `POST` cria e retorna `201 Created`, body e `Location`; `PUT /{id}` substitui User, AccessPoint, intervalo e `IsActive`, retornando `200`; `DELETE /{id}` retorna `204`, ou `404` se a permissão não existir. No POST e PUT, User ou AccessPoint inexistente também resulta em `404`. Criar não recebe estado ativo e a permissão é criada ativa. Os requests usam `DateTimeOffset`; `ValidFrom` e o `ValidUntil` opcional são normalizados para UTC. Se `ValidUntil` estiver presente, deve ser estritamente posterior a `ValidFrom`; igualdade ou término anterior é inválido (`400`).
 
-**Resposta de entrevista:** “O endpoint de AccessPermission implementa gestão CRUD, não a decisão de acesso. A API mapeia HTTP para `IAccessPermissionService`; a Application valida referências e intervalo e normaliza `DateTimeOffset` para UTC; o contrato `IAccessPermissionRepository` separa o caso de uso do repositório EF Core. O POST cria a permissão ativa e responde `201` com `Location`, enquanto o PUT substitui também `IsActive`. Referências ausentes retornam `404`. A avaliação de um pedido do leitor, a gravação de `AccessEvent` e a atualização de `OccupancySession` continuam fora deste CRUD e ainda não estão implementadas.”
+**Resposta de entrevista:** “O endpoint de AccessPermission implementa gestão CRUD, distinta da decisão de acesso. A API mapeia HTTP para `IAccessPermissionService`; a Application valida referências e intervalo e normaliza `DateTimeOffset` para UTC; o contrato `IAccessPermissionRepository` separa o caso de uso do repositório EF Core. O POST cria a permissão ativa e responde `201` com `Location`, enquanto o PUT substitui também `IsActive`. Referências ausentes retornam `404`. Separadamente, `AccessControlService` avalia o pedido e grava `AccessEvent`; a atualização de `OccupancySession` ainda não está implementada.”
 
 **Exercício prático:** desenhe o caminho endpoint → service → interface de repositório → implementação. Escreva requests para criar uma permissão sem `ValidUntil`, consultar por ID, substituir e desativar via `PUT`, e remover. Preveja os status para User inexistente, AccessPoint inexistente, `ValidUntil == ValidFrom` e ID desconhecido. Depois use dois offsets diferentes que representem o mesmo instante para explicar por que a Application compara instantes e persiste valores UTC. Por fim, explique por que uma permissão criada não significa, por si só, que uma tentativa real será concedida.
 
-A gestão CRUD de `AccessPermission` está **implementada nesta branch**. A decisão/processamento de acesso, a criação de `AccessEvent`s e a gestão de `OccupancySession`s continuam **planejadas/não implementadas**.
+A gestão CRUD de `AccessPermission`, a decisão/processamento de acesso e a criação/consulta de `AccessEvent`s estão **implementados nesta branch**. A atualização de `OccupancySession`, alertas, SignalR e autenticação continuam **planejados/não implementados**.
 
 ### Validar e normalizar email
 

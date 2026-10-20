@@ -29,8 +29,11 @@ Os vertical slices CRUD de `Buildings`, `Floors` e `AccessPoints` estão impleme
 - `IPasswordHashService` como abstração para hash da password na criação.
 - `IAccessPermissionService` e `AccessPermissionService` para consultar, criar, substituir e remover `AccessPermission`s;
 - commands, `AccessPermissionDto`, `IAccessPermissionRepository` e resultados explícitos para persistência e referências inexistentes.
+- `IAccessControlService` e `AccessControlService` para processar pedidos, consultar eventos e obter um evento por ID;
+- commands, DTOs, contexto da decisão e resultados explícitos do fluxo de acesso;
+- `TimeProvider` para obter o instante UTC de forma substituível em testes.
 
-O processamento/decisão de pedidos de acesso, eventos, ocupação e alertas continua planejado. A gestão CRUD de `AccessPermission` está implementada, mas não avalia pedidos de acesso.
+O processamento/decisão e a auditoria por `AccessEvent` estão implementados. A atualização de `OccupancySession`, notificações SignalR, processamento de alertas e autenticação permanecem planejados para fases futuras. A gestão CRUD de `AccessPermission` e a decisão no momento do pedido são casos de uso distintos.
 
 No slice `Users`, `UserService` normaliza nome e email, converte email para lowercase, valida o formato do endereço e exige password entre 12 e 128 caracteres na criação. A password é encaminhada para `IPasswordHashService`; a atualização recebe apenas nome, email e `IsActive`, nunca uma password.
 
@@ -54,20 +57,26 @@ No slice `Users`, `UserService` normaliza nome e email, converte email para lowe
 
 Domain responde “quais regras são verdadeiras?”. Application responde “em que ordem o caso de uso deve acontecer?”.
 
-Exemplo planejado para um pedido de acesso:
+O fluxo implementado de decisão:
 
 ```text
-1. Receber AccessRequest.
-2. Consultar cartão pelo número.
-3. Consultar utilizador e ponto de acesso.
-4. Consultar permissões válidas.
-5. Aplicar regras do Domain.
-6. Criar AccessEvent independentemente do resultado.
-7. Persistir a unidade de trabalho.
-8. Retornar AccessResponse.
+1. Validar e normalizar o número do cartão; validar AccessPointId e AccessDirection.
+2. Obter um único instante UTC e carregar os dados de decisão para o AccessPoint.
+3. Se o AccessPoint não existir, devolver resultado de ausência; não criar evento.
+4. Avaliar na ordem: cartão ausente, cartão inativo, cartão expirado,
+   User inativo, AccessPoint inativo, direção não suportada, sem permissão
+   ativa, permissão ativa fora da validade atual e, por fim, concedido.
+5. Criar e persistir um AccessEvent para qualquer decisão processada num
+   AccessPoint existente, concedida ou negada.
+6. Devolver o evento/result; a API mapeia o resultado para HTTP.
 ```
 
-Application decide essa sequência, mas não decide como os dados são lidos do PostgreSQL nem como a resposta vira HTTP.
+Uma permissão só está dentro da sua janela temporal quando
+`ValidFrom <= now < ValidUntil`; `ValidUntil == null` não impõe um fim.
+Application usa `TimeProvider`, define a ordem e o resultado de negócio, mas
+não decide como os dados são lidos do PostgreSQL nem como a resposta vira HTTP.
+O pedido processado retorna `200 OK` tanto para `Granted` como para qualquer
+resultado de negação: o cliente inspeciona `result` e `reason` no evento.
 
 ## Estrutura atual e planejada
 
@@ -112,36 +121,34 @@ SmartBuilding.Application/
 │   ├── IAccessPermissionRepository.cs
 │   ├── IAccessPermissionService.cs
 │   └── UpdateAccessPermissionCommand.cs
+├── AccessControl/
+│   ├── AccessControlService.cs
+│   ├── AccessDecisionContext.cs
+│   ├── AccessDecisionStatus.cs
+│   ├── AccessEventDto.cs
+│   ├── AccessRequestCommand.cs
+│   ├── AccessRequestResult.cs
+│   ├── IAccessControlRepository.cs
+│   └── IAccessControlService.cs
 ├── Common/
 │   └── ApplicationValidationException.cs
 └── DependencyInjection.cs
 ```
 
-Outras áreas serão criadas somente conforme os casos de uso surgirem, por exemplo:
-
-```text
-SmartBuilding.Application/
-├── Abstractions/
-│   ├── Persistence/
-│   └── Time/
-├── AccessControl/
-│   ├── AccessRequest.cs
-│   ├── AccessResponse.cs
-│   └── ProcessAccessRequest.cs
-├── Occupancy/
-├── SecurityAlerts/
-└── Common/
-```
-
-Essa estrutura é uma direção, não código já implementado.
+As áreas de `Occupancy` e `SecurityAlerts` continuam futuras; a estrutura
+mostrada acima para `AccessControl` corresponde ao código desta branch.
 
 ## Contratos de persistência
 
 Quando um caso de uso precisa de dados, a Application define o contrato mínimo necessário. Infrastructure implementa esse contrato.
 
-`IBuildingRepository` e `IFloorRepository` demonstram essa direção: oferecem as operações necessárias aos respetivos CRUDs sem expor `DbSet`, `IQueryable`, `DbContext` ou tipos HTTP. Os serviços dependem dessas interfaces e podem ser testados com implementações em memória.
+`IBuildingRepository`, `IFloorRepository` e `IAccessControlRepository`
+demonstram essa direção: oferecem operações necessárias sem expor `DbSet`,
+`IQueryable`, `DbContext` ou tipos HTTP. O contrato de Access Control fornece
+contexto para uma decisão e operações de gravação/consulta de `AccessEvent`;
+o serviço pode ser testado com uma implementação em memória.
 
-Exemplo conceitual:
+Contrato de leitura ilustrativo:
 
 ```csharp
 public interface IAccessCardLookup
@@ -162,11 +169,10 @@ DTOs definem os dados de entrada e saída dos casos de uso. Eles não devem ser 
 
 Nos slices de `Buildings`, `Floors`, `AccessPoints` e `Users`, commands representam entrada de criação e atualização, enquanto DTOs próprios representam saída. `UserDto` não contém password nem hash. `CreateUserCommand` transporta a password somente até ao serviço de criação; `UpdateUserCommand` não possui esse campo. Para `AccessPoint`, o serviço remove espaços nas extremidades de nome e localização, valida os limites de 150 e 250 caracteres e preserva `SupportsEntry` e `SupportsExit`. A API mantém requests e responses próprios e faz o mapeamento na borda.
 
-Categorias ainda planejadas:
+Capacidades ainda planejadas:
 
 - requests de criação e atualização;
 - responses de consulta;
-- resultado de pedido de acesso;
 - paginação e filtros;
 - resumos de ocupação.
 
@@ -185,7 +191,7 @@ Application valida requisitos do caso de uso, como formato, presença de dados e
 Exemplos:
 
 - Application valida que um request contém `cardNumber` e `accessPointId`.
-- Domain decide se um cartão ativo e uma permissão válida concedem acesso.
+- Application aplica a ordem da decisão usando as entidades e enums do Domain.
 - API transforma falhas de validação em respostas HTTP adequadas.
 
 ## Assincronismo e cancelamento
@@ -196,7 +202,10 @@ Operações que realizam I/O devem ser assíncronas, terminar em `Async` e receb
 
 Application define o limite lógico da operação. Infrastructure fornece o mecanismo transacional.
 
-Para um acesso concedido, a gravação de `AccessEvent` e a atualização de ocupação podem precisar fazer parte da mesma unidade de trabalho. A decisão será implementada quando esse fluxo existir.
+Atualmente `AccessControlRepository` persiste o `AccessEvent` da decisão.
+Quando a atualização de ocupação for implementada, a gravação do evento e a
+alteração de `OccupancySession` poderão precisar fazer parte da mesma unidade
+de trabalho; essa consistência ainda é futura.
 
 ## Erros
 
@@ -222,4 +231,7 @@ Os 15 casos de `UserService` cobrem normalização de email e persistência some
 
 ## Próximos passos da camada
 
-Implementar progressivamente os casos de uso restantes. A gestão CRUD de `AccessPermission` está implementada; o fluxo de controlo/decisão de acesso, persistência de `AccessEvent`, ocupação e alertas continua planejado e não deve ser inferido a partir dos CRUDs administrativos.
+Implementar progressivamente os casos de uso restantes. A gestão CRUD de
+`AccessPermission` e a decisão/auditoria de Access Control estão
+implementadas. Atualização de `OccupancySession` e processamento de alertas
+permanecem planejados e não devem ser inferidos a partir do fluxo atual.

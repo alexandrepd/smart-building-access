@@ -2398,6 +2398,21 @@ Definition of Done:
 
 Access granted/denied funciona e gera AccessEvent.
 
+### Estado documentado nesta branch
+
+Na branch `feat/access-control`, o caso de uso e as rotas
+`POST /api/access/requests`, `GET /api/access/events` e
+`GET /api/access/events/{id}` estão implementados. Pedidos processados para um
+AccessPoint conhecido retornam HTTP `200` com decisão concedida ou negada e
+criam `AccessEvent`; request inválido retorna RFC validation `400`, e
+AccessPoint desconhecido retorna `404` sem evento porque `AccessEvent` exige
+FK válida. A ordem das condições e os limites do escopo estão descritos em
+[Camada API](api-layer.md) e [Camada Application](application-layer.md).
+
+Este estado não antecipa as fases seguintes: atualização de
+`OccupancySession`, notificações SignalR, processamento de alertas,
+autenticação e autorização permanecem futuros.
+
 ---
 
 ## Phase 6 - Authentication

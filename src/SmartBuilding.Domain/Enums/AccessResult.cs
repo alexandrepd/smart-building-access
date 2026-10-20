@@ -9,5 +9,6 @@ public enum AccessResult
     UserInactive = 5,
     AccessPointInactive = 6,
     NoPermission = 7,
-    PermissionExpired = 8
+    PermissionExpired = 8,
+    DirectionNotSupported = 9
 }

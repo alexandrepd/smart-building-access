@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using SmartBuilding.Application.AccessControl;
 using SmartBuilding.Application.AccessPoints;
 using SmartBuilding.Application.AccessCards;
 using SmartBuilding.Application.AccessPermissions;
@@ -12,6 +13,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddSingleton<TimeProvider>(TimeProvider.System);
+        services.AddScoped<IAccessControlService, AccessControlService>();
         services.AddScoped<IBuildingService, BuildingService>();
         services.AddScoped<IAccessPointService, AccessPointService>();
         services.AddScoped<IAccessCardService, AccessCardService>();

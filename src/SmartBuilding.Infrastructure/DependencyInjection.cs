@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using SmartBuilding.Application.AccessControl;
 using SmartBuilding.Application.AccessPoints;
 using SmartBuilding.Application.AccessCards;
 using SmartBuilding.Application.AccessPermissions;
@@ -25,6 +26,7 @@ public static class DependencyInjection
             options
                 .UseNpgsql(connectionString)
                 .UseSnakeCaseNamingConvention());
+        services.AddScoped<IAccessControlRepository, AccessControlRepository>();
         services.AddScoped<IBuildingRepository, BuildingRepository>();
         services.AddScoped<IAccessPointRepository, AccessPointRepository>();
         services.AddScoped<IAccessCardRepository, AccessCardRepository>();

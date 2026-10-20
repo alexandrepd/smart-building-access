@@ -3,6 +3,7 @@ using SmartBuilding.Api.ErrorHandling;
 using SmartBuilding.Application;
 using SmartBuilding.Infrastructure;
 using SmartBuilding.Infrastructure.Data;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,9 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddOpenApi();
 builder.Services.AddValidation();
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(
+        new JsonStringEnumConverter(allowIntegerValues: false)));
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddApplication();
@@ -43,6 +47,7 @@ app.MapFloorEndpoints();
 app.MapAccessPointEndpoints();
 app.MapAccessCardEndpoints();
 app.MapAccessPermissionEndpoints();
+app.MapAccessControlEndpoints();
 app.MapUserEndpoints();
 
 app.Run();
