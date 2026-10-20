@@ -39,7 +39,7 @@ Para ler a preparação completa num único ficheiro, abra o [README de Entrevis
 | Frontend Angular sólido | Módulos 5 e 9 | Arquitetura planejada do dashboard | Angular ainda não implementado; estudar conceitos e demonstrar exercícios separados |
 | UX intuitiva para self-service | Módulos 1, 5 e 9 | Fluxos futuros de administração e ocupação | Princípios documentados; UI ainda não implementada |
 | Backend .NET ou Java | Módulo 2 | API, Application, Domain e Infrastructure em .NET 10 | .NET aplicado no projeto; Java é alternativa da vaga, não requisito para duplicar a stack |
-| RESTful APIs | Módulo 3 | CRUDs de Buildings, Floors, AccessPoints e Users; gerenciamento de AccessCards | Implementado parcialmente; permissões, processamento de acesso, ocupação e alertas continuam planejados |
+| RESTful APIs | Módulo 3 | CRUDs de Buildings, Floors, AccessPoints e Users; gerenciamento de AccessCards e AccessPermissions | CRUD administrativo implementado; processamento/decisão de acesso, ocupação e alertas continuam planejados |
 | OpenAPI/Swagger specifications | Módulo 3 | Metadados OpenAPI gerados a partir dos endpoints | Documento OpenAPI code-first; Swagger UI não está implementado |
 | Manutenção, bugs e novas features | Módulos 2, 7 e 9 | testes, branches focadas, tratamento de erros e exemplos de debugging | Praticar cada alteração com reprodução, causa raiz e teste de regressão |
 | Git fundamental | Módulo 6 | branches, Conventional Commits, PRs e reviews | Fluxo usado neste repositório |
@@ -72,7 +72,7 @@ Windows Server também será estudado conceitualmente. O deployment principal do
 
 ## Ordem recomendada
 
-Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints e Users e gerenciamento de AccessCards estão implementados. Permissions, Access Control e Authentication continuam por implementar. O frontend Angular ainda não começou e continua planeado para a Fase 7; Docker, CI/CD e Kubernetes continuam nas fases posteriores.
+Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e gestão CRUD de AccessPermissions estão implementados. O processamento/decisão de Access Control, Authentication, ocupação e alertas continuam por implementar. O frontend Angular ainda não começou e continua planeado para a Fase 7; Docker, CI/CD e Kubernetes continuam nas fases posteriores.
 
 Para preparação de entrevista, pode estudar Angular agora sem alterar a ordem de implementação:
 

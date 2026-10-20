@@ -59,7 +59,7 @@ Ele não conhece EF Core, PostgreSQL ou HTTP. Assim, uma regra como “cartão e
 
 ## Application
 
-Application orquestra casos de uso. Nos slices implementados, `BuildingService`, `FloorService`, `AccessPointService`, `UserService` e `AccessCardService` normalizam entradas, chamam contratos de repositório e devolvem DTOs sem conhecer HTTP ou EF Core. `UserService` normaliza email para lowercase e usa `IPasswordHashService` para não persistir password em texto simples. Updates de Users alteram perfil e estado, não a password. `AccessCardService` remove whitespace externo do número do cartão e converte `ExpiresAt` para UTC antes de chamar o repositório. Os serviços preservam resultados explícitos para sucesso e recursos ou pais inexistentes. Quando a entrada viola um requisito, lançam `ApplicationValidationException` com a propriedade inválida, em vez de usar uma `ArgumentException` genérica.
+Application orquestra casos de uso. Nos slices implementados, `BuildingService`, `FloorService`, `AccessPointService`, `UserService`, `AccessCardService` e `AccessPermissionService` normalizam/validam entradas, chamam contratos de repositório e devolvem DTOs sem conhecer HTTP ou EF Core. `UserService` normaliza email para lowercase e usa `IPasswordHashService` para não persistir password em texto simples. Updates de Users alteram perfil e estado, não a password. `AccessCardService` remove whitespace externo do número do cartão e converte `ExpiresAt` para UTC. `AccessPermissionService` também normaliza os instantes de validade para UTC, permite `ValidUntil` nulo e exige que, quando definido, seja estritamente posterior a `ValidFrom`. Os serviços preservam resultados explícitos para sucesso e recursos ou referências inexistentes. Quando a entrada viola um requisito, lançam `ApplicationValidationException` com a propriedade inválida, em vez de usar uma `ArgumentException` genérica.
 
 Um fluxo futuro de controlo de acesso terá uma sequência como:
 
@@ -86,7 +86,7 @@ API é a borda HTTP e o composition root. Ela registra dependências e transform
 
 Um endpoint deve ser fino. Não deve concentrar consultas, regras, persistência e serialização numa única função.
 
-No projeto, a API lê `ConnectionStrings:SmartBuilding` e chama `AddInfrastructure`. Se a configuração estiver ausente, o processo falha cedo. Em `Development`, a API também pede à Infrastructure que aplique migrations e execute o seed antes de servir requests.
+No projeto, a API lê `ConnectionStrings:SmartBuilding` e chama `AddInfrastructure`. Se a configuração estiver ausente, o processo falha cedo. Em `Development`, a API também pede à Infrastructure que aplique migrations e execute o seed antes de servir requests. Para gestão de permissões, os endpoints traduzem HTTP, `AccessPermissionService` coordena a validação e `AccessPermissionRepository` persiste através do EF Core. Esse CRUD não implementa a decisão de acesso em tempo real.
 
 Os fluxos de `Buildings`, `Floors`, `AccessPoints` e `Users` mostram a separação completa: Minimal API mapeia HTTP, o serviço coordena o caso de uso e o repositório executa EF Core. Essa divisão permite testar a Application com um fake sem iniciar servidor ou banco. No caso de `AccessPoint`, o endpoint traduz `FloorNotFound` para `404` e `HasDependents` para `409`; em Users, traduz email duplicado e dependências para `409`. A Application não conhece esses códigos HTTP.
 

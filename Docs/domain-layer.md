@@ -69,7 +69,7 @@ Representa um cartão ou badge. Um cartão pertence a um utilizador, pode ser de
 
 ### AccessPermission
 
-Representa a autorização de um utilizador para um ponto de acesso durante um intervalo de validade.
+Representa a autorização configurada para um `User` num `AccessPoint`, com `ValidFrom`, `ValidUntil` opcional e `IsActive`. A entidade tem estado ativo por omissão; a gestão CRUD aplica a validação do intervalo na Application. A existência deste registo e do CRUD administrativo não significa que a decisão de conceder/negar um pedido de acesso esteja implementada.
 
 ### AccessEvent
 

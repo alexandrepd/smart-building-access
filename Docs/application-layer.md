@@ -27,8 +27,10 @@ Os vertical slices CRUD de `Buildings`, `Floors` e `AccessPoints` estão impleme
 - `IUserService` e `UserService` para os cinco casos de uso CRUD;
 - commands, `UserDto`, `IUserRepository` e resultados explícitos de gravação e remoção;
 - `IPasswordHashService` como abstração para hash da password na criação.
+- `IAccessPermissionService` e `AccessPermissionService` para consultar, criar, substituir e remover `AccessPermission`s;
+- commands, `AccessPermissionDto`, `IAccessPermissionRepository` e resultados explícitos para persistência e referências inexistentes.
 
-O processamento de pedidos de acesso, permissões, eventos, ocupação e alertas continua planejado e será adicionado progressivamente.
+O processamento/decisão de pedidos de acesso, eventos, ocupação e alertas continua planejado. A gestão CRUD de `AccessPermission` está implementada, mas não avalia pedidos de acesso.
 
 No slice `Users`, `UserService` normaliza nome e email, converte email para lowercase, valida o formato do endereço e exige password entre 12 e 128 caracteres na criação. A password é encaminhada para `IPasswordHashService`; a atualização recebe apenas nome, email e `IsActive`, nunca uma password.
 
@@ -103,6 +105,13 @@ SmartBuilding.Application/
 │   ├── IAccessPointRepository.cs
 │   ├── IAccessPointService.cs
 │   └── UpdateAccessPointCommand.cs
+├── AccessPermissions/
+│   ├── AccessPermissionDto.cs
+│   ├── AccessPermissionService.cs
+│   ├── CreateAccessPermissionCommand.cs
+│   ├── IAccessPermissionRepository.cs
+│   ├── IAccessPermissionService.cs
+│   └── UpdateAccessPermissionCommand.cs
 ├── Common/
 │   └── ApplicationValidationException.cs
 └── DependencyInjection.cs
@@ -171,6 +180,8 @@ Application valida requisitos do caso de uso, como formato, presença de dados e
 
 `UserService` exige nome não vazio de até 200 caracteres, email não vazio e válido de até 320 caracteres e password de 12 a 128 caracteres na criação. Espaços externos são removidos e o email é convertido para lowercase invariável. O serviço encaminha a password original para `IPasswordHashService` e recebe o hash antes de persistir; nenhum DTO de saída contém material de password.
 
+`AccessPermissionService` exige `UserId` e `AccessPointId` diferentes de `Guid.Empty`, converte `ValidFrom` e `ValidUntil` de `DateTimeOffset` para `DateTime` UTC e rejeita `ValidUntil` quando for igual ou anterior ao instante de `ValidFrom`. Um `ValidUntil` nulo é permitido. A criação não recebe `IsActive`; o repositório cria a permissão ativa. O command de atualização inclui `IsActive`, pois o `PUT` substitui também o estado ativo. User ou AccessPoint inexistente são resultados explícitos do contrato de persistência, convertidos pela Application sem referenciar tipos ou status HTTP.
+
 Exemplos:
 
 - Application valida que um request contém `cardNumber` e `accessPointId`.
@@ -191,6 +202,8 @@ Para um acesso concedido, a gravação de `AccessEvent` e a atualização de ocu
 
 Application usa resultados ou exceções específicas do caso de uso, sem retornar `IResult`, `ActionResult` ou códigos HTTP. `ApplicationValidationException` representa entrada inválida na fronteira da Application, enquanto exceções inesperadas não são classificadas como erro do cliente. No delete de edifício, `DeleteBuildingResult` informa `Deleted`, `NotFound` ou `HasFloors`. Para pisos, `FloorSaveStatus` informa `Success`, `FloorNotFound` ou `BuildingNotFound`, e `DeleteFloorResult` informa `Deleted`, `NotFound` ou `HasDependents`. Para pontos de acesso, `AccessPointSaveStatus` distingue sucesso, `AccessPointNotFound` e `FloorNotFound`; `DeleteAccessPointResult` distingue `Deleted`, `NotFound` e `HasDependents`. A API traduz esses resultados para a semântica HTTP correspondente.
 
+Para permissões, `AccessPermissionSaveStatus` distingue sucesso, permissão inexistente, User inexistente e AccessPoint inexistente. A remoção distingue `Deleted` de `NotFound`. Esses resultados deixam a API mapear IDs/referências ausentes para `404`; não representam uma decisão de permitir ou negar entrada.
+
 `FloorPersistenceResult` e `FloorSaveResult` possuem factories restritas: sucesso sempre transporta uma entidade ou DTO, enquanto falhas não podem carregar esses valores. Isso evita estados contraditórios antes do mapeamento HTTP.
 
 `AccessPointPersistenceResult` e `AccessPointSaveResult` seguem a mesma proteção: os construtores são privados, sucesso é criado com `Succeeded` e os resultados `AccessPointNotFound` ou `FloorNotFound` são criados sem entidade/DTO. Assim, cada factory mantém consistente o status com o valor transportado.
@@ -209,4 +222,4 @@ Os 15 casos de `UserService` cobrem normalização de email e persistência some
 
 ## Próximos passos da camada
 
-Implementar progressivamente os casos de uso restantes. O fluxo de controlo de acesso, ocupação e alertas continua planejado e não deve ser inferido a partir dos CRUDs administrativos já implementados.
+Implementar progressivamente os casos de uso restantes. A gestão CRUD de `AccessPermission` está implementada; o fluxo de controlo/decisão de acesso, persistência de `AccessEvent`, ocupação e alertas continua planejado e não deve ser inferido a partir dos CRUDs administrativos.

@@ -64,7 +64,7 @@ Os fluxos implementam listagem, consulta por ID, criação, atualização e remo
 
 Antes de servir endpoints, a API exige `ConnectionStrings:SmartBuilding`. Em `Development`, o bootstrap aplica migrations e executa o seed mínimo. O endpoint `GET /` continua sem acessar o banco, enquanto `/api/buildings`, `/api/floors` e `/api/access-points` usam a persistência PostgreSQL.
 
-Os CRUDs administrativos de `Buildings`, `Floors` e `AccessPoints` estão implementados. A decisão de conceder ou negar acesso e o processamento de eventos/ocupação/alertas, além dos demais recursos, permanecem planejados.
+Os CRUDs administrativos de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O CRUD de `AccessPermission` gere a associação entre User, AccessPoint e intervalo de validade, mas não decide se um pedido de acesso deve ser concedido. A decisão de conceder ou negar acesso e o processamento de `AccessEvent`s, `OccupancySession`s e alertas permanecem planejados.
 
 O CRUD administrativo de `Users` também está implementado em `/api/users`. A validação HTTP verifica o email após remover whitespace externo, e a Application normaliza-o para lowercase antes de persistir; solicita hash da password na criação e as responses omitem password e hash. Updates não alteram credenciais e email duplicado na atualização também é tratado como conflito. O repositório protege email único e bloqueia remoção com cartões, permissões ou sessões de ocupação. Eventos de auditoria são preservados com `UserId` nulo. Hashing de password e testes da primitiva de verificação não significam que login, verificação de credenciais no fluxo da aplicação, JWT ou autorização já existam: esses itens continuam planejados para a fase 6.
 
