@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using SmartBuilding.Application.AccessPoints;
+using SmartBuilding.Application.AccessCards;
 using SmartBuilding.Application.Buildings;
 using SmartBuilding.Application.Floors;
 using SmartBuilding.Application.Users;
@@ -12,6 +13,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IBuildingService, BuildingService>();
         services.AddScoped<IAccessPointService, AccessPointService>();
+        services.AddScoped<IAccessCardService, AccessCardService>();
         services.AddScoped<IFloorService, FloorService>();
         services.AddScoped<IUserService, UserService>();
         return services;

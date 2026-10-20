@@ -18,7 +18,8 @@ A API contém:
 - grupo de Minimal APIs em `/api/floors` com as mesmas cinco operações CRUD;
 - grupo de Minimal APIs em `/api/access-points` com as mesmas cinco operações CRUD;
 - grupo de Minimal APIs em `/api/users` com as mesmas cinco operações CRUD;
-- contratos HTTP próprios para requests e responses de `Building`, `Floor`, `AccessPoint` e `User`;
+- grupo de Minimal APIs em `/api/cards` para listar, consultar, emitir, substituir e ativar/desativar cartões;
+- contratos HTTP próprios para requests e responses de `Building`, `Floor`, `AccessPoint`, `User` e `AccessCard`;
 - validação automática com DataAnnotations e `AddValidation`;
 - validação de email de User que ignora whitespace externo ao verificar o formato;
 - Problem Details para validação, conflitos e falhas inesperadas;
@@ -30,7 +31,7 @@ A API contém:
 
 Ainda não contém:
 
-- CRUDs dos recursos seguintes do domínio, como cartões e permissões;
+- gestão de permissões de acesso;
 - processamento de pedidos de acesso, eventos, sessões de ocupação ou alertas;
 - autenticação JWT;
 - autorização por papéis;
@@ -110,7 +111,7 @@ builder.Services.AddInfrastructure(connectionString);
 
 `AddInfrastructure` encapsula `AddDbContext`, `UseNpgsql` e `UseSnakeCaseNamingConvention`. O contexto mantém o lifetime scoped padrão do EF Core.
 
-`AddApplication` registra os serviços de Buildings, Floors, AccessPoints e Users, enquanto `AddInfrastructure` liga os contratos aos respetivos repositórios e registra o serviço de hash. A API conhece os dois lados apenas para realizar essa composição.
+`AddApplication` registra os serviços de Buildings, Floors, AccessPoints, Users e AccessCards, enquanto `AddInfrastructure` liga os contratos aos respetivos repositórios e registra o serviço de hash. A API conhece os dois lados apenas para realizar essa composição.
 
 ## Contratos HTTP
 
@@ -162,13 +163,30 @@ Os slices implementados expõem:
 | `PUT /api/users/{id}` | `200 OK` com o perfil e estado atualizados | `400 Bad Request`, `404 Not Found`, `409 Conflict` para email duplicado |
 | `DELETE /api/users/{id}` | `204 No Content` | `404 Not Found`, `409 Conflict` quando existem cartões, permissões ou sessões de ocupação |
 
+| Método e rota | Resultado de sucesso | Outros resultados |
+|---|---|---|
+| `GET /api/cards` | `200 OK` com lista ordenada por número do cartão | — |
+| `GET /api/cards/{id}` | `200 OK` com `AccessCardResponse` | `404 Not Found` |
+| `POST /api/cards` | `201 Created`, body e header `Location` | `400 Bad Request`, `404 Not Found` quando o User não existe, `409 Conflict` para número duplicado |
+| `PUT /api/cards/{id}` | `200 OK` com atribuição e detalhes substituídos | `400 Bad Request`, `404 Not Found` para cartão ou User inexistente, `409 Conflict` para número duplicado |
+| `POST /api/cards/{id}/activate` | `200 OK` com o cartão ativo | `404 Not Found` |
+| `POST /api/cards/{id}/deactivate` | `200 OK` com o cartão inativo | `404 Not Found` |
+
+`CreateAccessCardRequest` e `UpdateAccessCardRequest` exigem `UserId` e `CardNumber`; o número deve conter pelo menos um caractere não whitespace e ter no máximo 100 caracteres. A Application remove whitespace externo. `ExpiresAt` é opcional; no `PUT`, `null` limpa a expiração. `AccessCardResponse` inclui `Id`, `UserId`, `CardNumber`, `IsActive`, `ExpiresAt` e `CreatedAt`.
+
+As datas da API usam `DateTimeOffset`. Uma data de expiração recebida com qualquer offset é convertida pela Application para o instante UTC antes de ser persistida; as datas de resposta são expostas com offset UTC. A persistência usa colunas PostgreSQL `timestamp with time zone`. `CreatedAt` é definido em UTC. Essa conversão preserva o instante, não a representação textual do offset original.
+
+O fluxo segue as camadas existentes: `AccessCardEndpoints` converte HTTP em chamadas a `IAccessCardService`; `AccessCardService` valida/normaliza o número e converte resultados explícitos do repositório; `IAccessCardRepository` separa o caso de uso da persistência; `AccessCardRepository` usa EF Core e traduz violações conhecidas de unicidade/FK em resultados explícitos. O índice único de `CardNumber` origina o conflito `409`; User inexistente resulta em `404`. Um ID de cartão desconhecido resulta em `404` na consulta, substituição e ativação/desativação.
+
+O gerenciamento de cartões está **implementado nesta branch**. Isso cobre emissão, consulta, substituição de atribuição/dados e mudança de estado; não implementa a avaliação de permissões nem o processamento de pedidos de acesso, `AccessEvent`s ou `OccupancySession`s.
+
 `CreateBuildingRequest` exige `Name` até 200 caracteres e `Address` até 500. `UpdateBuildingRequest` possui os mesmos limites e também exige `IsActive`. `BuildingResponse` contém `Id`, `Name`, `Address`, `IsActive` e `CreatedAt`.
 
 `CreateFloorRequest` e `UpdateFloorRequest` exigem `BuildingId`, `Number` e `Name` não vazio com até 100 caracteres; a atualização também exige `IsActive`. `FloorResponse` contém `Id`, `BuildingId`, `Number`, `Name` e `IsActive`.
 
 `CreateAccessPointRequest` e `UpdateAccessPointRequest` exigem `FloorId`, `Name` não vazio com até 150 caracteres e `Location` não vazia com até 250 caracteres; ambos incluem `SupportsEntry` e `SupportsExit`, e a atualização também exige `IsActive`. `AccessPointResponse` contém `Id`, `FloorId`, `Name`, `Location`, `IsActive`, `SupportsEntry`, `SupportsExit` e `CreatedAt`.
 
-Os CRUDs de `Buildings`, `Floors`, `AccessPoints` e `Users` estão implementados nesta branch. O processamento de acessos, cartões, permissões, eventos, ocupação e alertas continua planejado.
+Os CRUDs de `Buildings`, `Floors`, `AccessPoints`, `Users` e o gerenciamento de `AccessCards` estão implementados nesta branch. Permissões, processamento de pedidos de acesso, eventos, ocupação e alertas continuam planejados.
 
 ## Fluxo implementado para Users
 
@@ -208,7 +226,7 @@ No smoke test de `Buildings` com PostgreSQL real, as respostas de validação, r
 
 `MapOpenApi` publica o documento somente em Development. Os endpoints de `Buildings` e `Floors` declaram nomes, resumos, tipos de sucesso e status alternativos para geração code-first. Uma UI interativa ainda não foi adicionada.
 
-Cada endpoint futuro deve documentar tipos de resposta, status possíveis, autenticação e exemplos úteis.
+Os endpoints de `AccessCards` também declaram tipos de resposta e status alternativos para o documento OpenAPI. Cada endpoint futuro deve documentar tipos de resposta, status possíveis, autenticação e exemplos úteis.
 
 ## Autenticação e autorização
 

@@ -59,7 +59,7 @@ Ele não conhece EF Core, PostgreSQL ou HTTP. Assim, uma regra como “cartão e
 
 ## Application
 
-Application orquestra casos de uso. Nos slices implementados, `BuildingService`, `FloorService`, `AccessPointService` e `UserService` normalizam entradas, chamam contratos de repositório e devolvem DTOs sem conhecer HTTP ou EF Core. `UserService` normaliza email para lowercase e usa `IPasswordHashService` para não persistir password em texto simples. Updates de Users alteram perfil e estado, não a password. Os serviços preservam resultados explícitos para sucesso e recursos ou pais inexistentes. Quando a entrada viola um requisito, lançam `ApplicationValidationException` com a propriedade inválida, em vez de usar uma `ArgumentException` genérica.
+Application orquestra casos de uso. Nos slices implementados, `BuildingService`, `FloorService`, `AccessPointService`, `UserService` e `AccessCardService` normalizam entradas, chamam contratos de repositório e devolvem DTOs sem conhecer HTTP ou EF Core. `UserService` normaliza email para lowercase e usa `IPasswordHashService` para não persistir password em texto simples. Updates de Users alteram perfil e estado, não a password. `AccessCardService` remove whitespace externo do número do cartão e converte `ExpiresAt` para UTC antes de chamar o repositório. Os serviços preservam resultados explícitos para sucesso e recursos ou pais inexistentes. Quando a entrada viola um requisito, lançam `ApplicationValidationException` com a propriedade inválida, em vez de usar uma `ArgumentException` genérica.
 
 Um fluxo futuro de controlo de acesso terá uma sequência como:
 
@@ -76,7 +76,7 @@ Application não deve saber se os dados vieram de PostgreSQL, memória ou outro 
 
 ## Infrastructure
 
-Infrastructure implementa detalhes externos. Atualmente contém EF Core, Npgsql, o registro de `SmartBuildingDbContext`, a migration inicial, o seed de desenvolvimento e repositórios dos CRUDs implementados. `UserRepository` persiste Users e trata duplicidade por índice único; `IdentityPasswordHashService` usa `PasswordHasher<User>` do ASP.NET Core Identity. A verificação de credenciais e o login continuam planejados.
+Infrastructure implementa detalhes externos. Atualmente contém EF Core, Npgsql, o registro de `SmartBuildingDbContext`, a migration inicial, o seed de desenvolvimento e repositórios dos CRUDs implementados. `UserRepository` persiste Users e trata duplicidade por índice único; `AccessCardRepository` persiste cartões e traduz violações do índice único do número e da FK de User em resultados explícitos. `IdentityPasswordHashService` usa `PasswordHasher<User>` do ASP.NET Core Identity. A verificação de credenciais e o login continuam planejados.
 
 Trocar PostgreSQL por outra tecnologia deveria afetar principalmente Infrastructure, não as regras do Domain.
 

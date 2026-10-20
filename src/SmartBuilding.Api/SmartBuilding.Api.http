@@ -200,3 +200,45 @@ Content-Type: application/json
 DELETE {{SmartBuilding.Api_HostAddress}}/api/users/00000000-0000-0000-0000-000000000001
 
 ###
+
+GET {{SmartBuilding.Api_HostAddress}}/api/cards
+Accept: application/json
+
+###
+
+# Create a user first and replace userId with the ID returned by POST /api/users.
+POST {{SmartBuilding.Api_HostAddress}}/api/cards
+Content-Type: application/json
+
+{
+	"userId": "00000000-0000-0000-0000-000000000001",
+	"cardNumber": "CARD-1001",
+	"expiresAt": "2030-12-31T23:59:59Z"
+}
+
+###
+
+# Replace the ID below with the ID returned by POST /api/cards.
+GET {{SmartBuilding.Api_HostAddress}}/api/cards/00000000-0000-0000-0000-000000000001
+Accept: application/json
+
+###
+
+PUT {{SmartBuilding.Api_HostAddress}}/api/cards/00000000-0000-0000-0000-000000000001
+Content-Type: application/json
+
+{
+	"userId": "00000000-0000-0000-0000-000000000001",
+	"cardNumber": "CARD-1001-UPDATED",
+	"expiresAt": null
+}
+
+###
+
+POST {{SmartBuilding.Api_HostAddress}}/api/cards/00000000-0000-0000-0000-000000000001/activate
+
+###
+
+POST {{SmartBuilding.Api_HostAddress}}/api/cards/00000000-0000-0000-0000-000000000001/deactivate
+
+###

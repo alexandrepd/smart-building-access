@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SmartBuilding.Application.AccessPoints;
+using SmartBuilding.Application.AccessCards;
 using SmartBuilding.Application.Buildings;
 using SmartBuilding.Application.Floors;
 using SmartBuilding.Application.Users;
@@ -25,6 +26,7 @@ public static class DependencyInjection
                 .UseSnakeCaseNamingConvention());
         services.AddScoped<IBuildingRepository, BuildingRepository>();
         services.AddScoped<IAccessPointRepository, AccessPointRepository>();
+        services.AddScoped<IAccessCardRepository, AccessCardRepository>();
         services.AddScoped<IFloorRepository, FloorRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPasswordHashService, IdentityPasswordHashService>();

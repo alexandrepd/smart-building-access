@@ -186,7 +186,7 @@ OpenAPI é a receita escrita. Swagger é uma família de ferramentas que lê e a
 
 No projeto, `AddOpenApi` e `MapOpenApi` geram o documento em Development. Swagger UI ainda não está implementado.
 
-## Exemplos implementados: Buildings, Floors e AccessPoints
+## Exemplos implementados: recursos administrativos
 
 Pense no recurso como uma ficha de edifício: `GET` consulta, `POST` cria uma ficha, `PUT` substitui os campos editáveis e `DELETE` tenta removê-la.
 
@@ -196,9 +196,23 @@ O recurso `Floor` segue o mesmo CRUD em `/api/floors`. `POST` retorna `404` quan
 
 `AccessPoint` também possui CRUD em `/api/access-points`. Pense nele como a ficha de um leitor físico: descreve em que piso está, onde fica e se suporta entrada ou saída. Tecnicamente, `POST` devolve `201` com `Location`, `PUT` devolve `200` com o recurso atualizado e `DELETE` devolve `204`; o piso pai inexistente resulta em `404`, enquanto permissões, eventos ou alertas dependentes impedem o delete com `409` e Problem Details. Os contratos próprios validam nome obrigatório até 150 caracteres e localização obrigatória até 250; `SupportsEntry` e `SupportsExit` são explícitos no request e response.
 
-Os metadados `.WithName`, `.WithSummary`, `.Produces`, `.ProducesValidationProblem` e `.ProducesProblem` alimentam o documento OpenAPI code-first. `404` e `409` são descritos como Problem Details, enquanto `400` é descrito como Validation Problem Details. O ficheiro `SmartBuilding.Api.http` contém requests manuais para os cenários principais dos quatro recursos. CRUD de cartões e outros recursos continuam planejados; a decisão e o processamento de pedidos de acesso também não estão implementados.
+Os metadados `.WithName`, `.WithSummary`, `.Produces`, `.ProducesValidationProblem` e `.ProducesProblem` alimentam o documento OpenAPI code-first. `404` e `409` são descritos como Problem Details, enquanto `400` é descrito como Validation Problem Details. O ficheiro `SmartBuilding.Api.http` contém requests manuais para os cenários dos recursos administrativos; também inclui exemplos de listagem, criação, consulta, substituição e mudança de estado de cartões. O gerenciamento de cartões está implementado; permissões e a decisão/processamento de pedidos de acesso ainda não estão.
 
 O recurso `Users` também possui CRUD em `/api/users`: listagem e consulta retornam `200`, criação retorna `201` com `Location`, update retorna `200` e delete retorna `204`. Email duplicado na criação ou atualização resulta em `409`; IDs inexistentes em consulta/update/delete resultam em `404`; dados inválidos resultam em `400`. `CreateUserRequest` exige nome de até 200 caracteres, email de até 320 e password de 12 a 128 caracteres. `TrimmedEmailAddressAttribute` valida o email após `Trim`, então whitespace externo é aceito; `UserService` remove-o e canonicaliza para lowercase antes de persistir. `UpdateUserRequest` não inclui password e `UserResponse` nunca inclui password ou hash. Hashing e a primitiva de verificação do Identity estão testados, mas login, verificação de credenciais no fluxo da aplicação, JWT e autorização continuam planejados.
+
+### AccessCard: HTTP e separação em camadas
+
+**Analogia simples:** pense num cartão de acesso como um crachá numa receção. A receção consulta e altera o registo, mas pede ao setor responsável que confirme os dados e ao arquivo que os guarde. Cada papel faz uma parte do trabalho.
+
+**Definição técnica:** o endpoint HTTP traduz rota, body e status codes; o serviço da Application coordena o caso de uso e as regras; o contrato de repositório abstrai o acesso a dados; a Infrastructure implementa esse contrato com EF Core/PostgreSQL. A API não consulta `DbContext` diretamente. `DateTimeOffset` representa uma data/hora junto com o offset e identifica um instante; normalizar para UTC conserva o instante, não o offset escrito no request.
+
+**Exemplo do projeto:** `AccessCardEndpoints` expõe `GET /api/cards` (lista ordenada pelo número), `GET /api/cards/{id}`, `POST /api/cards`, `PUT /api/cards/{id}` e `POST /api/cards/{id}/activate` ou `/deactivate`. A criação retorna `201 Created` com body e `Location`. O `PUT` substitui User, número do cartão e expiração opcional; enviar `null` remove a expiração. Número duplicado retorna `409`; User desconhecido retorna `404`; cartão desconhecido também resulta em `404`. Requests usam `DateTimeOffset`; a Application converte `ExpiresAt` para UTC e a resposta expõe datas com offset UTC. O percurso é `AccessCardEndpoints` → `IAccessCardService`/`AccessCardService` → `IAccessCardRepository`/`AccessCardRepository`.
+
+**Resposta de entrevista:** “A API de AccessCard mantém o endpoint fino. Ele converte HTTP para o caso de uso, enquanto o serviço valida e normaliza os dados e depende de uma interface de repositório. Infrastructure implementa essa interface com EF Core. Assim, HTTP e persistência ficam separados; os resultados explícitos permitem mapear cartão/User ausente para `404` e número duplicado para `409`. Datas de entrada são `DateTimeOffset` e são normalizadas para UTC antes da persistência.”
+
+**Exercício prático:** use o ficheiro `SmartBuilding.Api.http` para listar, criar, consultar, substituir, ativar e desativar um cartão. Tente um número já existente e um `UserId` desconhecido e identifique os status esperados. Envie `ExpiresAt` com um offset diferente de `Z`, depois consulte a resposta e explique por que o instante permanece igual, embora a representação seja UTC. Desenhe o percurso do request pelas quatro partes (endpoint, serviço, interface do repositório e implementação) e indique em que camada cada status HTTP é escolhido.
+
+O gerenciamento de `AccessCards` está **implementado nesta branch**. Isso não significa que a autorização de acesso esteja pronta: permissões, processamento de pedidos, `AccessEvent`s e `OccupancySession`s continuam por implementar.
 
 No smoke PostgreSQL, `  Alex@Example.com  ` foi criado com `201` e armazenado como `alex@example.com`; repetição do email retornou `409`. O fluxo também confirmou update `200`, delete `204`, hash persistido e ausência de password/hash na response. Cartões bloqueiam o delete com `409`; `AccessEvent` sobrevive à remoção de User com `UserId` nulo.
 
