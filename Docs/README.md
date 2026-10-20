@@ -26,3 +26,8 @@ Essa distinção evita tratar o plano como se já fosse comportamento disponíve
 ## Regra de atualização
 
 Quando uma fase alterar responsabilidades, dependências ou fluxo de dados, o documento da camada correspondente deve ser atualizado no mesmo pull request.
+
+O fluxo de Access Control desta branch está descrito em
+[Camada API](api-layer.md#access-control-pedido-e-eventos),
+[Camada Application](application-layer.md#papel-na-arquitetura) e no
+[exemplo progressivo para entrevistas](study/03-rest-openapi.md#exemplo-do-projeto-decisão-de-acesso-e-auditoria).

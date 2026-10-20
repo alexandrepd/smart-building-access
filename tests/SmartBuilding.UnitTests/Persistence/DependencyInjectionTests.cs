@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using SmartBuilding.Application;
+using SmartBuilding.Application.AccessControl;
 using SmartBuilding.Application.AccessPermissions;
 using SmartBuilding.Domain.Entities;
 using SmartBuilding.Infrastructure;
@@ -27,6 +28,23 @@ public class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<IAccessPermissionService>());
         Assert.IsType<AccessPermissionRepository>(
             scope.ServiceProvider.GetRequiredService<IAccessPermissionRepository>());
+    }
+
+    [Fact]
+    public void AddApplicationAndInfrastructure_AccessControl_RegistersServiceAndRepository()
+    {
+        var services = new ServiceCollection();
+        services.AddApplication();
+        services.AddInfrastructure(
+            "Host=localhost;Database=dependency_injection;Username=unused");
+
+        using ServiceProvider serviceProvider = services.BuildServiceProvider(validateScopes: true);
+        using IServiceScope scope = serviceProvider.CreateScope();
+
+        Assert.IsType<AccessControlService>(
+            scope.ServiceProvider.GetRequiredService<IAccessControlService>());
+        Assert.IsType<AccessControlRepository>(
+            scope.ServiceProvider.GetRequiredService<IAccessControlRepository>());
     }
 
     [Fact]

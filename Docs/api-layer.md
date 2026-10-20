@@ -20,6 +20,7 @@ A API contém:
 - grupo de Minimal APIs em `/api/users` com as mesmas cinco operações CRUD;
 - grupo de Minimal APIs em `/api/cards` para listar, consultar, emitir, substituir e ativar/desativar cartões;
 - grupo de Minimal APIs em `/api/permissions` para listar, consultar, criar, substituir e remover permissões;
+- grupo de Minimal APIs em `/api/access` para processar pedidos e consultar `AccessEvent`s;
 - contratos HTTP próprios para requests e responses de `Building`, `Floor`, `AccessPoint`, `User`, `AccessCard` e `AccessPermission`;
 - validação automática com DataAnnotations e `AddValidation`;
 - validação de email de User que ignora whitespace externo ao verificar o formato;
@@ -32,10 +33,9 @@ A API contém:
 
 Ainda não contém:
 
-- processamento/decisão de pedidos de acesso, criação de `AccessEvent`s, sessões de ocupação ou alertas;
+- atualização de `OccupancySession`, processamento de alertas ou notificações SignalR;
 - autenticação JWT;
 - autorização por papéis;
-- SignalR;
 - Swagger UI interativo;
 - health checks completos.
 
@@ -101,6 +101,73 @@ flowchart LR
 
 Os endpoints são finos: mapeiam requests para commands, chamam `IBuildingService` ou `IFloorService` e convertem os DTOs da Application em responses HTTP. Eles não usam `DbContext` diretamente.
 
+## Access Control: pedido e eventos
+
+O grupo `/api/access` expõe o caso de uso de decisão e a auditoria:
+
+| Método e rota | Resultado | Outros resultados |
+|---|---|---|
+| `POST /api/access/requests` | `200 OK` com `AccessEventResponse` para decisão processada, concedida ou negada | `400 Bad Request` com RFC `ValidationProblemDetails` para request inválido; `404 Not Found` com Problem Details se o `AccessPointId` não existe |
+| `GET /api/access/events` | `200 OK` com todos os eventos, mais recentes primeiro | — |
+| `GET /api/access/events/{id}` | `200 OK` com o evento | `404 Not Found` se o evento não existe |
+
+O POST recebe `cardNumber`, `accessPointId` e `direction`. O número deve conter
+caractere não branco e ter no máximo 100 caracteres; o ID não pode ser vazio e
+`direction` deve ser um valor de `AccessDirection`. Falhas de DataAnnotations
+ou validação da Application são representadas como erros de validação RFC 7807
+(`application/problem+json`), não como decisões negadas. Um cartão inexistente,
+inativo ou expirado é uma decisão de negócio e retorna `200` com um
+`AccessEvent`, não um erro HTTP.
+
+`GET /api/access/events` ainda não tem paginação nem filtros: retorna a lista
+completa ordenada por `OccurredAt` decrescente (com ID como desempate).
+
+Exemplo de decisão negada para cartão desconhecido:
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000101",
+  "accessPointId": "30000000-0000-0000-0000-000000000001",
+  "accessCardId": null,
+  "userId": null,
+  "occurredAt": "2026-10-20T17:00:00Z",
+  "direction": "Entry",
+  "result": "CardNotFound",
+  "reason": "Access card was not found."
+}
+```
+
+Para um AccessPoint conhecido, cada pedido válido processado cria um
+`AccessEvent`, qualquer que seja o resultado. `AccessPointId` é uma FK
+obrigatória; por isso, um AccessPoint desconhecido responde `404` e não pode
+ser auditado com evento inválido. `AccessCardId` e `UserId` são opcionais, o
+que permite auditar uma tentativa com número de cartão não encontrado.
+
+A ordem da decisão e resultados é:
+
+1. cartão ausente → `CardNotFound`;
+2. cartão inativo → `CardInactive`;
+3. cartão expirado → `CardExpired`;
+4. utilizador inativo → `UserInactive`;
+5. AccessPoint inativo → `AccessPointInactive`;
+6. direção não suportada pelo AccessPoint → `DirectionNotSupported`;
+7. nenhuma permissão ativa para User/AccessPoint → `NoPermission`;
+8. existe permissão ativa, mas nenhuma está na janela atual → `PermissionExpired`;
+9. caso contrário → `Granted`.
+
+A permissão ativa está temporalmente válida quando
+`ValidFrom <= now < ValidUntil`; `ValidUntil` nulo significa sem fim
+programado. A primeira condição aplicável determina o resultado. Responses
+JSON serializam `direction` e `result` como strings (por exemplo `"Entry"` e
+`"Granted"`), não como inteiros; requests também devem enviar direção como
+string. `occurredAt` representa o instante UTC em formato de data/hora com
+offset `Z`.
+
+Esse fluxo não altera `OccupancySession`, não envia notificações SignalR, não
+executa worker/regras de alertas e não autentica nem autoriza o chamador. Esses
+comportamentos pertencem às fases futuras; o `200` do resultado da decisão não
+significa que a autenticação já exista.
+
 ## Composition root
 
 A API registra a persistência sem conhecer os detalhes internos do contexto:
@@ -111,7 +178,7 @@ builder.Services.AddInfrastructure(connectionString);
 
 `AddInfrastructure` encapsula `AddDbContext`, `UseNpgsql` e `UseSnakeCaseNamingConvention`. O contexto mantém o lifetime scoped padrão do EF Core.
 
-`AddApplication` registra os serviços de Buildings, Floors, AccessPoints, Users, AccessCards e AccessPermissions, enquanto `AddInfrastructure` liga os contratos aos respetivos repositórios e registra o serviço de hash. A API conhece os dois lados apenas para realizar essa composição.
+`AddApplication` registra os serviços de Buildings, Floors, AccessPoints, Users, AccessCards, AccessPermissions e Access Control, enquanto `AddInfrastructure` liga os contratos aos respetivos repositórios e registra o serviço de hash. A API conhece os dois lados apenas para realizar essa composição.
 
 ## Contratos HTTP
 
@@ -178,11 +245,15 @@ As datas da API usam `DateTimeOffset`. Uma data de expiração recebida com qual
 
 O fluxo segue as camadas existentes: `AccessCardEndpoints` converte HTTP em chamadas a `IAccessCardService`; `AccessCardService` valida/normaliza o número e converte resultados explícitos do repositório; `IAccessCardRepository` separa o caso de uso da persistência; `AccessCardRepository` usa EF Core e traduz violações conhecidas de unicidade/FK em resultados explícitos. O índice único de `CardNumber` origina o conflito `409`; User inexistente resulta em `404`. Um ID de cartão desconhecido resulta em `404` na consulta, substituição e ativação/desativação.
 
-O gerenciamento de cartões está **implementado nesta branch**. Isso cobre emissão, consulta, substituição de atribuição/dados e mudança de estado; não implementa a avaliação de permissões nem o processamento de pedidos de acesso, `AccessEvent`s ou `OccupancySession`s.
+O gerenciamento de cartões está **implementado nesta branch**. Isso cobre
+emissão, consulta, substituição de atribuição/dados e mudança de estado. A
+avaliação de permissões e a criação/consulta de `AccessEvent`s também estão
+implementadas no fluxo Access Control; a atualização de `OccupancySession`
+continua futura.
 
 ## Fluxo implementado para AccessPermission
 
-O grupo `/api/permissions` gere registos de autorização de um `User` para um `AccessPoint`. A gestão CRUD é distinta de decidir um pedido apresentado por um leitor: o processamento de acesso, incluindo avaliar permissões e criar `AccessEvent`s ou atualizar `OccupancySession`s, ainda não está implementado.
+O grupo `/api/permissions` gere registos de autorização de um `User` para um `AccessPoint`. A gestão CRUD é distinta de decidir um pedido apresentado por um leitor: o fluxo `/api/access/requests` avalia as permissões e cria `AccessEvent`s, mas não atualiza `OccupancySession`.
 
 | Método e rota | Resultado de sucesso | Outros resultados |
 |---|---|---|
@@ -204,7 +275,11 @@ O fluxo é `AccessPermissionEndpoints` → `IAccessPermissionService`/`AccessPer
 
 `CreateAccessPointRequest` e `UpdateAccessPointRequest` exigem `FloorId`, `Name` não vazio com até 150 caracteres e `Location` não vazia com até 250 caracteres; ambos incluem `SupportsEntry` e `SupportsExit`, e a atualização também exige `IsActive`. `AccessPointResponse` contém `Id`, `FloorId`, `Name`, `Location`, `IsActive`, `SupportsEntry`, `SupportsExit` e `CreatedAt`.
 
-Os CRUDs de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e a gestão CRUD de `AccessPermissions` estão implementados nesta branch. O processamento/decisão de pedidos de acesso, eventos, ocupação e alertas continuam planejados.
+Os CRUDs de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e
+a gestão CRUD de `AccessPermissions` estão implementados nesta branch.
+Também estão implementados o processamento/decisão de pedidos e as consultas
+de `AccessEvent`; atualização de ocupação e processamento de alertas continuam
+planejados.
 
 ## Fluxo implementado para Users
 
@@ -238,11 +313,11 @@ O bloqueio de remoção de um edifício com pisos, de um piso com pontos de aces
 
 A API valida o formato do transporte com DataAnnotations e `AddValidation`. Campos ausentes, valores compostos apenas por whitespace quando o campo não os permite e comprimentos inválidos produzem `ValidationProblemDetails` com `400 Bad Request` e erros associados a cada campo. Em Users, nome só com whitespace é rejeitado, mas whitespace externo ao email é aceito porque `TrimmedEmailAddressAttribute` valida o endereço após `Trim`; a Application normaliza o valor antes de persistir. Nos contratos de `Floor`, o nome aceita no máximo 100 caracteres e o número pode ser negativo para representar pisos subterrâneos. A Application também normaliza espaços e protege os requisitos para chamadas que não atravessem HTTP, incluindo a rejeição de `Guid.Empty` como `BuildingId`.
 
-No smoke test de `Buildings` com PostgreSQL real, as respostas de validação, recurso inexistente e conflito foram confirmadas, respetivamente, como `400`, `404` e `409`, todas com content type `application/problem+json`. O smoke de `Floors` confirmou listagem `200`, criação `201`, consulta `200`, atualização `200`, edifício pai inexistente `404`, conflito de remoção `409`, remoção `204` e limpeza do edifício temporário `204`. Para `AccessPoints`, o smoke confirmou listagem/criação/consulta/atualização com `200/201/200/200`, piso pai inexistente `404`, delete bloqueado por evento dependente `409` e, após limpar o evento, delete `204`; os recursos temporários foram limpos.
+No smoke test de `Buildings` com PostgreSQL real, as respostas de validação, recurso inexistente e conflito foram confirmadas, respetivamente, como `400`, `404` e `409`, todas com content type `application/problem+json`. O smoke de `Floors` confirmou listagem `200`, criação `201`, consulta `200`, atualização `200`, edifício pai inexistente `404`, conflito de remoção `409`, remoção `204` e limpeza do edifício temporário `204`. Para `AccessPoints`, o smoke confirmou listagem/criação/consulta/atualização com `200/201/200/200`, piso pai inexistente `404`, delete bloqueado por evento dependente `409` e, após limpar o evento, delete `204`; os recursos temporários foram limpos. Não se afirma aqui uma validação manual HTTP das novas rotas de Access Control; a cobertura atualmente documentada para elas é unitária.
 
 ## OpenAPI e Swagger
 
-`MapOpenApi` publica o documento somente em Development. Os endpoints de `Buildings` e `Floors` declaram nomes, resumos, tipos de sucesso e status alternativos para geração code-first. Uma UI interativa ainda não foi adicionada.
+`MapOpenApi` publica o documento somente em Development. Os endpoints de `Buildings`, `Floors` e Access Control declaram nomes, resumos, tipos de sucesso e status alternativos para geração code-first. Uma UI interativa ainda não foi adicionada.
 
 Os endpoints de `AccessCards` também declaram tipos de resposta e status alternativos para o documento OpenAPI. Cada endpoint futuro deve documentar tipos de resposta, status possíveis, autenticação e exemplos úteis.
 
@@ -268,4 +343,4 @@ O futuro hub `/accessHub` notificará eventos, alertas e alterações de ocupaç
 
 ## Próximos passos
 
-Os vertical slices de `Buildings`, `Floors`, `AccessPoints` e `Users` estão implementados, incluindo CRUD, validação HTTP, Problem Details e requests manuais no ficheiro `.http`. O processamento de acessos e os CRUDs dos demais recursos, login, JWT, autorização e a UI Swagger continuam planejados para as respetivas etapas.
+Os vertical slices de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O processamento/decisão de acesso e as três rotas de `AccessEvent` documentadas acima estão implementados. Atualização de ocupação, alertas, SignalR, login, JWT, autorização e a UI Swagger continuam planejados para as respetivas fases.

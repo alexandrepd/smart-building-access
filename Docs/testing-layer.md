@@ -16,6 +16,7 @@ Existe um projeto `SmartBuilding.UnitTests` com xUnit. Ele contém:
 - dez casos de teste unitário de `AccessPointService`;
 - oito casos de teste unitário de `AccessPermissionService`;
 - 15 casos de teste unitário de `UserService`;
+- testes unitários de `AccessControlService` para decisões, auditoria e consultas de eventos;
 - três casos de `IdentityPasswordHashService`;
 - dois casos de validação HTTP do request de User.
 
@@ -30,6 +31,8 @@ SmartBuilding.UnitTests/
 ├── Application/
 │   ├── Buildings/
 │   │   └── BuildingServiceTests.cs
+│   ├── AccessControl/
+│   │   └── AccessControlServiceTests.cs
 │   ├── AccessPermissions/
 │   │   └── AccessPermissionServiceTests.cs
 │   ├── Floors/
@@ -119,6 +122,17 @@ Esses testes exercitam a orquestração e os resultados explícitos da Applicati
 `AccessPointServiceTests` usa um fake de `IAccessPointRepository` e cobre dez casos: mapeamento dos indicadores `SupportsEntry` e `SupportsExit`, normalização de texto na criação, `FloorId` vazio, piso inexistente, substituição do estado editável, ponto inexistente, conflito de remoção e três combinações de nome/localização vazios ou compostos apenas por whitespace. Esses testes validam Application isoladamente; não executam endpoint, EF Core nem PostgreSQL.
 
 `AccessPermissionServiceTests` usa um fake de `IAccessPermissionRepository` e cobre oito casos: conversão dos instantes para UTC e criação ativa, validade sem data final, rejeição de `ValidUntil` igual ou anterior a `ValidFrom`, User ID vazio, User ou AccessPoint inexistente, substituição incluindo `IsActive` e resultado de permissão ausente na remoção. Esses testes verificam a lógica do serviço, não os endpoints HTTP nem a persistência EF Core/PostgreSQL.
+
+`AccessControlServiceTests` usa um repositório fake e um `TimeProvider`
+congelado. A cobertura inclui decisão concedida e direção Entry/Exit
+suportada; persistência de evento para cada resultado de negação
+(`CardNotFound`, `CardInactive`, `CardExpired`, `UserInactive`,
+`AccessPointInactive`, `DirectionNotSupported`, `NoPermission` e
+`PermissionExpired`); ausência de evento para AccessPoint inexistente;
+validação do número vazio e de enum inválido; instante UTC usado no evento; e
+mapeamento de eventos consultados. Esses testes verificam a orquestração da
+Application e seus efeitos no contrato fake. Não exercitam Minimal
+APIs/serialização JSON, validação HTTP RFC, mapeamento EF Core nem PostgreSQL.
 
 `UserServiceTests` usa fakes de `IUserRepository` e `IPasswordHashService` e cobre 15 casos, incluindo email canonicalizado e persistência somente do hash, DTO de listagem sem material de password, email inválido ou duplicado tanto na criação quanto na atualização, password abaixo/acima dos limites, nome acima do limite ou composto apenas por whitespace, email acima do limite, atualização sem alterar o hash, utilizador inexistente e delete com/sem dependentes.
 
@@ -282,6 +296,19 @@ Antes de solicitar commit:
 4. verificar warnings e vulnerabilidades quando dependências mudarem;
 5. reportar comandos e resultados.
 
+## Lacunas de teste do Access Control
+
+Ainda não há teste automatizado de integração HTTP/PostgreSQL para
+`POST /api/access/requests`, `GET /api/access/events` ou
+`GET /api/access/events/{id}`. Em particular, a validação RFC, o `404` do
+AccessPoint desconhecido com FK obrigatória, a serialização de enums como
+strings e a leitura/gravação contra PostgreSQL precisam de cobertura
+integrada. Não afirmar execução ou resultado de um smoke manual dessas novas
+rotas sem evidência específica.
+
 ## Próximos passos
 
-Criar testes de integração automatizados para repetir a aplicação da migration, o seed e os CRUDs administrativos implementados em PostgreSQL isolado. O processamento de autorização, eventos, ocupação e alertas, bem como seus testes, continua planejado.
+Criar testes de integração automatizados para repetir a aplicação da migration,
+o seed e os CRUDs implementados em PostgreSQL isolado, e acrescentar cobertura
+HTTP/PostgreSQL do Access Control. A atualização de ocupação e o processamento
+de alertas, bem como os seus testes, permanecem planejados.

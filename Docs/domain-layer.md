@@ -69,13 +69,13 @@ Representa um cartão ou badge. Um cartão pertence a um utilizador, pode ser de
 
 ### AccessPermission
 
-Representa a autorização configurada para um `User` num `AccessPoint`, com `ValidFrom`, `ValidUntil` opcional e `IsActive`. A entidade tem estado ativo por omissão; a gestão CRUD aplica a validação do intervalo na Application. A existência deste registo e do CRUD administrativo não significa que a decisão de conceder/negar um pedido de acesso esteja implementada.
+Representa a autorização configurada para um `User` num `AccessPoint`, com `ValidFrom`, `ValidUntil` opcional e `IsActive`. A entidade tem estado ativo por omissão; a gestão CRUD aplica a validação do intervalo na Application. No fluxo implementado de decisão, a permissão só é considerada válida quando está ativa e `ValidFrom <= now < ValidUntil`; quando `ValidUntil` é nulo, não existe limite final.
 
 ### AccessEvent
 
-Representa uma tentativa de acesso, permitida ou negada. É um registro de auditoria e deve ser preservado.
+Representa uma tentativa de acesso num `AccessPoint` conhecido, permitida ou negada. É um registro de auditoria; cada pedido processado para um ponto existente cria um `AccessEvent`, mesmo quando a decisão é negar.
 
-`AccessCardId` e `UserId` são opcionais porque um cartão desconhecido não possui vínculos internos. `AccessPointId` é obrigatório porque a tentativa ocorreu num ponto conhecido pelo sistema.
+`AccessCardId` e `UserId` são opcionais porque um cartão desconhecido não possui vínculos internos. `AccessPointId` é obrigatório por chave estrangeira; por isso, um pedido que referencia um AccessPoint desconhecido retorna `404` e não pode gerar evento.
 
 ### OccupancySession
 
@@ -96,7 +96,7 @@ Direção não é resultado. Uma entrada pode ser concedida ou negada.
 
 ### AccessResult
 
-Categoriza o resultado da avaliação: concedido, cartão inexistente, cartão inativo, cartão expirado, utilizador inativo, ponto inativo, ausência de permissão ou permissão expirada.
+Categoriza o resultado da avaliação: `Granted`, `CardNotFound`, `CardInactive`, `CardExpired`, `UserInactive`, `AccessPointInactive`, `DirectionNotSupported`, `NoPermission` ou `PermissionExpired`. O resultado também inclui a razão textual persistida no `AccessEvent`.
 
 ### AlertType e AlertStatus
 
@@ -119,26 +119,26 @@ erDiagram
     ACCESS_CARD ||--o{ ACCESS_EVENT : identifies
 ```
 
-## Estado atual versus comportamento planejado
+## Decisão de acesso implementada e limites
 
-Atualmente as entidades são modelos mutáveis com propriedades públicas, valores padrão e coleções de navegação. Elas representam corretamente a estrutura, mas ainda não encapsulam todas as invariantes.
+O fluxo de decisão implementado avalia os dados das entidades na Application, na ordem: cartão inexistente; cartão inativo; cartão expirado; utilizador inativo; AccessPoint inativo; direção não suportada; nenhuma permissão ativa; permissão ativa fora da validade atual; acesso concedido. A primeira condição aplicável determina o `AccessResult`. Os pedidos com AccessPoint conhecido são auditados em todos esses resultados, incluindo negativas. A decisão não atualiza `OccupancySession`, não envia notificações SignalR e não processa alertas.
 
-Regras planejadas incluem:
+As entidades continuam sendo modelos mutáveis com propriedades públicas, valores padrão e coleções de navegação; não encapsulam todas as invariantes. Regras ainda planejadas incluem:
 
-- impedir acesso com cartão inativo ou expirado;
-- validar `ValidFrom <= ValidUntil`;
 - garantir `ExitedAt >= EnteredAt`;
 - detectar segunda entrada com sessão já aberta;
 - detectar saída sem sessão aberta;
 - controlar transições válidas de `AlertStatus`.
 
-Essas regras devem ser adicionadas juntamente com testes unitários. Não devem ser implementadas em controllers ou configurações EF.
+Essas regras devem ser adicionadas juntamente com testes unitários. Não devem ser implementadas em endpoints ou configurações EF. Autenticação permanece futura; a decisão descrita não autentica o cliente.
 
 ## Datas e tempo
 
-O código usa `DateTime.UtcNow` nos valores padrão. Novas operações devem trabalhar em UTC e converter para horário local somente nas bordas de apresentação.
-
-Para testes determinísticos, regras dependentes do tempo devem receber o instante atual como argumento ou por uma abstração de relógio, evitando depender diretamente de `DateTime.UtcNow` durante a avaliação.
+O código usa `DateTime.UtcNow` nos valores padrão. O processamento de acesso
+obtém `now` por `TimeProvider`, mantém a decisão e `AccessEvent.OccurredAt` em
+UTC e converte para horário local somente nas bordas de apresentação.
+Injetar o relógio permite testes determinísticos em vez de depender
+diretamente de `DateTime.UtcNow` durante a avaliação.
 
 ## Convenções
 
@@ -150,4 +150,7 @@ Para testes determinísticos, regras dependentes do tempo devem receber o instan
 
 ## Próximos passos da camada
 
-O Domain não precisa mudar para concluir o primeiro corte de persistência. Regras comportamentais devem entrar nas fases de Access Control e Occupancy, acompanhadas dos respectivos testes.
+Os resultados e enumerações usados na decisão de Access Control estão
+implementados. A evolução comportamental restante nesta área envolve
+`OccupancySession` e alertas; suas invariantes devem entrar com os respetivos
+casos de uso e testes, sem colocar regras em endpoints ou configurações EF.

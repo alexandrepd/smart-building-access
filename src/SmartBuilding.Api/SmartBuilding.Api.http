@@ -283,3 +283,39 @@ Content-Type: application/json
 DELETE {{SmartBuilding.Api_HostAddress}}/api/permissions/00000000-0000-0000-0000-000000000001
 
 ###
+
+# Create a user, card, and valid permission first. The seeded access point supports both directions.
+POST {{SmartBuilding.Api_HostAddress}}/api/access/requests
+Content-Type: application/json
+
+{
+	"cardNumber": "CARD-1001",
+	"accessPointId": "30000000-0000-0000-0000-000000000001",
+	"direction": "Entry"
+}
+
+###
+
+# Returns the latest access decisions, including granted and denied requests.
+GET {{SmartBuilding.Api_HostAddress}}/api/access/events
+Accept: application/json
+
+###
+
+# Replace the ID with the event ID returned by POST /api/access/requests.
+GET {{SmartBuilding.Api_HostAddress}}/api/access/events/00000000-0000-0000-0000-000000000001
+Accept: application/json
+
+###
+
+# Unknown access points cannot be audited because events require a valid access point.
+POST {{SmartBuilding.Api_HostAddress}}/api/access/requests
+Content-Type: application/json
+
+{
+	"cardNumber": "CARD-1001",
+	"accessPointId": "00000000-0000-0000-0000-000000000099",
+	"direction": "Entry"
+}
+
+###
