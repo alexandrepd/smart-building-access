@@ -242,3 +242,44 @@ POST {{SmartBuilding.Api_HostAddress}}/api/cards/00000000-0000-0000-0000-0000000
 POST {{SmartBuilding.Api_HostAddress}}/api/cards/00000000-0000-0000-0000-000000000001/deactivate
 
 ###
+
+GET {{SmartBuilding.Api_HostAddress}}/api/permissions
+Accept: application/json
+
+###
+
+# Create the user first; the seeded access point has this ID.
+POST {{SmartBuilding.Api_HostAddress}}/api/permissions
+Content-Type: application/json
+
+{
+	"userId": "00000000-0000-0000-0000-000000000001",
+	"accessPointId": "30000000-0000-0000-0000-000000000001",
+	"validFrom": "2026-10-20T00:00:00Z",
+	"validUntil": "2027-10-20T00:00:00Z"
+}
+
+###
+
+# Replace the ID below with the ID returned by POST /api/permissions.
+GET {{SmartBuilding.Api_HostAddress}}/api/permissions/00000000-0000-0000-0000-000000000001
+Accept: application/json
+
+###
+
+PUT {{SmartBuilding.Api_HostAddress}}/api/permissions/00000000-0000-0000-0000-000000000001
+Content-Type: application/json
+
+{
+	"userId": "00000000-0000-0000-0000-000000000001",
+	"accessPointId": "30000000-0000-0000-0000-000000000001",
+	"validFrom": "2026-10-20T00:00:00Z",
+	"validUntil": null,
+	"isActive": true
+}
+
+###
+
+DELETE {{SmartBuilding.Api_HostAddress}}/api/permissions/00000000-0000-0000-0000-000000000001
+
+###

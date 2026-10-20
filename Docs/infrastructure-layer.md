@@ -6,7 +6,7 @@
 
 ## Estado atual
 
-O modelo EF Core, o bootstrap da persistência e os repositórios dos slices CRUD de `Buildings`, `Floors` e `AccessPoints` estão implementados.
+O modelo EF Core, o bootstrap da persistência e os repositórios dos slices administrativos implementados estão disponíveis.
 
 Já existem:
 
@@ -28,8 +28,10 @@ Já existem:
 - tratamento de edifício pai inexistente em criação e atualização;
 - proteção da remoção quando o piso possui pontos de acesso ou sessões de ocupação;
 - `AccessPointRepository` com operações CRUD assíncronas;
+- `AccessPermissionRepository` com consultas, criação, substituição e remoção assíncronas;
 - `UserRepository` com operações CRUD assíncronas e tratamento de email duplicado;
 - `IdentityPasswordHashService` com `PasswordHasher<User>` do ASP.NET Core Identity;
+- consultas de `AccessPermission` com `AsNoTracking` e tradução das FKs de User e AccessPoint para resultados explícitos;
 - consultas de `AccessPoint` com `AsNoTracking`;
 - validação da FK específica `FloorId` na criação e atualização;
 - proteção de remoção quando existem `AccessPermissions`, `AccessEvents` ou `SecurityAlerts` dependentes;
@@ -187,7 +189,11 @@ Na criação e atualização, somente a violação da FK `fk_access_points_floor
 
 Antes da remoção, o repositório verifica referências em `AccessPermissions`, `AccessEvents` e `SecurityAlerts`. Se houver dependentes, retorna `HasDependents`. As FKs `Restrict` continuam sendo a proteção final contra uma inserção concorrente; as violações dessas constraints específicas também viram `HasDependents`. Depois da falha, a entidade removida é destacada do tracker. Se outro request já tiver removido o ponto, o conflito de concorrência resulta em `NotFound`.
 
-Consultas e comandos dos demais recursos continuam planejados.
+`AccessPermissionRepository` implementa `IAccessPermissionRepository`. A listagem usa `AsNoTracking` e ordena por `UserId`, `AccessPointId` e `ValidFrom`; a consulta por ID também usa `AsNoTracking`. Na criação, atribui um ID e define `IsActive = true`. A atualização carrega a entidade rastreada e substitui User, AccessPoint, intervalo de validade e estado ativo; o delete remove a entidade e traduz ausência, inclusive concorrência de remoção, em `NotFound`.
+
+Na criação e atualização, as FKs `fk_access_permissions_users_user_id` e `fk_access_permissions_access_points_access_point_id` são tratadas separadamente e devolvem resultados `UserNotFound` ou `AccessPointNotFound`. Após essas falhas esperadas, a entidade é destacada do change tracker. A Application fornece datas já normalizadas para UTC; o repositório não decide se uma permissão autoriza um pedido de acesso.
+
+Os repositórios dos demais recursos continuam planejados.
 
 ## UserRepository e hash de password
 

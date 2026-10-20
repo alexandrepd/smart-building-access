@@ -14,6 +14,7 @@ Existe um projeto `SmartBuilding.UnitTests` com xUnit. Ele contém:
 - nove casos de teste unitário de `BuildingService`;
 - oito casos de teste unitário de `FloorService`;
 - dez casos de teste unitário de `AccessPointService`;
+- oito casos de teste unitário de `AccessPermissionService`;
 - 15 casos de teste unitário de `UserService`;
 - três casos de `IdentityPasswordHashService`;
 - dois casos de validação HTTP do request de User.
@@ -29,6 +30,8 @@ SmartBuilding.UnitTests/
 ├── Application/
 │   ├── Buildings/
 │   │   └── BuildingServiceTests.cs
+│   ├── AccessPermissions/
+│   │   └── AccessPermissionServiceTests.cs
 │   ├── Floors/
 │   │   └── FloorServiceTests.cs
 │   ├── AccessPoints/
@@ -114,6 +117,8 @@ Esses testes exercitam a orquestração e os resultados explícitos da Applicati
 ## Testes unitários de AccessPointService
 
 `AccessPointServiceTests` usa um fake de `IAccessPointRepository` e cobre dez casos: mapeamento dos indicadores `SupportsEntry` e `SupportsExit`, normalização de texto na criação, `FloorId` vazio, piso inexistente, substituição do estado editável, ponto inexistente, conflito de remoção e três combinações de nome/localização vazios ou compostos apenas por whitespace. Esses testes validam Application isoladamente; não executam endpoint, EF Core nem PostgreSQL.
+
+`AccessPermissionServiceTests` usa um fake de `IAccessPermissionRepository` e cobre oito casos: conversão dos instantes para UTC e criação ativa, validade sem data final, rejeição de `ValidUntil` igual ou anterior a `ValidFrom`, User ID vazio, User ou AccessPoint inexistente, substituição incluindo `IsActive` e resultado de permissão ausente na remoção. Esses testes verificam a lógica do serviço, não os endpoints HTTP nem a persistência EF Core/PostgreSQL.
 
 `UserServiceTests` usa fakes de `IUserRepository` e `IPasswordHashService` e cobre 15 casos, incluindo email canonicalizado e persistência somente do hash, DTO de listagem sem material de password, email inválido ou duplicado tanto na criação quanto na atualização, password abaixo/acima dos limites, nome acima do limite ou composto apenas por whitespace, email acima do limite, atualização sem alterar o hash, utilizador inexistente e delete com/sem dependentes.
 

@@ -212,9 +212,23 @@ O recurso `Users` também possui CRUD em `/api/users`: listagem e consulta retor
 
 **Exercício prático:** use o ficheiro `SmartBuilding.Api.http` para listar, criar, consultar, substituir, ativar e desativar um cartão. Tente um número já existente e um `UserId` desconhecido e identifique os status esperados. Envie `ExpiresAt` com um offset diferente de `Z`, depois consulte a resposta e explique por que o instante permanece igual, embora a representação seja UTC. Desenhe o percurso do request pelas quatro partes (endpoint, serviço, interface do repositório e implementação) e indique em que camada cada status HTTP é escolhido.
 
-O gerenciamento de `AccessCards` está **implementado nesta branch**. Isso não significa que a autorização de acesso esteja pronta: permissões, processamento de pedidos, `AccessEvent`s e `OccupancySession`s continuam por implementar.
+O gerenciamento de `AccessCards` está **implementado nesta branch**. A gestão CRUD de permissões também está implementada, mas isso não significa que a autorização de acesso esteja pronta: decidir/processar pedidos, criar `AccessEvent`s e atualizar `OccupancySession`s continuam por implementar.
 
 No smoke PostgreSQL, `  Alex@Example.com  ` foi criado com `201` e armazenado como `alex@example.com`; repetição do email retornou `409`. O fluxo também confirmou update `200`, delete `204`, hash persistido e ausência de password/hash na response. Cartões bloqueiam o delete com `409`; `AccessEvent` sobrevive à remoção de User com `UserId` nulo.
+
+### AccessPermission: gerir uma autorização não é decidir uma entrada
+
+**Analogia simples:** é como o funcionário que mantém a lista de pessoas autorizadas a entrar numa sala. Cadastrar ou corrigir a lista não é o mesmo que verificar, no momento da tentativa, o crachá, o leitor e todas as regras para abrir a porta.
+
+**Definição técnica:** `AccessPermission` é um recurso administrativo que associa um `User` a um `AccessPoint`, com início, fim opcional e estado ativo. A API expõe operações CRUD sobre esse recurso; elas não implementam o caso de uso de processamento/decisão de um pedido de acesso. A decisão ainda deverá avaliar os dados relevantes e produzir os resultados do fluxo de acesso.
+
+**Exemplo do projeto:** em `/api/permissions`, `GET` lista ou consulta por ID (`200`, ou `404` para ID desconhecido); `POST` cria e retorna `201 Created`, body e `Location`; `PUT /{id}` substitui User, AccessPoint, intervalo e `IsActive`, retornando `200`; `DELETE /{id}` retorna `204`, ou `404` se a permissão não existir. No POST e PUT, User ou AccessPoint inexistente também resulta em `404`. Criar não recebe estado ativo e a permissão é criada ativa. Os requests usam `DateTimeOffset`; `ValidFrom` e o `ValidUntil` opcional são normalizados para UTC. Se `ValidUntil` estiver presente, deve ser estritamente posterior a `ValidFrom`; igualdade ou término anterior é inválido (`400`).
+
+**Resposta de entrevista:** “O endpoint de AccessPermission implementa gestão CRUD, não a decisão de acesso. A API mapeia HTTP para `IAccessPermissionService`; a Application valida referências e intervalo e normaliza `DateTimeOffset` para UTC; o contrato `IAccessPermissionRepository` separa o caso de uso do repositório EF Core. O POST cria a permissão ativa e responde `201` com `Location`, enquanto o PUT substitui também `IsActive`. Referências ausentes retornam `404`. A avaliação de um pedido do leitor, a gravação de `AccessEvent` e a atualização de `OccupancySession` continuam fora deste CRUD e ainda não estão implementadas.”
+
+**Exercício prático:** desenhe o caminho endpoint → service → interface de repositório → implementação. Escreva requests para criar uma permissão sem `ValidUntil`, consultar por ID, substituir e desativar via `PUT`, e remover. Preveja os status para User inexistente, AccessPoint inexistente, `ValidUntil == ValidFrom` e ID desconhecido. Depois use dois offsets diferentes que representem o mesmo instante para explicar por que a Application compara instantes e persiste valores UTC. Por fim, explique por que uma permissão criada não significa, por si só, que uma tentativa real será concedida.
+
+A gestão CRUD de `AccessPermission` está **implementada nesta branch**. A decisão/processamento de acesso, a criação de `AccessEvent`s e a gestão de `OccupancySession`s continuam **planejadas/não implementadas**.
 
 ### Validar e normalizar email
 

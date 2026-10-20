@@ -19,7 +19,8 @@ A API contém:
 - grupo de Minimal APIs em `/api/access-points` com as mesmas cinco operações CRUD;
 - grupo de Minimal APIs em `/api/users` com as mesmas cinco operações CRUD;
 - grupo de Minimal APIs em `/api/cards` para listar, consultar, emitir, substituir e ativar/desativar cartões;
-- contratos HTTP próprios para requests e responses de `Building`, `Floor`, `AccessPoint`, `User` e `AccessCard`;
+- grupo de Minimal APIs em `/api/permissions` para listar, consultar, criar, substituir e remover permissões;
+- contratos HTTP próprios para requests e responses de `Building`, `Floor`, `AccessPoint`, `User`, `AccessCard` e `AccessPermission`;
 - validação automática com DataAnnotations e `AddValidation`;
 - validação de email de User que ignora whitespace externo ao verificar o formato;
 - Problem Details para validação, conflitos e falhas inesperadas;
@@ -31,8 +32,7 @@ A API contém:
 
 Ainda não contém:
 
-- gestão de permissões de acesso;
-- processamento de pedidos de acesso, eventos, sessões de ocupação ou alertas;
+- processamento/decisão de pedidos de acesso, criação de `AccessEvent`s, sessões de ocupação ou alertas;
 - autenticação JWT;
 - autorização por papéis;
 - SignalR;
@@ -111,7 +111,7 @@ builder.Services.AddInfrastructure(connectionString);
 
 `AddInfrastructure` encapsula `AddDbContext`, `UseNpgsql` e `UseSnakeCaseNamingConvention`. O contexto mantém o lifetime scoped padrão do EF Core.
 
-`AddApplication` registra os serviços de Buildings, Floors, AccessPoints, Users e AccessCards, enquanto `AddInfrastructure` liga os contratos aos respetivos repositórios e registra o serviço de hash. A API conhece os dois lados apenas para realizar essa composição.
+`AddApplication` registra os serviços de Buildings, Floors, AccessPoints, Users, AccessCards e AccessPermissions, enquanto `AddInfrastructure` liga os contratos aos respetivos repositórios e registra o serviço de hash. A API conhece os dois lados apenas para realizar essa composição.
 
 ## Contratos HTTP
 
@@ -180,13 +180,31 @@ O fluxo segue as camadas existentes: `AccessCardEndpoints` converte HTTP em cham
 
 O gerenciamento de cartões está **implementado nesta branch**. Isso cobre emissão, consulta, substituição de atribuição/dados e mudança de estado; não implementa a avaliação de permissões nem o processamento de pedidos de acesso, `AccessEvent`s ou `OccupancySession`s.
 
+## Fluxo implementado para AccessPermission
+
+O grupo `/api/permissions` gere registos de autorização de um `User` para um `AccessPoint`. A gestão CRUD é distinta de decidir um pedido apresentado por um leitor: o processamento de acesso, incluindo avaliar permissões e criar `AccessEvent`s ou atualizar `OccupancySession`s, ainda não está implementado.
+
+| Método e rota | Resultado de sucesso | Outros resultados |
+|---|---|---|
+| `GET /api/permissions` | `200 OK` com lista ordenada por `UserId`, `AccessPointId` e `ValidFrom` | — |
+| `GET /api/permissions/{id}` | `200 OK` com `AccessPermissionResponse` | `404 Not Found` |
+| `POST /api/permissions` | `201 Created`, body e header `Location` para o recurso criado | `400 Bad Request`, `404 Not Found` se o User ou AccessPoint não existir |
+| `PUT /api/permissions/{id}` | `200 OK` com a permissão substituída | `400 Bad Request`, `404 Not Found` se a permissão, User ou AccessPoint não existir |
+| `DELETE /api/permissions/{id}` | `204 No Content` | `404 Not Found` |
+
+`CreateAccessPermissionRequest` contém `UserId`, `AccessPointId`, `ValidFrom` e `ValidUntil` opcional. A criação começa ativa (`IsActive = true`); não há campo `IsActive` no request de criação. `UpdateAccessPermissionRequest` é uma substituição integral dos campos geridos: exige `UserId`, `AccessPointId`, `ValidFrom` e `IsActive`, e aceita `ValidUntil` nulo para remover a data final. Portanto, o `PUT` também pode ativar ou desativar a permissão.
+
+Os instantes de entrada são `DateTimeOffset`; a Application converte `ValidFrom` e `ValidUntil` para UTC antes da persistência e as respostas são expostas como instantes UTC. `ValidUntil` pode ser nulo, indicando que não existe um fim agendado. Quando fornecido, tem de ser estritamente posterior a `ValidFrom`; valores iguais ou anteriores produzem `400 Bad Request`. A comparação é entre instantes, mesmo se os offsets textuais forem diferentes.
+
+O fluxo é `AccessPermissionEndpoints` → `IAccessPermissionService`/`AccessPermissionService` → `IAccessPermissionRepository`/`AccessPermissionRepository`. O endpoint mapeia contratos HTTP e resultados para status codes; o serviço valida referências não vazias e o intervalo temporal, normaliza os instantes e converte resultados da persistência; o repositório implementa leituras e gravações com EF Core e traduz as FKs conhecidas de User e AccessPoint em resultados explícitos. A API transforma User ou AccessPoint ausente em `404`, sem acoplar a Application a HTTP.
+
 `CreateBuildingRequest` exige `Name` até 200 caracteres e `Address` até 500. `UpdateBuildingRequest` possui os mesmos limites e também exige `IsActive`. `BuildingResponse` contém `Id`, `Name`, `Address`, `IsActive` e `CreatedAt`.
 
 `CreateFloorRequest` e `UpdateFloorRequest` exigem `BuildingId`, `Number` e `Name` não vazio com até 100 caracteres; a atualização também exige `IsActive`. `FloorResponse` contém `Id`, `BuildingId`, `Number`, `Name` e `IsActive`.
 
 `CreateAccessPointRequest` e `UpdateAccessPointRequest` exigem `FloorId`, `Name` não vazio com até 150 caracteres e `Location` não vazia com até 250 caracteres; ambos incluem `SupportsEntry` e `SupportsExit`, e a atualização também exige `IsActive`. `AccessPointResponse` contém `Id`, `FloorId`, `Name`, `Location`, `IsActive`, `SupportsEntry`, `SupportsExit` e `CreatedAt`.
 
-Os CRUDs de `Buildings`, `Floors`, `AccessPoints`, `Users` e o gerenciamento de `AccessCards` estão implementados nesta branch. Permissões, processamento de pedidos de acesso, eventos, ocupação e alertas continuam planejados.
+Os CRUDs de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e a gestão CRUD de `AccessPermissions` estão implementados nesta branch. O processamento/decisão de pedidos de acesso, eventos, ocupação e alertas continuam planejados.
 
 ## Fluxo implementado para Users
 

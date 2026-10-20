@@ -42,6 +42,7 @@ app.MapBuildingEndpoints();
 app.MapFloorEndpoints();
 app.MapAccessPointEndpoints();
 app.MapAccessCardEndpoints();
+app.MapAccessPermissionEndpoints();
 app.MapUserEndpoints();
 
 app.Run();

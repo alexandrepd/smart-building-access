@@ -1,14 +1,34 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
+using SmartBuilding.Application;
+using SmartBuilding.Application.AccessPermissions;
 using SmartBuilding.Domain.Entities;
 using SmartBuilding.Infrastructure;
 using SmartBuilding.Infrastructure.Data;
+using SmartBuilding.Infrastructure.Data.Repositories;
 
 namespace SmartBuilding.UnitTests.Persistence;
 
 public class DependencyInjectionTests
 {
+    [Fact]
+    public void AddApplicationAndInfrastructure_AccessPermissions_RegistersServiceAndRepository()
+    {
+        var services = new ServiceCollection();
+        services.AddApplication();
+        services.AddInfrastructure(
+            "Host=localhost;Database=dependency_injection;Username=unused");
+
+        using ServiceProvider serviceProvider = services.BuildServiceProvider(validateScopes: true);
+        using IServiceScope scope = serviceProvider.CreateScope();
+
+        Assert.IsType<AccessPermissionService>(
+            scope.ServiceProvider.GetRequiredService<IAccessPermissionService>());
+        Assert.IsType<AccessPermissionRepository>(
+            scope.ServiceProvider.GetRequiredService<IAccessPermissionRepository>());
+    }
+
     [Fact]
     public void AddInfrastructure_ValidConnectionString_RegistersScopedPostgreSqlContext()
     {
