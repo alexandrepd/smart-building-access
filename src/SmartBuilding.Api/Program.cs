@@ -82,6 +82,9 @@ app.UseStatusCodePages();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new { Status = "Healthy" }))
+    .AllowAnonymous();
+
 app.MapGet("/", () => Results.Ok(new
 {
     Name = "Smart Building API",

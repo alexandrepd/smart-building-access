@@ -54,3 +54,21 @@ npm start --prefix src/smart-building-web
 ```
 
 O servidor de desenvolvimento encaminha `/api` para `http://localhost:5077`, o perfil HTTP da API. Para autenticar localmente, configure a chave JWT e o Admin inicial através de User Secrets conforme [Autenticação e autorização](Docs/authentication-authorization.md).
+
+## Executar com Docker Compose
+
+O Compose inicia PostgreSQL, API e a interface Angular. A interface fica
+disponível em `http://localhost:8080` e encaminha `/api` para a API na rede
+interna. A API aplica migrations e cria o Admin inicial durante este arranque
+de desenvolvimento.
+
+```bash
+cp .env.example .env
+# Edite .env e substitua todos os valores de exemplo.
+docker compose up --build
+```
+
+Para gerar `AUTHENTICATION_SIGNING_KEY`, use `openssl rand -base64 48`. Nunca
+adicione o ficheiro `.env` ao Git. Para parar os serviços, execute
+`docker compose down`; acrescente `--volumes` apenas quando quiser eliminar os
+dados locais do PostgreSQL.
