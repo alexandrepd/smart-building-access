@@ -37,8 +37,8 @@ Para ler a preparação completa num único ficheiro, abra o [README de Entrevis
 
 | Requisito da vaga | Onde estudar | Evidência/ligação ao projeto | Estado |
 |---|---|---|---|
-| Frontend Angular sólido | Módulos 5 e 9 | Login, routing, guard e interceptor iniciados | A aplicação está no início; CRUDs, dashboard operacional e testes frontend ainda faltam |
-| UX intuitiva para self-service | Módulos 1, 5 e 9 | Fluxos futuros de administração e ocupação | Princípios documentados; UI ainda não implementada |
+| Frontend Angular sólido | Módulos 5 e 9 | Login, dashboard de `AccessEvent`, guard e CRUD de Buildings/Floors/AccessPoints | Fase 7 em desenvolvimento; UIs restantes e testes frontend automatizados faltam |
+| UX intuitiva para self-service | Módulos 1, 5 e 9 | Dashboard de eventos e formulários administrativos parciais | Melhorias e fluxos restantes ainda requerem implementação e validação |
 | Backend .NET ou Java | Módulo 2 | API, Application, Domain e Infrastructure em .NET 10 | .NET aplicado no projeto; Java é alternativa da vaga, não requisito para duplicar a stack |
 | RESTful APIs | Módulos 3 e 10 | CRUDs administrativos, Access Control e `POST /api/auth/login` | Autenticação JWT e policies de autorização implementadas; ocupação, alertas e SignalR continuam futuros |
 | OpenAPI/Swagger specifications | Módulo 3 | Metadados OpenAPI gerados a partir dos endpoints | Documento OpenAPI code-first; Swagger UI não está implementado |
@@ -54,7 +54,12 @@ Para ler a preparação completa num único ficheiro, abra o [README de Entrevis
 
 ### Como falar das lacunas
 
-Este repositório prova trabalho prático em .NET, APIs, PostgreSQL, EF Core, migrations e testes. Não prova experiência profissional ou experiência Angular em produção: o frontend ainda não foi iniciado. Não transforme conteúdo estudado em experiência que não teve. Explique o que já construiu, demonstre o modelo Angular com um exercício e seja claro sobre o que ainda precisa praticar.
+Este repositório prova trabalho prático em .NET, APIs, PostgreSQL, EF Core,
+migrations e testes, além de uma implementação Angular parcial: login,
+dashboard de eventos e gestão de Buildings, Floors e AccessPoints. Não prova
+experiência profissional ou experiência Angular em produção. Não transforme
+conteúdo estudado em experiência que não teve; explique o que já construiu e
+seja claro sobre as UIs, os testes frontend e os fluxos ainda em falta.
 
 ## O que a vaga também avalia
 
@@ -73,7 +78,7 @@ Windows Server também será estudado conceitualmente. Docker Compose já foi va
 
 ## Ordem recomendada
 
-Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e gestão CRUD de AccessPermissions estão implementados. O processamento/decisão de Access Control, auditoria/consulta de `AccessEvent`s, login JWT e autorização por papéis estão implementados nesta branch. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. O frontend Angular começou com login, guarda de rota e interceptor Bearer, mas ainda não tem CRUDs nem dashboard operacional. A aplicação também tem Docker Compose validado para execução local, incluindo Angular servido por Nginx, API e PostgreSQL. CI/CD e Kubernetes continuam planejados; atualização de `OccupancySession`, notificações SignalR e processamento de alertas continuam futuros.
+Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e gestão CRUD de AccessPermissions estão implementados. O processamento/decisão de Access Control, auditoria/consulta de `AccessEvent`s, login JWT e autorização por papéis estão implementados nesta branch. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. O frontend Angular tem login, dashboard com os 10 `AccessEvent`s mais recentes e CRUD de Buildings, Floors e AccessPoints para Admin; as UIs de Users, AccessCards e AccessPermissions e os testes frontend automatizados faltam. A aplicação também tem Docker Compose validado para execução local, incluindo Angular servido por Nginx, API e PostgreSQL. CI/CD e Kubernetes continuam planejados; atualização de `OccupancySession`, notificações SignalR e processamento de alertas continuam futuros.
 
 Para estudar o fluxo implementado em cinco níveis — analogia simples,
 definição, exemplo do projeto, resposta de entrevista e exercício — consulte
@@ -82,12 +87,16 @@ definição, exemplo do projeto, resposta de entrevista e exercício — consult
 Para estudar autenticação JWT e autorização `Admin`/`SecurityOperator` nos
 mesmos cinco níveis, consulte o [módulo de autenticação e autorização](10-authentication-authorization.md).
 
+Para rever em cinco níveis o dashboard Angular, os formulários administrativos,
+os limites do guard e as lacunas da Fase 7, consulte o [exemplo progressivo de
+dashboard e gestão](09-angular-interview-review.md#exemplo-progressivo-dashboard-e-gestão-administrativa).
+
 Para preparação de entrevista, pode estudar Angular em paralelo com a implementação:
 
 1. revisar o [módulo Angular](05-angular-rxjs.md);
 2. usar a [revisão intensiva](09-angular-interview-review.md) para perguntas e respostas em voz alta;
-3. ligar os conceitos ao futuro dashboard Smart Building;
-4. relacionar os conceitos com o login e a infraestrutura Angular já iniciados;
+3. relacionar os conceitos com o dashboard e a gestão administrativa Angular já implementados;
+4. identificar as lacunas restantes sem descrever funcionalidades futuras como existentes;
 5. estudar deployment em profundidade nas fases 13 a 15.
 
 ## Regra para respostas fortes

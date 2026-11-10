@@ -42,6 +42,11 @@ Campos malformados são erros de validação `400`.
 de `PUT /api/users/{id}/role`; a API impede a remoção do último Admin.
 Também não é possível excluir o último Admin.
 
+No frontend, guards Angular restringem `/management` a `Admin`; o dashboard
+permite a `SecurityOperator` autenticado consultar eventos, enquanto as
+contagens administrativas e a gestão ficam reservadas a Admin. O guard serve
+à navegação e à UX: as policies da API continuam a impor a autorização real.
+
 O primeiro Admin é criado no arranque apenas quando ainda não existe um Admin.
 Nesse caso, `Authentication:BootstrapAdmin:Email` e
 `Authentication:BootstrapAdmin:Password` devem estar definidos por provider
@@ -75,10 +80,11 @@ aplicar a migration antes de iniciar esta versão.
 > valida assinatura, issuer, audience e expiração antes de aplicar policies:
 > AdminOnly para administração e AccessOperations para `Admin` ou
 > `SecurityOperator`. Um token válido não implica acesso a todos os endpoints.
-> O JWT é assinado, não cifrado, por isso evito claims sensíveis e mantenho a
-> chave de assinatura em configuração segura. A UI ainda não está implementada
-> e a migration de papéis precisa ser aplicada operacionalmente fora de
-> Development.”
+> No Angular, o guard de `/management` controla navegação, mas não substitui
+> as policies da API. O JWT é assinado, não cifrado, por isso evito claims
+> sensíveis e mantenho a chave de assinatura em configuração segura. A
+> interface continua parcial e a migration de papéis precisa ser aplicada
+> operacionalmente fora de Development.”
 
 ### 5. Exercício prático
 
@@ -94,8 +100,10 @@ aplicar a migration antes de iniciar esta versão.
    secretas.
 5. Explique como `AddUserRole` preserva Users existentes e por que um
    ambiente de produção precisa de migração antes de iniciar a versão nova.
-6. Liste duas capacidades não implementadas (por exemplo, refresh token ou
-   UI de login) sem as apresentar como experiência já construída.
+6. Explique por que um guard não pode substituir `AdminOnly` na API.
+7. Liste duas capacidades não implementadas (por exemplo, refresh token ou
+   UIs de gestão de Users/AccessCards/AccessPermissions) sem as apresentar
+   como experiência já construída.
 
 Consulte a [documentação técnica de autenticação e autorização](../authentication-authorization.md)
 e a [camada API](../api-layer.md).

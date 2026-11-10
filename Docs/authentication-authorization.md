@@ -10,14 +10,15 @@ policies por papel, bootstrap seguro do primeiro Admin e a migration
 **Implementado no frontend:** a aplicação Angular tem formulário de login,
 guarda de rota para o painel e interceptor que envia o Bearer token nas
 chamadas `/api`. O access token e a respetiva expiração são guardados em
-`sessionStorage`; ao expirar, a sessão local é descartada. O painel ainda é
-inicial e não apresenta dados operacionais.
+`sessionStorage`; ao expirar, a sessão local é descartada. O dashboard mostra
+eventos reais. A rota `/management` tem guard Admin-only no cliente, além da
+autorização aplicada pela API.
 
 **Ainda incompleto ou planeado:** não há refresh tokens, revogação de tokens,
 MFA nem integração com um provedor externo. Como `sessionStorage` é acessível
 por JavaScript na página, a proteção contra XSS continua essencial; esta
-implementação não equivale a uma sessão em cookie `HttpOnly`. O guard Angular
-serve apenas para navegação: a autorização efetiva continua a ser aplicada
+implementação não equivale a uma sessão em cookie `HttpOnly`. Guards Angular
+controlam navegação, enquanto a autorização efetiva continua a ser aplicada
 pela API.
 
 ## Conceitos
@@ -72,7 +73,10 @@ Os papéis do domínio são `Admin` e `SecurityOperator`.
 
 Sem token válido, uma rota protegida responde `401`; com identidade válida,
 mas papel insuficiente, responde `403`. A autorização é aplicada pela API,
-não por uma futura interface Angular.
+não apenas pelo guard da interface Angular. O frontend restringe a navegação
+de `/management` a `Admin`; utilizadores `SecurityOperator` autenticados podem
+consultar eventos, mas não têm acesso à gestão administrativa nem às contagens
+administrativas do dashboard.
 
 Novos Users não enviam papel no request de criação e recebem
 `SecurityOperator` por omissão. O endpoint `PUT /api/users/{id}/role` permite

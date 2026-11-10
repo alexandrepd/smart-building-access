@@ -339,6 +339,11 @@ consulta de `AccessEvent` requerem `AccessOperations`, que aceita `Admin` ou
 `SecurityOperator`. Sem token válido, endpoints protegidos respondem `401`;
 identidade válida sem papel permitido responde `403`.
 
+O guard Angular da rota `/management` é uma proteção de navegação, não uma
+policy da API. Mesmo quando um utilizador contorna o guard, os endpoints
+administrativos continuam a exigir `AdminOnly`; o dashboard de eventos usa
+rotas sob `AccessOperations`.
+
 Users criados recebem `SecurityOperator` por omissão. Apenas `Admin` pode
 alterar papel em `PUT /api/users/{id}/role`, e o último Admin não pode ser
 rebaixado. A migration `AddUserRole` dá aos Users existentes o default
@@ -368,4 +373,4 @@ O futuro hub `/accessHub` notificará eventos, alertas e alterações de ocupaç
 
 ## Próximos passos
 
-Os vertical slices de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O processamento/decisão de acesso e as três rotas de `AccessEvent` documentadas acima estão implementados. Login JWT e autorização por papéis também estão implementados nesta branch. A interface Angular começou pelo login, guarda de rota e interceptor Bearer; os CRUDs e o painel operacional ainda não foram ligados à API. Atualização de ocupação, alertas e SignalR continuam planejados. A aplicação de migrations fora de Development permanece responsabilidade do deployment.
+Os vertical slices de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O processamento/decisão de acesso e as três rotas de `AccessEvent` documentadas acima estão implementados. Login JWT e autorização por papéis também estão implementados nesta branch. O frontend Angular consulta o histórico de eventos no dashboard e disponibiliza CRUD de `Buildings`, `Floors` e `AccessPoints` para Admin; a UI ainda não cobre Users, AccessCards nem AccessPermissions. Atualização de ocupação, alertas e SignalR continuam planejados. A aplicação de migrations fora de Development permanece responsabilidade do deployment.
