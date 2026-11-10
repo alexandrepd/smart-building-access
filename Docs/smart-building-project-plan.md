@@ -2544,6 +2544,15 @@ Implementar:
 - Docker Compose;
 - PostgreSQL container.
 
+### Estado atual
+
+Existe uma configuração local em `docker-compose.yml` com PostgreSQL 18, API e
+interface Angular. A API usa uma imagem multi-stage .NET, a interface é
+servida por Nginx e encaminha `/api` para a API na rede interna. Segredos e
+credenciais são exigidos por `.env`, que permanece ignorado; `.env.example`
+documenta apenas os nomes e placeholders. O Compose é destinado ao ambiente
+local de desenvolvimento e ainda não substitui CI/CD ou Kubernetes.
+
 Definition of Done:
 
 ```bash
