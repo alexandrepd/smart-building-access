@@ -7,12 +7,18 @@ no esquema HTTP Bearer,
 policies por papel, bootstrap seguro do primeiro Admin e a migration
 `AddUserRole`.
 
-**Ainda incompleto ou planeado:** a interface Angular não está implementada;
-portanto, não há login no frontend, armazenamento/renovação de tokens no
-cliente ou guards/interceptors. Não há refresh tokens, revogação de tokens,
-MFA nem integração com um provedor externo. Não trate estas capacidades como
-implementadas. O roadmap continua a definir as fases e não é alterado por este
-estado do código.
+**Implementado no frontend:** a aplicação Angular tem formulário de login,
+guarda de rota para o painel e interceptor que envia o Bearer token nas
+chamadas `/api`. O access token e a respetiva expiração são guardados em
+`sessionStorage`; ao expirar, a sessão local é descartada. O painel ainda é
+inicial e não apresenta dados operacionais.
+
+**Ainda incompleto ou planeado:** não há refresh tokens, revogação de tokens,
+MFA nem integração com um provedor externo. Como `sessionStorage` é acessível
+por JavaScript na página, a proteção contra XSS continua essencial; esta
+implementação não equivale a uma sessão em cookie `HttpOnly`. O guard Angular
+serve apenas para navegação: a autorização efetiva continua a ser aplicada
+pela API.
 
 ## Conceitos
 

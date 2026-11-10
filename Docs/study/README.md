@@ -37,7 +37,7 @@ Para ler a preparação completa num único ficheiro, abra o [README de Entrevis
 
 | Requisito da vaga | Onde estudar | Evidência/ligação ao projeto | Estado |
 |---|---|---|---|
-| Frontend Angular sólido | Módulos 5 e 9 | Arquitetura planejada do dashboard | Angular ainda não implementado; estudar conceitos e demonstrar exercícios separados |
+| Frontend Angular sólido | Módulos 5 e 9 | Login, routing, guard e interceptor iniciados | A aplicação está no início; CRUDs, dashboard operacional e testes frontend ainda faltam |
 | UX intuitiva para self-service | Módulos 1, 5 e 9 | Fluxos futuros de administração e ocupação | Princípios documentados; UI ainda não implementada |
 | Backend .NET ou Java | Módulo 2 | API, Application, Domain e Infrastructure em .NET 10 | .NET aplicado no projeto; Java é alternativa da vaga, não requisito para duplicar a stack |
 | RESTful APIs | Módulos 3 e 10 | CRUDs administrativos, Access Control e `POST /api/auth/login` | Autenticação JWT e policies de autorização implementadas; ocupação, alertas e SignalR continuam futuros |
@@ -73,7 +73,7 @@ Windows Server também será estudado conceitualmente. O deployment principal do
 
 ## Ordem recomendada
 
-Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e gestão CRUD de AccessPermissions estão implementados. O processamento/decisão de Access Control, auditoria/consulta de `AccessEvent`s, login JWT e autorização por papéis estão implementados nesta branch. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. Atualização de `OccupancySession`, notificações SignalR e processamento de alertas continuam futuros. O frontend Angular ainda não começou e continua planeado para a Fase 7; Docker, CI/CD e Kubernetes continuam nas fases posteriores.
+Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e gestão CRUD de AccessPermissions estão implementados. O processamento/decisão de Access Control, auditoria/consulta de `AccessEvent`s, login JWT e autorização por papéis estão implementados nesta branch. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. O frontend Angular começou com login, guarda de rota e interceptor Bearer, mas ainda não tem CRUDs nem dashboard operacional. Atualização de `OccupancySession`, notificações SignalR e processamento de alertas continuam futuros. Docker, CI/CD e Kubernetes continuam nas fases posteriores.
 
 Para estudar o fluxo implementado em cinco níveis — analogia simples,
 definição, exemplo do projeto, resposta de entrevista e exercício — consulte
@@ -82,12 +82,12 @@ definição, exemplo do projeto, resposta de entrevista e exercício — consult
 Para estudar autenticação JWT e autorização `Admin`/`SecurityOperator` nos
 mesmos cinco níveis, consulte o [módulo de autenticação e autorização](10-authentication-authorization.md).
 
-Para preparação de entrevista, pode estudar Angular agora sem alterar a ordem de implementação:
+Para preparação de entrevista, pode estudar Angular em paralelo com a implementação:
 
 1. revisar o [módulo Angular](05-angular-rxjs.md);
 2. usar a [revisão intensiva](09-angular-interview-review.md) para perguntas e respostas em voz alta;
 3. ligar os conceitos ao futuro dashboard Smart Building;
-4. continuar a implementação das fases backend sem antecipar Angular no produto;
+4. relacionar os conceitos com o login e a infraestrutura Angular já iniciados;
 5. estudar deployment em profundidade nas fases 13 a 15.
 
 ## Regra para respostas fortes

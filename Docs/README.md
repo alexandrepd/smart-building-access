@@ -33,6 +33,10 @@ O fluxo de Access Control desta branch está descrito em
 [Camada Application](application-layer.md#papel-na-arquitetura) e no
 [exemplo progressivo para entrevistas](study/03-rest-openapi.md#exemplo-do-projeto-decisão-de-acesso-e-auditoria).
 
+A aplicação Angular começou com login JWT, rota de painel protegida e
+interceptor Bearer; a Fase 7 continua em desenvolvimento. O comando de
+execução local e o proxy para a API estão no [README principal](../README.md).
+
 A autenticação JWT e a autorização por papéis implementadas nesta branch
 estão descritas em [Autenticação e autorização](authentication-authorization.md)
 e no [módulo progressivo de estudo](study/10-authentication-authorization.md).

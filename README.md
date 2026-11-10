@@ -10,12 +10,14 @@ Preparação para entrevista: [README-ENTREVISTA.md](README-ENTREVISTA.md).
 - projetos API, Application, Domain, Infrastructure e UnitTests;
 - modelo inicial de domínio;
 - OpenAPI configurado na API;
+- frontend Angular iniciado com login JWT, rota de painel protegida e interceptor Bearer;
 - desenvolvimento organizado por fases em [Docs/smart-building-project-plan.md](Docs/smart-building-project-plan.md).
 
 ## Pré-requisitos
 
 - .NET SDK 10.0.102 ou patch compatível.
 - PostgreSQL 18 para executar a API localmente.
+- Node.js compatível com a versão Angular e npm para executar a interface.
 
 ## Configuração local
 
@@ -44,3 +46,11 @@ dotnet build SmartBuilding.slnx --no-restore
 dotnet test SmartBuilding.slnx --no-build
 dotnet run --project src/SmartBuilding.Api
 ```
+
+Noutra sessão de terminal, execute a interface Angular:
+
+```bash
+npm start --prefix src/smart-building-web
+```
+
+O servidor de desenvolvimento encaminha `/api` para `http://localhost:5077`, o perfil HTTP da API. Para autenticar localmente, configure a chave JWT e o Admin inicial através de User Secrets conforme [Autenticação e autorização](Docs/authentication-authorization.md).

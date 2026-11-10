@@ -1,0 +1,33 @@
+:host { display: block; min-height: 100vh; }
+.login-shell { min-height: 100vh; display: grid; grid-template-columns: minmax(420px, 1fr) minmax(480px, 1fr); background: #fff; }
+.brand-panel { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; padding: 42px clamp(38px, 6vw, 88px) 32px; color: white; background: #101b2c; }
+.brand-panel::before { position: absolute; z-index: -1; inset: 0; content: ''; background: radial-gradient(ellipse at 75% 63%, #233e5b 0, transparent 45%), linear-gradient(145deg, #101b2c, #14243a 72%, #0c1725); }
+.brand-lockup, .mobile-brand { display: flex; align-items: center; gap: 12px; font: 800 13px 'Manrope', sans-serif; letter-spacing: .09em; }
+.brand-light { color: #aebdce; font-weight: 500; }
+.brand-mark { display: flex; align-items: end; gap: 3px; width: 27px; height: 27px; padding: 5px; border: 1px solid #7595b4; border-radius: 7px; }
+.brand-mark span { flex: 1; border-radius: 2px 2px 0 0; background: #d8e6f3; }
+.brand-mark span:nth-child(1) { height: 45%; opacity: .65; }.brand-mark span:nth-child(2) { height: 75%; opacity: .85; }.brand-mark span:nth-child(3) { height: 100%; }
+.brand-copy { margin-top: clamp(70px, 12vh, 132px); max-width: 410px; }
+.eyebrow { margin: 0 0 16px; color: #7194b4; font: 700 10px 'Manrope', sans-serif; letter-spacing: .19em; }
+.brand-copy h1 { margin: 0; color: #f5f8fc; font: 700 clamp(38px, 4.2vw, 56px)/1.12 'Manrope', sans-serif; letter-spacing: -.045em; }
+.brand-description { max-width: 345px; margin: 20px 0 0; color: #9eafc2; font-size: 14px; line-height: 1.8; }
+.building-graphic { position: absolute; right: 8%; bottom: 8%; width: min(52%, 330px); height: 285px; display: grid; place-items: center; opacity: .75; }
+.building { position: relative; z-index: 1; width: 112px; height: 210px; padding: 0 12px; filter: drop-shadow(0 15px 30px #080f1a77); }
+.building-roof { height: 12px; margin: 0 -7px; border: 1px solid #8da9c3; border-bottom: 0; transform: perspective(50px) rotateX(15deg); background: #28445e; }
+.building-body { height: 184px; padding: 15px 12px; border: 1px solid #6f90ad; background: linear-gradient(90deg, #203d58, #2d4d6b 50%, #1b3550); display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 9px; }
+.building-body i { background: #87b5d2; opacity: .55; box-shadow: 0 0 9px #82c6ee55; }.building-body i:nth-child(3n+2) { opacity: .25; }.building-base { height: 6px; margin: 0 -9px; background: #5d7f9c; }
+.graphic-orbit { position: absolute; border: 1px solid #8badc733; border-radius: 50%; transform: rotate(-24deg); }.orbit-one { width: 310px; height: 100px; }.orbit-two { width: 380px; height: 155px; }
+.graphic-dot { position: absolute; z-index: 2; width: 6px; height: 6px; border-radius: 50%; background: #c0d7e9; box-shadow: 0 0 12px #a7d6ff; }.dot-one { top: 21%; right: 20%; }.dot-two { bottom: 18%; left: 13%; }
+.panel-footer { margin: auto 0 0; color: #71869d; font: 600 9px 'Manrope', sans-serif; letter-spacing: .14em; }.panel-footer span { margin: 0 6px; color: #3b688e; }
+.form-panel { position: relative; display: flex; align-items: center; justify-content: center; padding: 55px 36px 85px; }
+.form-content { width: 100%; max-width: 380px; }.mobile-brand { display: none; color: #172234; }
+.form-heading { margin-bottom: 34px; }.form-heading .eyebrow { margin-bottom: 10px; color: #557b9c; }.form-heading h2 { margin: 0; color: #152236; font: 700 32px 'Manrope', sans-serif; letter-spacing: -.04em; }.form-heading > p:last-child { margin: 11px 0 0; color: #8290a1; font-size: 13px; }
+form { display: flex; flex-direction: column; }label { margin: 0 0 9px; color: #263548; font-size: 12px; font-weight: 700; }.password-label { margin-top: 22px; }
+.input-wrap { display: flex; align-items: center; height: 49px; padding: 0 14px; gap: 11px; border: 1px solid #dfe5eb; border-radius: 7px; background: #fff; transition: border-color .18s, box-shadow .18s; }.input-wrap:focus-within { border-color: #5f86aa; box-shadow: 0 0 0 3px #5f86aa1a; }.input-wrap.invalid { border-color: #d36c69; }.input-wrap svg { width: 17px; height: 17px; fill: none; stroke: #91a0af; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }.input-wrap input { width: 100%; min-width: 0; border: 0; outline: 0; color: #172234; font-size: 13px; background: transparent; }.input-wrap input::placeholder { color: #a5afba; }
+.field-error { margin-top: 6px; color: #bb4a48; font-size: 11px; }.api-error { display: flex; align-items: start; gap: 8px; margin: 18px 0 0; padding: 11px 12px; border: 1px solid #f0c8c6; border-radius: 6px; color: #9e3f3d; background: #fff6f5; font-size: 12px; line-height: 1.5; }.api-error span { display: grid; flex: 0 0 16px; width: 16px; height: 16px; place-items: center; border-radius: 50%; color: white; background: #ca615d; font-size: 11px; font-weight: 700; }
+.submit-button { display: flex; align-items: center; justify-content: center; gap: 10px; height: 49px; margin-top: 28px; border: 0; border-radius: 7px; color: white; background: #1d3854; box-shadow: 0 5px 12px #203d5824; font-size: 13px; font-weight: 700; transition: background .18s, transform .18s; }.submit-button:hover:not(:disabled) { transform: translateY(-1px); background: #284b6d; }.submit-button:disabled { cursor: wait; opacity: .75; }.submit-button > span:last-child { font-size: 18px; font-weight: 400; }
+.spinner { width: 15px; height: 15px; border: 2px solid #ffffff66; border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; }@keyframes spin { to { transform: rotate(360deg); } }
+.secure-note { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 24px; color: #8794a2; font-size: 11px; }.secure-icon { display: grid; width: 16px; height: 16px; place-items: center; border-radius: 50%; color: #57816e; background: #e8f2ec; font-size: 10px; font-weight: 700; }
+.copyright { position: absolute; bottom: 27px; margin: 0; color: #a6afb9; font-size: 10px; }
+@media (max-width: 850px) { .login-shell { grid-template-columns: 1fr 1.15fr; }.brand-panel { padding-inline: 34px; }.building-graphic { right: 0; opacity: .45; } }
+@media (max-width: 650px) { .login-shell { display: block; min-height: 100svh; }.brand-panel { display: none; }.form-panel { min-height: 100svh; padding: 34px 25px 72px; }.form-content { max-width: 390px; }.mobile-brand { display: flex; margin-bottom: 60px; }.copyright { bottom: 22px; }.form-heading h2 { font-size: 29px; } }

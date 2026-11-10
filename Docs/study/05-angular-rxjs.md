@@ -146,6 +146,25 @@ Interceptor atua sobre requests e responses:
 
 Ele deve clonar requests porque objetos HTTP Angular são imutáveis.
 
+### Exemplo implementado no projeto
+
+O cliente em `src/smart-building-web` já tem um primeiro fluxo completo de
+autenticação:
+
+```text
+/login → POST /api/auth/login → sessionStorage
+       → /dashboard (guard) → interceptor adiciona Bearer nas chamadas /api
+```
+
+`LoginPage` usa Reactive Forms para validar email e password antes de enviar o
+pedido. `AuthService` guarda o token e a data `expiresAt`; quando a sessão é
+lida depois de expirar, remove-a. `authenticatedGuard` evita a navegação para
+o painel sem token local e `authInterceptor` clona as requests para adicionar
+`Authorization: Bearer <token>`.
+
+O guard e o interceptor facilitam a navegação e evitam repetição no cliente.
+A API continua responsável por validar o JWT e aplicar as policies de papel.
+
 ## HttpClient
 
 HttpClient envia requests tipados. O tipo TypeScript não valida automaticamente o JSON em runtime; contratos críticos podem exigir validação adicional.
@@ -182,4 +201,7 @@ Configuração de ambiente exige estratégia deliberada porque variáveis do con
 
 ## Exercício
 
-Desenhe o dashboard com quatro componentes. Indique quais dados vêm por REST, quais atualizações chegam por SignalR e onde ficam loading, erro e reconexão.
+Abra o login do Smart Building e identifique a responsabilidade de
+`LoginPage`, `AuthService`, `authenticatedGuard` e `authInterceptor`. Depois,
+desenhe o dashboard com quatro componentes. Indique quais dados vêm por REST,
+quais atualizações chegam por SignalR e onde ficam loading, erro e reconexão.
