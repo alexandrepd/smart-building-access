@@ -307,7 +307,27 @@ O smoke do slice de `AccessPoints` observou `200/201/200/200/404/409/204`: lista
 
 O smoke de `Users` contra PostgreSQL real criou com `201` um email uppercase com espaços externos e confirmou sua canonicalização para lowercase. Email duplicado, consulta, atualização e remoção produziram `409/200/200/204`. A resposta não continha password nem hash, e o banco armazenou um hash de `PasswordHasher<User>`. Delete com cartão retornou `409`; delete com evento de auditoria retornou `204` e preservou o evento com `UserId` nulo. Continua sendo validação manual, não teste automatizado de integração.
 
-O container foi apenas um ambiente isolado de validação da persistência. Isso não implementa a fase futura de Docker da aplicação, nem substitui testes de integração automatizados.
+## Docker Compose local
+
+A aplicação tem uma configuração local em `docker-compose.yml` com PostgreSQL,
+API e frontend Angular servido por Nginx. A API é construída com uma imagem
+multi-stage cujo SDK `10.0.102` está alinhado com `global.json`. A porta
+publicada pelo serviço web pode ser escolhida com `WEB_PORT`; o valor de
+fallback é `8080` e `.env.example` documenta esse valor.
+
+Na validação local com `WEB_PORT=8081`, o Compose aceitou a configuração, a
+image Angular foi construída e o container iniciou com
+`0.0.0.0:8081->8080`. `GET http://localhost:8081/` retornou `200`. O pedido
+`GET http://localhost:8081/api/auth/login` passou pelo proxy Nginx e retornou
+`405`, comportamento esperado porque o endpoint de login suporta `POST`. Os
+containers da API e da base de dados estavam saudáveis nessa validação.
+O ficheiro `.env.example` declara `WEB_PORT=8080`, e a configuração Compose
+usa esse valor como fallback se a variável não for definida.
+
+Este é um smoke test manual de execução local, não um teste automatizado nem
+uma validação de CI/CD ou Kubernetes. A validação confirma o caminho de
+entrada web e o proxy; não altera o estado futuro das funcionalidades de
+domínio, como processamento de `OccupancySession`.
 
 ## Próximos passos
 
