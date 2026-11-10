@@ -2,7 +2,13 @@
 
 ## Objetivo
 
-Este guia serve para revisão rápida antes de uma entrevista Full-Stack. O projeto ainda não contém frontend Angular; os exemplos abaixo mostram como o dashboard do Smart Building poderá ser construído na Fase 7. Não apresente esses exemplos como funcionalidades já implementadas.
+Este guia serve para revisão rápida antes de uma entrevista Full-Stack. O
+frontend Angular já tem login, dashboard com histórico de `AccessEvent` e
+gestão administrativa de `Buildings`, `Floors` e `AccessPoints`. A Fase 7
+continua em desenvolvimento: gestão de Users, AccessCards e AccessPermissions,
+testes frontend automatizados e outras operações ainda faltam. Ocupação e
+SignalR pertencem a fases posteriores. Não apresente comportamento planeado
+como implementado.
 
 O projeto não fixou uma versão Angular. Os conceitos são estáveis; confirme a versão usada pela empresa antes de afirmar detalhes dependentes da versão.
 
@@ -260,6 +266,70 @@ Validação frontend oferece feedback imediato. A API valida novamente porque o 
 
 **Resposta de entrevista:** Reactive Forms são adequados para formulários complexos porque o modelo e validadores são explícitos em TypeScript, facilitando composição e teste. Template-driven pode ser mais simples em formulários pequenos.
 
+## Exemplo progressivo: dashboard e gestão administrativa
+
+### Analogia simples
+
+O dashboard é como o livro de registos da portaria: mostra as entradas e
+saídas mais recentes. A área de gestão é como um balcão com formulários para
+manter a lista de edifícios, pisos e pontos de acesso. O crachá de Admin abre
+esse balcão; o de SecurityOperator permite consultar os eventos, mas não
+alterar a configuração.
+
+### Definição técnica
+
+Um dashboard Angular pode obter dados através de um service baseado em
+`HttpClient` e apresentar um subconjunto ordenado num component. Reactive Forms
+modelam e validam campos e relações no cliente. Um route guard pode restringir
+a navegação por papel, mas não substitui autenticação e autorização aplicadas
+pela API. Os dados e operações administrativas devem continuar sujeitos às
+policies do servidor.
+
+### Exemplo concreto no Smart Building
+
+O dashboard consulta o histórico real de `AccessEvent`, ordena-o e apresenta
+os 10 eventos mais recentes. Os totais concedidos e negados são calculados
+sobre os eventos devolvidos pela API; a tabela apresenta apenas os 10 mais
+recentes. Só Admin vê também as contagens de Buildings, Floors e AccessPoints. Um
+`SecurityOperator` autenticado pode ver eventos.
+
+A rota `/management` é Admin-only por guard Angular e pelas policies existentes
+na API. Os formulários reativos implementam criar, consultar, atualizar e
+remover `Buildings`, `Floors` e `AccessPoints`; usam seletores para relações
+(por exemplo, escolher o Building de um Floor), campos de ativo e, para
+AccessPoints, suporte de entrada e saída. A UI de Users, AccessCards e
+AccessPermissions não existe. O dashboard não mostra ocupação, a aplicação
+não usa SignalR para atualização em tempo real e não há testes frontend
+automatizados. O build de produção `cd src/smart-building-web && npm run build`
+passa.
+
+### Resposta de entrevista
+
+> Implementei um dashboard que consulta o histórico de `AccessEvent`, ordena
+> os resultados e mostra os dez mais recentes. Os indicadores de concedidos e
+> negados resumem os eventos devolvidos pela API; apenas Admin recebe ainda
+> contagens de Buildings, Floors e AccessPoints. Também implementei a rota
+> Admin-only `/management` e formulários reativos para CRUD de Buildings,
+> Floors e AccessPoints. O guard melhora a navegação, mas a API mantém a
+> autorização real. Ainda faltam as UIs de Users, cartões e permissões, testes
+> frontend, ocupação e SignalR; portanto a Fase 7 não está concluída.
+
+### Exercício prático
+
+Desenhe o fluxo de uma edição de Floor e explique:
+
+1. Que dados o component precisa para preencher o seletor de Building?
+2. Como Reactive Forms representam `BuildingId`, `Name` e `IsActive`?
+3. Como apresentaria loading, validação, sucesso e erro sem apagar os dados?
+4. O que deve fazer o guard para um `SecurityOperator`, e o que a API ainda
+   precisa verificar?
+5. Se o formulário mostrar sucesso mas a lista não mudar, que passos seguiria
+   na Network tab e no fluxo component → service → API?
+
+Como extensão, adicione paginação ao histórico e decida se os indicadores
+devem resumir a página atual ou o conjunto completo. Explique como evitar
+apresentar o total de uma página como se fosse o total histórico.
+
 ## 11. Router, Lazy Loading e Guards
 
 Router associa URL a componente e permite deep links. Lazy loading adia o carregamento de features até serem visitadas, reduzindo o bundle inicial.
@@ -412,13 +482,15 @@ Frase de prática:
 
 ## Exercício Prático
 
-Sem escrever Angular no produto ainda, explique como desenharia `/users`:
+Use a página administrativa de `Buildings`, `Floors` ou `AccessPoints` para
+explicar como desenharia uma alteração:
 
 1. Que componentes e services seriam necessários?
 2. Como faria loading, empty e error states?
 3. Como cancelaria pesquisas antigas?
 4. Onde validaria email?
 5. O que faria o guard e o que deve fazer a API?
-6. Como o utilizador atualiza a página diretamente em `/users`?
+6. Como o utilizador atualiza a página diretamente em `/management`?
 
-Consegue explicar cada escolha e o respetivo trade-off? Essa é a preparação útil para a Fase 7 e para a entrevista.
+Consegue explicar cada escolha e o respetivo trade-off? Esse exercício ajuda
+a rever o que já existe e a identificar as lacunas restantes da Fase 7.

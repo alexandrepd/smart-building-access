@@ -4,26 +4,109 @@
       <span class="brand-mark"><i></i><i></i><i></i></span>
       <span>SMART<span>BUILDING</span></span>
     </a>
+    <nav aria-label="Navegação principal">
+      <span aria-current="page">Painel</span>
+      @if (isAdmin) {
+        <a routerLink="/management">Administração</a>
+      }
+    </nav>
     <div class="account">
       <div class="avatar">{{ session?.name?.charAt(0) ?? 'U' }}</div>
-      <div class="account-copy"><strong>{{ session?.name }}</strong><span>{{ session?.role }}</span></div>
+      <div class="account-copy">
+        <strong>{{ session?.name }}</strong
+        ><span>{{ session?.role }}</span>
+      </div>
       <button type="button" (click)="auth.logout()">Terminar sessão</button>
     </div>
   </header>
+
   <section class="dashboard-content">
     <p class="eyebrow">VISÃO GERAL</p>
     <h1>Olá, {{ session?.name?.split(' ')?.[0] }}.</h1>
-    <p class="intro">Bem-vindo ao painel de operações do edifício.</p>
-    <div class="status-card">
-      <span class="status-icon">✓</span>
-      <div><strong>Sessão iniciada com sucesso</strong><p>A autenticação está ligada à API Smart Building.</p></div>
-      <span class="role-pill">{{ session?.role }}</span>
-    </div>
-    <div class="coming-soon"><span class="coming-line"></span><p>PRÓXIMOS MÓDULOS</p></div>
-    <div class="module-grid">
-      <article><span class="module-number">01</span><h2>Edifícios</h2><p>Edifícios, pisos e pontos de acesso.</p><span class="module-state">A SEGUIR</span></article>
-      <article><span class="module-number">02</span><h2>Cartões e permissões</h2><p>Credenciais e regras de acesso.</p><span class="module-state">PLANEADO</span></article>
-      <article><span class="module-number">03</span><h2>Atividade</h2><p>Eventos de acesso e ocupação.</p><span class="module-state">PLANEADO</span></article>
-    </div>
+    <p class="intro">Atividade recente de controlo de acessos.</p>
+
+    @if (errorMessage()) {
+      <div class="notice error" role="alert">{{ errorMessage() }}</div>
+    }
+
+    @if (loading()) {
+      <p class="loading" role="status">A carregar atividade...</p>
+    } @else {
+      <section class="summary-grid" aria-label="Resumo de atividade">
+        <article class="summary-card">
+          <span>Eventos registados</span><strong>{{ eventCounts().total }}</strong>
+        </article>
+        <article class="summary-card">
+          <span>Acessos permitidos</span><strong>{{ grantedCount() }}</strong>
+        </article>
+        <article class="summary-card">
+          <span>Acessos negados</span><strong>{{ deniedCount() }}</strong>
+        </article>
+        @if (isAdmin) {
+          <article class="summary-card">
+            <span>Edifícios</span><strong>{{ counts().buildings }}</strong>
+          </article>
+          <article class="summary-card">
+            <span>Pisos</span><strong>{{ counts().floors }}</strong>
+          </article>
+          <article class="summary-card">
+            <span>Pontos de acesso</span><strong>{{ counts().accessPoints }}</strong>
+          </article>
+        }
+      </section>
+
+      <section class="activity-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">OPERAÇÕES</p>
+            <h2>Últimos eventos de acesso</h2>
+          </div>
+          @if (isAdmin) {
+            <a class="manage-link" routerLink="/management">Gerir edifícios e acessos</a>
+          }
+        </div>
+        @if (events().length === 0) {
+          <p class="empty-state">Ainda não existem eventos de acesso.</p>
+        } @else {
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e hora</th>
+                  <th>Resultado</th>
+                  <th>Direção</th>
+                  <th>Ponto de acesso</th>
+                  <th>Motivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (event of events(); track event.id) {
+                  <tr>
+                    <td data-label="Data e hora">{{ event.occurredAt | date: 'short' }}</td>
+                    <td data-label="Resultado">
+                      <span class="result" [class.denied]="event.result !== 'Granted'">
+                        {{ event.result === 'Granted' ? 'Permitido' : 'Negado' }}
+                      </span>
+                    </td>
+                    <td data-label="Direção">
+                      {{ event.direction === 'Entry' ? 'Entrada' : 'Saída' }}
+                    </td>
+                    <td data-label="Ponto de acesso">
+                      <code>{{ shortId(event.accessPointId) }}</code>
+                    </td>
+                    <td data-label="Motivo">{{ event.reason }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <p class="scope-note">
+        O painel apresenta eventos registados pela API. A ocupação em tempo real e as notificações
+        continuarão indisponíveis até às fases de Occupancy e SignalR.
+      </p>
+    }
   </section>
 </main>

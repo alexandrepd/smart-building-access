@@ -70,7 +70,30 @@ Os CRUDs administrativos de `Buildings`, `Floors`, `AccessPoints`, `Users`, `Acc
 
 O fluxo de decisão exige a policy `AccessOperations` (`Admin` ou `SecurityOperator`). Ainda não atualiza `OccupancySession`, não envia notificações SignalR nem processa alertas; esses comportamentos continuam planejados.
 
-O CRUD administrativo de `Users` também está implementado em `/api/users` e protegido por `AdminOnly`. A validação HTTP verifica o email após remover whitespace externo, e a Application normaliza-o para lowercase antes de persistir; solicita hash da password na criação e as responses omitem password e hash. Users começam como `SecurityOperator`; um Admin pode atribuir papéis, sem rebaixar o último Admin. O login JWT e as policies estão implementados; consulte [Autenticação e autorização](authentication-authorization.md) para configuração segura, bootstrap e limites. A UI continua ausente.
+O CRUD administrativo de `Users` também está implementado em `/api/users` e protegido por `AdminOnly`. A validação HTTP verifica o email após remover whitespace externo, e a Application normaliza-o para lowercase antes de persistir; solicita hash da password na criação e as responses omitem password e hash. Users começam como `SecurityOperator`; um Admin pode atribuir papéis, sem rebaixar o último Admin. O login JWT e as policies estão implementados; consulte [Autenticação e autorização](authentication-authorization.md) para configuração segura, bootstrap e limites.
+
+## Frontend Angular implementado
+
+A aplicação Angular standalone em `src/smart-building-web` inclui login,
+dashboard e gestão administrativa parcial. O dashboard consulta o histórico
+real de `AccessEvent`, ordena os resultados e apresenta os 10 mais recentes;
+os indicadores de concedidos/negados contam os eventos devolvidos pela API,
+enquanto a tabela mostra apenas os mais recentes. Só o papel `Admin` recebe
+também as contagens de Buildings, Floors e AccessPoints. Um `SecurityOperator`
+autenticado pode consultar eventos, mas não vê essas contagens administrativas.
+
+A rota `/management` é restrita a `Admin` por um guard Angular para controlar a
+navegação e pelas policies já existentes na API para autorizar os requests. A
+interface usa Reactive Forms para criar, consultar, atualizar e remover
+`Buildings`, `Floors` e `AccessPoints`; inclui seletores para relações entre
+entidades, campos de estado ativo e suporte a Entry/Exit nos AccessPoints. O
+guard não substitui a autorização da API.
+
+A UI de Users, AccessCards e AccessPermissions, os dados de ocupação,
+atualizações SignalR e testes frontend automatizados não estão implementados.
+O build de produção Angular passa com
+`cd src/smart-building-web && npm run build`; isto não implica que a Fase 7
+esteja concluída.
 
 ## Fluxo implementado de uma solicitação de acesso
 
@@ -131,6 +154,7 @@ Cada fase deve terminar com build, testes e um pull request focado. Tecnologias 
 | Database | Persistência base implementada e validada |
 | API funcional | CRUDs administrativos e rotas de decisão/eventos implementados nesta branch |
 | Access Control | Decisão, auditoria, consultas de evento e autenticação/autorização JWT implementadas nesta branch; ocupação, SignalR e alertas seguem futuros |
+| Frontend Angular (Fase 7) | Dashboard de eventos e CRUD de Buildings/Floors/AccessPoints implementados; restantes operações e testes frontend pendentes |
 
 PostgreSQL 18 foi executado num container descartável, na porta isolada `55432`, para validar a migration, o arranque, a idempotência do seed e os slices de `Buildings`, `Floors`, `AccessPoints` e `Users`. Para Users, o smoke confirmou email uppercase com espaços externos criado em `201` e canonicalizado para lowercase, duplicidade `409`, consulta `200`, atualização `200` e remoção `204`; também confirmou hash armazenado pelo `PasswordHasher<User>`, response sem password/hash, delete bloqueado por cartão com `409` e evento preservado com `UserId` nulo. Isso não significa que a fase futura de Docker da aplicação foi implementada.
 

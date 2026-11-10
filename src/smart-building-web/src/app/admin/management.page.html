@@ -1,0 +1,359 @@
+<main class="management-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/dashboard" aria-label="Smart Building Access, painel">
+      <span class="brand-mark"><i></i><i></i><i></i></span>
+      <span>SMART<span>BUILDING</span></span>
+    </a>
+    <nav aria-label="Navegação principal">
+      <a routerLink="/dashboard">Painel</a>
+      <span aria-current="page">Administração</span>
+    </nav>
+    <button class="logout" type="button" (click)="auth.logout()">Terminar sessão</button>
+  </header>
+
+  <section class="content">
+    <p class="eyebrow">ADMINISTRAÇÃO</p>
+    <div class="page-heading">
+      <div>
+        <h1>Edifícios e acessos</h1>
+        <p>Gira edifícios, pisos e pontos de acesso.</p>
+      </div>
+      <button class="secondary-button" type="button" (click)="load()" [disabled]="loading()">
+        Atualizar dados
+      </button>
+    </div>
+
+    <div class="resource-tabs" role="group" aria-label="Recursos de administração">
+      <button
+        type="button"
+        [attr.aria-pressed]="resource() === 'buildings'"
+        [class.selected]="resource() === 'buildings'"
+        (click)="selectResource('buildings')"
+      >
+        Edifícios <span>{{ buildings().length }}</span>
+      </button>
+      <button
+        type="button"
+        [attr.aria-pressed]="resource() === 'floors'"
+        [class.selected]="resource() === 'floors'"
+        (click)="selectResource('floors')"
+      >
+        Pisos <span>{{ floors().length }}</span>
+      </button>
+      <button
+        type="button"
+        [attr.aria-pressed]="resource() === 'access-points'"
+        [class.selected]="resource() === 'access-points'"
+        (click)="selectResource('access-points')"
+      >
+        Pontos de acesso <span>{{ accessPoints().length }}</span>
+      </button>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="notice error" role="alert">{{ errorMessage() }}</div>
+    }
+    @if (successMessage()) {
+      <div class="notice success" role="status">{{ successMessage() }}</div>
+    }
+    @if (loading()) {
+      <p class="loading" role="status">A carregar dados...</p>
+    } @else {
+      <div class="workspace">
+        <section class="list-panel" aria-label="Registos">
+          <div class="panel-heading">
+            <h2>
+              @switch (resource()) {
+                @case ('buildings') {
+                  Edifícios
+                }
+                @case ('floors') {
+                  Pisos
+                }
+                @case ('access-points') {
+                  Pontos de acesso
+                }
+              }
+            </h2>
+            <span class="record-count">
+              @switch (resource()) {
+                @case ('buildings') {
+                  {{ buildings().length }} registos
+                }
+                @case ('floors') {
+                  {{ floors().length }} registos
+                }
+                @case ('access-points') {
+                  {{ accessPoints().length }} registos
+                }
+              }
+            </span>
+          </div>
+
+          @switch (resource()) {
+            @case ('buildings') {
+              @if (buildings().length === 0) {
+                <p class="empty-state">Ainda não existem edifícios.</p>
+              } @else {
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nome</th>
+                        <th>Morada</th>
+                        <th>Estado</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (building of buildings(); track building.id) {
+                        <tr>
+                          <td data-label="Nome">
+                            <strong>{{ building.name }}</strong>
+                          </td>
+                          <td data-label="Morada">{{ building.address }}</td>
+                          <td data-label="Estado">
+                            <span class="state" [class.inactive]="!building.isActive">
+                              {{ building.isActive ? 'Ativo' : 'Inativo' }}
+                            </span>
+                          </td>
+                          <td data-label="Ações" class="row-actions">
+                            <button type="button" (click)="editBuilding(building)">Editar</button>
+                            <button
+                              class="danger-link"
+                              type="button"
+                              (click)="remove(building.id)"
+                              [disabled]="saving()"
+                            >
+                              Eliminar
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            }
+            @case ('floors') {
+              @if (floors().length === 0) {
+                <p class="empty-state">Ainda não existem pisos.</p>
+              } @else {
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Piso</th>
+                        <th>Edifício</th>
+                        <th>Número</th>
+                        <th>Estado</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (floor of floors(); track floor.id) {
+                        <tr>
+                          <td data-label="Piso">
+                            <strong>{{ floor.name }}</strong>
+                          </td>
+                          <td data-label="Edifício">{{ buildingName(floor.buildingId) }}</td>
+                          <td data-label="Número">{{ floor.number }}</td>
+                          <td data-label="Estado">
+                            <span class="state" [class.inactive]="!floor.isActive">
+                              {{ floor.isActive ? 'Ativo' : 'Inativo' }}
+                            </span>
+                          </td>
+                          <td data-label="Ações" class="row-actions">
+                            <button type="button" (click)="editFloor(floor)">Editar</button>
+                            <button
+                              class="danger-link"
+                              type="button"
+                              (click)="remove(floor.id)"
+                              [disabled]="saving()"
+                            >
+                              Eliminar
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            }
+            @case ('access-points') {
+              @if (accessPoints().length === 0) {
+                <p class="empty-state">Ainda não existem pontos de acesso.</p>
+              } @else {
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nome</th>
+                        <th>Piso</th>
+                        <th>Direções</th>
+                        <th>Estado</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (point of accessPoints(); track point.id) {
+                        <tr>
+                          <td data-label="Nome">
+                            <strong>{{ point.name }}</strong
+                            ><small>{{ point.location }}</small>
+                          </td>
+                          <td data-label="Piso">{{ floorName(point.floorId) }}</td>
+                          <td data-label="Direções">
+                            {{ point.supportsEntry ? 'Entrada' : ''
+                            }}{{ point.supportsEntry && point.supportsExit ? ' · ' : ''
+                            }}{{ point.supportsExit ? 'Saída' : '' }}
+                          </td>
+                          <td data-label="Estado">
+                            <span class="state" [class.inactive]="!point.isActive">
+                              {{ point.isActive ? 'Ativo' : 'Inativo' }}
+                            </span>
+                          </td>
+                          <td data-label="Ações" class="row-actions">
+                            <button type="button" (click)="editAccessPoint(point)">Editar</button>
+                            <button
+                              class="danger-link"
+                              type="button"
+                              (click)="remove(point.id)"
+                              [disabled]="saving()"
+                            >
+                              Eliminar
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            }
+          }
+        </section>
+
+        <aside class="form-panel">
+          <div class="panel-heading">
+            <h2>{{ editingId() ? 'Editar registo' : 'Novo registo' }}</h2>
+            @if (editingId()) {
+              <button class="text-button" type="button" (click)="startCreate()">Cancelar</button>
+            }
+          </div>
+
+          @switch (resource()) {
+            @case ('buildings') {
+              <form [formGroup]="buildingForm" (ngSubmit)="save()">
+                <label for="building-name">Nome</label>
+                <input
+                  id="building-name"
+                  formControlName="name"
+                  autocomplete="organization"
+                  required
+                  maxlength="200"
+                />
+                <label for="building-address">Morada</label>
+                <input
+                  id="building-address"
+                  formControlName="address"
+                  autocomplete="street-address"
+                  required
+                  maxlength="500"
+                />
+                @if (editingId()) {
+                  <label class="checkbox"
+                    ><input type="checkbox" formControlName="isActive" /> Edifício ativo</label
+                  >
+                }
+                <button class="primary-button" type="submit" [disabled]="saving()">
+                  {{
+                    saving()
+                      ? 'A guardar...'
+                      : editingId()
+                        ? 'Guardar alterações'
+                        : 'Criar edifício'
+                  }}
+                </button>
+              </form>
+            }
+            @case ('floors') {
+              <form [formGroup]="floorForm" (ngSubmit)="save()">
+                <label for="floor-building">Edifício</label>
+                <select id="floor-building" formControlName="buildingId" required>
+                  <option value="" disabled>Selecione um edifício</option>
+                  @for (building of buildings(); track building.id) {
+                    <option [value]="building.id">{{ building.name }}</option>
+                  }
+                </select>
+                <label for="floor-number">Número</label>
+                <input id="floor-number" type="number" formControlName="number" required />
+                <label for="floor-name">Nome do piso</label>
+                <input id="floor-name" formControlName="name" required maxlength="200" />
+                @if (editingId()) {
+                  <label class="checkbox"
+                    ><input type="checkbox" formControlName="isActive" /> Piso ativo</label
+                  >
+                }
+                <button
+                  class="primary-button"
+                  type="submit"
+                  [disabled]="saving() || buildings().length === 0"
+                >
+                  {{
+                    saving() ? 'A guardar...' : editingId() ? 'Guardar alterações' : 'Criar piso'
+                  }}
+                </button>
+                @if (buildings().length === 0) {
+                  <p class="form-hint">Crie primeiro um edifício.</p>
+                }
+              </form>
+            }
+            @case ('access-points') {
+              <form [formGroup]="accessPointForm" (ngSubmit)="save()">
+                <label for="point-floor">Piso</label>
+                <select id="point-floor" formControlName="floorId" required>
+                  <option value="" disabled>Selecione um piso</option>
+                  @for (floor of floors(); track floor.id) {
+                    <option [value]="floor.id">{{ floorLabel(floor) }}</option>
+                  }
+                </select>
+                <label for="point-name">Nome</label>
+                <input id="point-name" formControlName="name" required maxlength="200" />
+                <label for="point-location">Localização</label>
+                <input id="point-location" formControlName="location" required maxlength="500" />
+                <div class="checkbox-list">
+                  <label class="checkbox"
+                    ><input type="checkbox" formControlName="supportsEntry" /> Permite
+                    entrada</label
+                  >
+                  <label class="checkbox"
+                    ><input type="checkbox" formControlName="supportsExit" /> Permite saída</label
+                  >
+                  @if (editingId()) {
+                    <label class="checkbox"
+                      ><input type="checkbox" formControlName="isActive" /> Ponto ativo</label
+                    >
+                  }
+                </div>
+                <button
+                  class="primary-button"
+                  type="submit"
+                  [disabled]="saving() || floors().length === 0"
+                >
+                  {{
+                    saving() ? 'A guardar...' : editingId() ? 'Guardar alterações' : 'Criar ponto'
+                  }}
+                </button>
+                @if (floors().length === 0) {
+                  <p class="form-hint">Crie primeiro um piso.</p>
+                }
+              </form>
+            }
+          }
+        </aside>
+      </div>
+    }
+  </section>
+</main>

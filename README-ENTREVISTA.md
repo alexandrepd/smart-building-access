@@ -20,11 +20,11 @@ Guia de revisão rápida, em português, para a vaga Full-Stack Angular/.NET. Ca
 
 ### “Fale-me sobre si e sobre o seu projeto.”
 
-> Estou a desenvolver uma plataforma de controlo de acessos e monitorização de ocupação com .NET 10, ASP.NET Core, PostgreSQL, EF Core e Angular. Separei Domain, Application, Infrastructure e API para manter as regras de negócio independentes da tecnologia. Já implementei CRUDs, decisão de acesso e autenticação JWT com papéis no backend. Iniciei o Angular com login ligado à API, proteção de rota e interceptor Bearer. Dashboard operacional, ocupação, processamento em tempo real e deployment continuam no roadmap.
+> Estou a desenvolver uma plataforma de controlo de acessos e monitorização de ocupação com .NET 10, ASP.NET Core, PostgreSQL, EF Core e Angular. Separei Domain, Application, Infrastructure e API para manter as regras de negócio independentes da tecnologia. Já implementei CRUDs, decisão de acesso e autenticação JWT com papéis no backend. No Angular implementei login, dashboard com histórico de `AccessEvent` e CRUD Admin de Buildings, Floors e AccessPoints. Gestão das restantes entidades, ocupação e atualização em tempo real continuam em falta ou no roadmap.
 
 ### “O que está implementado e o que ainda falta?”
 
-> Estão implementados o modelo de domínio, persistência PostgreSQL, CRUDs de Buildings, Floors, AccessPoints, Users, Cards e Permissions, decisão de acesso com auditoria, e login JWT com autorização por papéis. No frontend comecei o formulário Angular de login ligado à API, guarda de rota e interceptor. Ainda faltam os CRUDs e dashboard operacionais, ocupação, SignalR, processamento em background e Docker/CI/Kubernetes.
+> Estão implementados o modelo de domínio, persistência PostgreSQL, CRUDs de Buildings, Floors, AccessPoints, Users, Cards e Permissions, decisão de acesso com auditoria, e login JWT com autorização por papéis. No frontend, o dashboard mostra os dez `AccessEvent`s mais recentes e totais concedidos/negados do histórico devolvido pela API; Admin também vê contagens de Buildings, Floors e AccessPoints. A rota de gestão Admin-only oferece CRUD de Buildings, Floors e AccessPoints. Ainda faltam as UIs de Users, AccessCards e AccessPermissions, testes frontend automatizados, ocupação e SignalR. A Fase 7 continua em desenvolvimento.
 
 ## Angular e UX
 
@@ -246,7 +246,7 @@ Use STAR: situação, tarefa, ação e resultado. Explique como reproduziu, que 
 - “Route guards improve navigation, but authorization must be enforced by the backend.”
 - “The API returns Problem Details so clients receive a consistent error format.”
 - “I reproduce the issue, inspect the network request, isolate the failing layer, and add a regression test.”
-- “I have started an Angular client with a JWT login flow, a protected dashboard route, and an HTTP interceptor. The operational dashboard and CRUD screens are still in progress.”
+- “The Angular client has a JWT login flow, an event-history dashboard, and Admin CRUD screens for buildings, floors, and access points. User/card/permission screens, frontend automated tests, occupancy, and SignalR are still missing, so Phase 7 is in progress.”
 
 ## Revisão de Véspera
 

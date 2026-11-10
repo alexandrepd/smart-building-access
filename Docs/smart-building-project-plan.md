@@ -2456,9 +2456,25 @@ Frontend consegue operar o sistema principal.
 A aplicação Angular standalone foi criada em `src/smart-building-web`, com
 rotas, formulário de login integrado em `POST /api/auth/login`, guarda da rota
 do painel e interceptor Bearer. A sessão local usa `sessionStorage` e respeita
-`expiresAt`. O painel é apenas inicial; CRUD, dados do dashboard, estados de
-administração e restantes operações ainda não estão implementados. A fase
-permanece em desenvolvimento.
+`expiresAt`.
+
+**Implementado:** o dashboard consulta o histórico real de `AccessEvent`,
+apresenta os totais concedidos e negados do histórico carregado e os 10 eventos
+mais recentes. Apenas o papel `Admin` vê também contagens de edifícios, pisos e
+pontos de acesso. A rota `/management` é
+protegida para `Admin` por guard Angular e pelas policies já aplicadas na API;
+inclui formulários reativos de criar, consultar, atualizar e remover
+`Buildings`, `Floors` e `AccessPoints`, com seletores das relações, estado
+ativo e suporte a entrada/saída nos pontos de acesso. O build de produção
+`cd src/smart-building-web && npm run build` passa.
+
+**Ainda por implementar nesta fase:** interfaces de gestão de Users, Access
+Cards e Access Permissions, bem como testes frontend automatizados. Os
+SecurityOperators veem eventos, mas não contagens administrativas nem a rota
+de gestão. Ocupação e atualizações em tempo real com SignalR pertencem às fases
+seguintes e não fazem parte desta implementação. A Fase 7 permanece em
+desenvolvimento: o seu Definition of Done — operar o sistema principal pelo
+frontend — ainda não foi atingido.
 
 ---
 
