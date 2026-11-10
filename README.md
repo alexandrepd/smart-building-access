@@ -71,4 +71,5 @@ docker compose up --build
 Para gerar `AUTHENTICATION_SIGNING_KEY`, use `openssl rand -base64 48`. Nunca
 adicione o ficheiro `.env` ao Git. Para parar os serviços, execute
 `docker compose down`; acrescente `--volumes` apenas quando quiser eliminar os
-dados locais do PostgreSQL.
+dados locais do PostgreSQL. O volume segue o layout exigido pela imagem oficial
+do PostgreSQL 18, que guarda os dados numa subpasta versionada.
