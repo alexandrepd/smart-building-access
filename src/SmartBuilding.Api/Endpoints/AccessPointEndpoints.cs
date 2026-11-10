@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using SmartBuilding.Api.Contracts.AccessPoints;
+using SmartBuilding.Api.Security;
 using SmartBuilding.Application.AccessPoints;
 
 namespace SmartBuilding.Api.Endpoints;
@@ -10,7 +11,8 @@ internal static class AccessPointEndpoints
         this IEndpointRouteBuilder endpoints)
     {
         RouteGroupBuilder group = endpoints.MapGroup("/api/access-points")
-            .WithTags("Access Points");
+            .WithTags("Access Points")
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         group.MapGet("/", GetAllAsync)
             .WithName("GetAccessPoints")

@@ -386,6 +386,14 @@ namespace SmartBuilding.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("password_hash");
 
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("SecurityOperator")
+                        .HasColumnName("role");
+
                     b.HasKey("Id")
                         .HasName("pk_users");
 

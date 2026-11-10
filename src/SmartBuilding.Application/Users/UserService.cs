@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using SmartBuilding.Application.Common;
 using SmartBuilding.Domain.Entities;
+using SmartBuilding.Domain.Enums;
 
 namespace SmartBuilding.Application.Users;
 
@@ -65,6 +66,24 @@ public sealed class UserService(
         return repository.DeleteAsync(id, cancellationToken);
     }
 
+    public async Task<UserRoleUpdateResult> UpdateRoleAsync(
+        Guid id,
+        UserRole role,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.IsDefined(role))
+        {
+            throw new ApplicationValidationException(nameof(role), "User role is invalid.");
+        }
+
+        UserRoleUpdateResult result = await repository.UpdateRoleAsync(
+            id,
+            role,
+            cancellationToken);
+
+        return result;
+    }
+
     private static UserSaveResult ToSaveResult(UserPersistenceResult result)
     {
         return result.Status switch
@@ -78,7 +97,13 @@ public sealed class UserService(
 
     private static UserDto ToDto(User user)
     {
-        return new UserDto(user.Id, user.Name, user.Email, user.IsActive, user.CreatedAt);
+        return new UserDto(
+            user.Id,
+            user.Name,
+            user.Email,
+            user.IsActive,
+            user.CreatedAt,
+            user.Role);
     }
 
     private static string NormalizeEmail(string email)

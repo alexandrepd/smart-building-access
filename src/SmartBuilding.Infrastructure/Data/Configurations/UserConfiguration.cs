@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SmartBuilding.Domain.Entities;
+using SmartBuilding.Domain.Enums;
 
 namespace SmartBuilding.Infrastructure.Data.Configurations;
 
@@ -22,6 +23,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired();
         builder.Property(user => user.CreatedAt)
             .HasColumnType("timestamp with time zone");
+        builder.Property(user => user.Role)
+            .HasMaxLength(50)
+            .HasConversion<string>()
+            .HasDefaultValue(UserRole.SecurityOperator)
+            .IsRequired();
 
         builder.HasIndex(user => user.Email)
             .IsUnique();

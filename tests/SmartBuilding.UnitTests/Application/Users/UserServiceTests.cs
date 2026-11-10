@@ -1,6 +1,7 @@
 using SmartBuilding.Application.Common;
 using SmartBuilding.Application.Users;
 using SmartBuilding.Domain.Entities;
+using SmartBuilding.Domain.Enums;
 
 namespace SmartBuilding.UnitTests.Application.Users;
 
@@ -179,6 +180,20 @@ public class UserServiceTests
     }
 
     [Fact]
+    public async Task DeleteAsync_LastAdministrator_ReturnsConflictStatus()
+    {
+        var repository = new FakeUserRepository
+        {
+            DeleteResult = DeleteUserResult.LastAdministrator
+        };
+        var service = new UserService(repository, new FakePasswordHashService());
+
+        DeleteUserResult result = await service.DeleteAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.Equal(DeleteUserResult.LastAdministrator, result);
+    }
+
+    [Fact]
     public async Task CreateAsync_WhitespaceName_ThrowsValidationException()
     {
         var service = new UserService(new FakeUserRepository(), new FakePasswordHashService());
@@ -235,6 +250,11 @@ public class UserServiceTests
             PasswordReceived = password;
             return $"hashed:{password}";
         }
+
+        public bool VerifyPassword(string? passwordHash, string password)
+        {
+            return passwordHash == $"hashed:{password}";
+        }
     }
 
     private sealed class FakeUserRepository(params User[] users) : IUserRepository
@@ -257,6 +277,11 @@ public class UserServiceTests
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
         {
             return Task.FromResult(users.SingleOrDefault(user => user.Id == id));
+        }
+
+        public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(users.SingleOrDefault(user => user.Email == email));
         }
 
         public Task<UserPersistenceResult> CreateAsync(
@@ -309,6 +334,28 @@ public class UserServiceTests
         public Task<DeleteUserResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
         {
             return Task.FromResult(DeleteResult);
+        }
+
+        public Task<UserRoleUpdateResult> UpdateRoleAsync(
+            Guid id,
+            UserRole role,
+            CancellationToken cancellationToken)
+        {
+            User? user = users.SingleOrDefault(user => user.Id == id);
+            if (user is null)
+            {
+                return Task.FromResult(UserRoleUpdateResult.MissingUser());
+            }
+
+            user.Role = role;
+            return Task.FromResult(UserRoleUpdateResult.Succeeded(
+                new UserDto(
+                    user.Id,
+                    user.Name,
+                    user.Email,
+                    user.IsActive,
+                    user.CreatedAt,
+                    user.Role)));
         }
     }
 }

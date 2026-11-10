@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using SmartBuilding.Api.Contracts.Users;
 using SmartBuilding.Application.Users;
+using SmartBuilding.Domain.Enums;
 
 namespace SmartBuilding.Api.Endpoints;
 
@@ -9,7 +10,8 @@ internal static class UserEndpoints
     internal static IEndpointRouteBuilder MapUserEndpoints(this IEndpointRouteBuilder endpoints)
     {
         RouteGroupBuilder group = endpoints.MapGroup("/api/users")
-            .WithTags("Users");
+            .WithTags("Users")
+            .RequireAuthorization("AdminOnly");
 
         group.MapGet("/", GetAllAsync)
             .WithName("GetUsers")
@@ -32,6 +34,14 @@ internal static class UserEndpoints
         group.MapPut("/{id:guid}", UpdateAsync)
             .WithName("UpdateUser")
             .WithSummary("Replace a user's profile and active state")
+            .Produces<UserResponse>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPut("/{id:guid}/role", UpdateRoleAsync)
+            .WithName("UpdateUserRole")
+            .WithSummary("Assign a role to a user")
             .Produces<UserResponse>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -121,7 +131,36 @@ internal static class UserEndpoints
                 title: "User cannot be deleted.",
                 detail: "Remove or reassign the user's cards, permissions, and occupancy sessions first.",
                 statusCode: StatusCodes.Status409Conflict),
+            DeleteUserResult.LastAdministrator => TypedResults.Problem(
+                title: "The last administrator cannot be deleted.",
+                statusCode: StatusCodes.Status409Conflict),
             _ => throw new InvalidOperationException($"Unsupported user delete result: {result}.")
+        };
+    }
+
+    private static async Task<Results<Ok<UserResponse>, ProblemHttpResult>> UpdateRoleAsync(
+        Guid id,
+        UpdateUserRoleRequest request,
+        IUserService service,
+        CancellationToken cancellationToken)
+    {
+        UserRoleUpdateResult result = await service.UpdateRoleAsync(
+            id,
+            request.Role,
+            cancellationToken);
+
+        return result.Status switch
+        {
+            UserRoleUpdateStatus.Success =>
+                TypedResults.Ok(UserResponse.FromDto(result.User!)),
+            UserRoleUpdateStatus.UserNotFound => TypedResults.Problem(
+                title: "User not found.",
+                statusCode: StatusCodes.Status404NotFound),
+            UserRoleUpdateStatus.LastAdministrator => TypedResults.Problem(
+                title: "The last administrator cannot be demoted.",
+                statusCode: StatusCodes.Status409Conflict),
+            _ => throw new InvalidOperationException(
+                $"Unsupported user role update result: {result.Status}.")
         };
     }
 

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SmartBuilding.Application.Users;
 using SmartBuilding.Domain.Entities;
+using SmartBuilding.Domain.Enums;
 
 namespace SmartBuilding.Infrastructure.Data.Repositories;
 
@@ -25,6 +26,13 @@ public sealed class UserRepository(SmartBuildingDbContext dbContext) : IUserRepo
         return dbContext.Users
             .AsNoTracking()
             .SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
+    }
+
+    public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        return dbContext.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(user => user.Email == email, cancellationToken);
     }
 
     public async Task<UserPersistenceResult> CreateAsync(
@@ -72,12 +80,29 @@ public sealed class UserRepository(SmartBuildingDbContext dbContext) : IUserRepo
         Guid id,
         CancellationToken cancellationToken)
     {
+        await using var transaction =
+            await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "SELECT pg_advisory_xact_lock(1937003)",
+            cancellationToken);
+
         User? user = await dbContext.Users
             .SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
 
         if (user is null)
         {
             return DeleteUserResult.NotFound;
+        }
+
+        if (user.Role == UserRole.Admin)
+        {
+            int administratorCount = await dbContext.Users
+                .CountAsync(candidate => candidate.Role == UserRole.Admin, cancellationToken);
+
+            if (administratorCount <= 1)
+            {
+                return DeleteUserResult.LastAdministrator;
+            }
         }
 
         bool hasDependents = await dbContext.AccessCards
@@ -96,6 +121,7 @@ public sealed class UserRepository(SmartBuildingDbContext dbContext) : IUserRepo
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             return DeleteUserResult.Deleted;
         }
         catch (DbUpdateException exception)
@@ -109,6 +135,48 @@ public sealed class UserRepository(SmartBuildingDbContext dbContext) : IUserRepo
             dbContext.Entry(user).State = EntityState.Detached;
             return DeleteUserResult.NotFound;
         }
+    }
+
+    public async Task<UserRoleUpdateResult> UpdateRoleAsync(
+        Guid id,
+        UserRole role,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "SELECT pg_advisory_xact_lock(1937003)",
+            cancellationToken);
+
+        User? user = await dbContext.Users
+            .SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
+
+        if (user is null)
+        {
+            return UserRoleUpdateResult.MissingUser();
+        }
+
+        if (user.Role == UserRole.Admin && role != UserRole.Admin)
+        {
+            int administratorCount = await dbContext.Users
+                .CountAsync(candidate => candidate.Role == UserRole.Admin, cancellationToken);
+
+            if (administratorCount <= 1)
+            {
+                return UserRoleUpdateResult.LastAdministratorConflict();
+            }
+        }
+
+        user.Role = role;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return UserRoleUpdateResult.Succeeded(new UserDto(
+            user.Id,
+            user.Name,
+            user.Email,
+            user.IsActive,
+            user.CreatedAt,
+            user.Role));
     }
 
     private async Task<UserPersistenceResult> SaveAsync(

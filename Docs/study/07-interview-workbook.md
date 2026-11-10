@@ -15,7 +15,7 @@ Evite decorar parágrafos inteiros. Memorize a estrutura da resposta.
 
 Modelo de resposta:
 
-> Estou a construir uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Os CRUDs administrativos de Buildings, Floors, AccessPoints, Users, AccessCards e AccessPermissions estão implementados. Na branch `feat/access-control`, implementei `POST /api/access/requests` e as duas consultas de AccessEvent: decisões processadas retornam `200` com resultado concedido ou negado e são auditadas para AccessPoints existentes; requests inválidos retornam `400` e AccessPoints desconhecidos `404`. Os testes unitários de Application cobrem a ordem de decisão e a auditoria, mas ainda falta cobertura automatizada de integração HTTP/PostgreSQL. Atualização de OccupancySession, alertas, SignalR, autenticação, autorização, Angular, Docker da aplicação, CI/CD e Kubernetes continuam futuros.
+> Estou a desenvolver uma plataforma de controlo de acessos e ocupação com .NET 10, ASP.NET Core, PostgreSQL e EF Core. Separei Domain, Application, Infrastructure e API para manter regras independentes de frameworks. Estão implementados CRUDs administrativos, decisão e auditoria de `AccessEvent`, login JWT e policies por papel: `Admin` administra os recursos e `Admin`/`SecurityOperator` operam Access Control. A migration `AddUserRole` existe, mas fora de Development a equipa de deployment deve aplicá-la antes de iniciar a versão. Atualização de `OccupancySession`, alertas, SignalR e frontend Angular continuam futuros; refresh/revogação, MFA e provedor externo também não estão implementados.
 
 Não diga que uma tecnologia está implementada quando está apenas no roadmap.
 
@@ -222,7 +222,7 @@ Prepare histórias sobre:
 
 Uma história técnica disponível nesta branch é a proteção em duas camadas do delete: consulta antecipada para o fluxo comum e constraint FK para concorrência. Em `Floors`, a mesma estratégia cobre pontos de acesso e sessões de ocupação, enquanto a FK do edifício pai produz um resultado distinto. Num PostgreSQL real, o smoke confirmou `404` para pai ausente, `409` para conflito, `204` para delete e `204` para a limpeza final.
 
-No slice de Users, o hash Identity mantém password fora da response e a atualização não troca credenciais; a remoção bloqueia cartões, permissões e sessões, mas mantém `AccessEvent` com `UserId` nulo. O atributo HTTP aceita whitespace externo no email para validação e a Application o canonicaliza. A verificação da password correta/incorreta foi testada na primitiva Identity, mas login e verificação de credenciais no fluxo da aplicação ainda não foram implementados.
+No slice de Users, o hash Identity mantém password fora da response e a atualização não troca credenciais; a remoção bloqueia cartões, permissões e sessões, mas mantém `AccessEvent` com `UserId` nulo. O atributo HTTP aceita whitespace externo no email para validação e a Application o canonicaliza. O login e verificação de credenciais estão implementados em `AuthenticationService`; testes da primitiva Identity não devem ser confundidos com o teste do caso de uso completo.
 
 Em `AccessPoints`, essa defesa também cobre `AccessPermissions`, `AccessEvents` e `SecurityAlerts`; a FK de `FloorId` retorna resultado distinto para piso inexistente. O smoke manual confirmou a sequência CRUD, `404` para pai ausente, `409` com evento dependente e `204` após limpar o evento.
 

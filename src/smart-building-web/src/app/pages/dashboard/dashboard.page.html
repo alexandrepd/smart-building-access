@@ -1,0 +1,29 @@
+<main class="dashboard-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/dashboard" aria-label="Smart Building Access, início">
+      <span class="brand-mark"><i></i><i></i><i></i></span>
+      <span>SMART<span>BUILDING</span></span>
+    </a>
+    <div class="account">
+      <div class="avatar">{{ session?.name?.charAt(0) ?? 'U' }}</div>
+      <div class="account-copy"><strong>{{ session?.name }}</strong><span>{{ session?.role }}</span></div>
+      <button type="button" (click)="auth.logout()">Terminar sessão</button>
+    </div>
+  </header>
+  <section class="dashboard-content">
+    <p class="eyebrow">VISÃO GERAL</p>
+    <h1>Olá, {{ session?.name?.split(' ')?.[0] }}.</h1>
+    <p class="intro">Bem-vindo ao painel de operações do edifício.</p>
+    <div class="status-card">
+      <span class="status-icon">✓</span>
+      <div><strong>Sessão iniciada com sucesso</strong><p>A autenticação está ligada à API Smart Building.</p></div>
+      <span class="role-pill">{{ session?.role }}</span>
+    </div>
+    <div class="coming-soon"><span class="coming-line"></span><p>PRÓXIMOS MÓDULOS</p></div>
+    <div class="module-grid">
+      <article><span class="module-number">01</span><h2>Edifícios</h2><p>Edifícios, pisos e pontos de acesso.</p><span class="module-state">A SEGUIR</span></article>
+      <article><span class="module-number">02</span><h2>Cartões e permissões</h2><p>Credenciais e regras de acesso.</p><span class="module-state">PLANEADO</span></article>
+      <article><span class="module-number">03</span><h2>Atividade</h2><p>Eventos de acesso e ocupação.</p><span class="module-state">PLANEADO</span></article>
+    </div>
+  </section>
+</main>

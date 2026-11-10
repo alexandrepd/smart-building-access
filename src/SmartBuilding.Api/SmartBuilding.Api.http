@@ -5,17 +5,35 @@ Accept: application/json
 
 ###
 
+# @name login
+# Replace these values with the credentials used to bootstrap the first Admin.
+POST {{SmartBuilding.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+	"email": "admin@example.invalid",
+	"password": "replace-with-bootstrap-password"
+}
+
+###
+
+@accessToken = {{login.response.body.accessToken}}
+
+# Every request below this point uses the bearer token from the login response.
 GET {{SmartBuilding.Api_HostAddress}}/api/buildings
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 GET {{SmartBuilding.Api_HostAddress}}/api/buildings/10000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 POST {{SmartBuilding.Api_HostAddress}}/api/buildings
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -26,6 +44,7 @@ Content-Type: application/json
 ###
 
 PUT {{SmartBuilding.Api_HostAddress}}/api/buildings/10000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -38,17 +57,20 @@ Content-Type: application/json
 
 # Returns 409 because the seeded building contains a floor.
 DELETE {{SmartBuilding.Api_HostAddress}}/api/buildings/10000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 
 ###
 
 # Returns 404 for an unknown building.
 GET {{SmartBuilding.Api_HostAddress}}/api/buildings/00000000-0000-0000-0000-000000000099
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 # Returns 400 validation problem details.
 POST {{SmartBuilding.Api_HostAddress}}/api/buildings
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -59,16 +81,19 @@ Content-Type: application/json
 ###
 
 GET {{SmartBuilding.Api_HostAddress}}/api/floors
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 GET {{SmartBuilding.Api_HostAddress}}/api/floors/20000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 POST {{SmartBuilding.Api_HostAddress}}/api/floors
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -80,6 +105,7 @@ Content-Type: application/json
 ###
 
 PUT {{SmartBuilding.Api_HostAddress}}/api/floors/20000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -93,11 +119,13 @@ Content-Type: application/json
 
 # Returns 409 because the seeded floor contains an access point.
 DELETE {{SmartBuilding.Api_HostAddress}}/api/floors/20000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 
 ###
 
 # Returns 404 because the parent building does not exist.
 POST {{SmartBuilding.Api_HostAddress}}/api/floors
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -109,16 +137,19 @@ Content-Type: application/json
 ###
 
 GET {{SmartBuilding.Api_HostAddress}}/api/access-points
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 GET {{SmartBuilding.Api_HostAddress}}/api/access-points/30000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 POST {{SmartBuilding.Api_HostAddress}}/api/access-points
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -132,6 +163,7 @@ Content-Type: application/json
 ###
 
 PUT {{SmartBuilding.Api_HostAddress}}/api/access-points/30000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -147,11 +179,13 @@ Content-Type: application/json
 
 # Returns 204 because the seeded point has no dependent events, permissions, or alerts.
 DELETE {{SmartBuilding.Api_HostAddress}}/api/access-points/30000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 
 ###
 
 # Returns 404 because the parent floor does not exist.
 POST {{SmartBuilding.Api_HostAddress}}/api/access-points
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -165,11 +199,24 @@ Content-Type: application/json
 ###
 
 GET {{SmartBuilding.Api_HostAddress}}/api/users
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
+# Use an existing user ID. Only an administrator can change roles.
+PUT {{SmartBuilding.Api_HostAddress}}/api/users/00000000-0000-0000-0000-000000000001/role
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+	"role": "SecurityOperator"
+}
+
+###
+
 POST {{SmartBuilding.Api_HostAddress}}/api/users
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -181,11 +228,13 @@ Content-Type: application/json
 ###
 
 GET {{SmartBuilding.Api_HostAddress}}/api/users/00000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 PUT {{SmartBuilding.Api_HostAddress}}/api/users/00000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -198,16 +247,19 @@ Content-Type: application/json
 
 # Returns 409 while cards, permissions, or occupancy sessions reference the user.
 DELETE {{SmartBuilding.Api_HostAddress}}/api/users/00000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 
 ###
 
 GET {{SmartBuilding.Api_HostAddress}}/api/cards
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 # Create a user first and replace userId with the ID returned by POST /api/users.
 POST {{SmartBuilding.Api_HostAddress}}/api/cards
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -220,11 +272,13 @@ Content-Type: application/json
 
 # Replace the ID below with the ID returned by POST /api/cards.
 GET {{SmartBuilding.Api_HostAddress}}/api/cards/00000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 PUT {{SmartBuilding.Api_HostAddress}}/api/cards/00000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -236,20 +290,24 @@ Content-Type: application/json
 ###
 
 POST {{SmartBuilding.Api_HostAddress}}/api/cards/00000000-0000-0000-0000-000000000001/activate
+Authorization: Bearer {{accessToken}}
 
 ###
 
 POST {{SmartBuilding.Api_HostAddress}}/api/cards/00000000-0000-0000-0000-000000000001/deactivate
+Authorization: Bearer {{accessToken}}
 
 ###
 
 GET {{SmartBuilding.Api_HostAddress}}/api/permissions
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 # Create the user first; the seeded access point has this ID.
 POST {{SmartBuilding.Api_HostAddress}}/api/permissions
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -263,11 +321,13 @@ Content-Type: application/json
 
 # Replace the ID below with the ID returned by POST /api/permissions.
 GET {{SmartBuilding.Api_HostAddress}}/api/permissions/00000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 PUT {{SmartBuilding.Api_HostAddress}}/api/permissions/00000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -281,11 +341,13 @@ Content-Type: application/json
 ###
 
 DELETE {{SmartBuilding.Api_HostAddress}}/api/permissions/00000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 
 ###
 
 # Create a user, card, and valid permission first. The seeded access point supports both directions.
 POST {{SmartBuilding.Api_HostAddress}}/api/access/requests
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -298,18 +360,21 @@ Content-Type: application/json
 
 # Returns the latest access decisions, including granted and denied requests.
 GET {{SmartBuilding.Api_HostAddress}}/api/access/events
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 # Replace the ID with the event ID returned by POST /api/access/requests.
 GET {{SmartBuilding.Api_HostAddress}}/api/access/events/00000000-0000-0000-0000-000000000001
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
 
 # Unknown access points cannot be audited because events require a valid access point.
 POST {{SmartBuilding.Api_HostAddress}}/api/access/requests
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {

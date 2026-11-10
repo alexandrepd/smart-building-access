@@ -1,4 +1,5 @@
 using SmartBuilding.Domain.Entities;
+using SmartBuilding.Domain.Enums;
 
 namespace SmartBuilding.Application.Users;
 
@@ -7,6 +8,8 @@ public interface IUserRepository
     Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken);
 
     Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken);
 
     Task<UserPersistenceResult> CreateAsync(
         string name,
@@ -22,4 +25,9 @@ public interface IUserRepository
         CancellationToken cancellationToken);
 
     Task<DeleteUserResult> DeleteAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<UserRoleUpdateResult> UpdateRoleAsync(
+        Guid id,
+        UserRole role,
+        CancellationToken cancellationToken);
 }

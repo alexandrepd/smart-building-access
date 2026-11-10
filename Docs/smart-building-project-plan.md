@@ -2409,9 +2409,12 @@ AccessPoint desconhecido retorna `404` sem evento porque `AccessEvent` exige
 FK válida. A ordem das condições e os limites do escopo estão descritos em
 [Camada API](api-layer.md) e [Camada Application](application-layer.md).
 
-Este estado não antecipa as fases seguintes: atualização de
-`OccupancySession`, notificações SignalR, processamento de alertas,
-autenticação e autorização permanecem futuros.
+Nesta branch, a autenticação e autorização JWT da Fase 6 estão implementadas.
+O frontend Angular também já tem o fluxo inicial de login, guarda da rota do
+painel e interceptor Bearer. Continuam por implementar os CRUDs e o dashboard
+operacional, atualização de `OccupancySession`, notificações SignalR e
+processamento de alertas; a ordem e o escopo das fases seguintes permanecem
+conforme este plano.
 
 ---
 
@@ -2447,6 +2450,15 @@ Implementar:
 Definition of Done:
 
 Frontend consegue operar o sistema principal.
+
+### Estado atual
+
+A aplicação Angular standalone foi criada em `src/smart-building-web`, com
+rotas, formulário de login integrado em `POST /api/auth/login`, guarda da rota
+do painel e interceptor Bearer. A sessão local usa `sessionStorage` e respeita
+`expiresAt`. O painel é apenas inicial; CRUD, dados do dashboard, estados de
+administração e restantes operações ainda não estão implementados. A fase
+permanece em desenvolvimento.
 
 ---
 

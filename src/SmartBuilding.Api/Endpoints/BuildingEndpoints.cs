@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using SmartBuilding.Api.Contracts.Buildings;
+using SmartBuilding.Api.Security;
 using SmartBuilding.Application.Buildings;
 
 namespace SmartBuilding.Api.Endpoints;
@@ -10,7 +11,8 @@ internal static class BuildingEndpoints
     internal static IEndpointRouteBuilder MapBuildingEndpoints(this IEndpointRouteBuilder endpoints)
     {
         RouteGroupBuilder group = endpoints.MapGroup("/api/buildings")
-            .WithTags("Buildings");
+            .WithTags("Buildings")
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         group.MapGet("/", GetAllAsync)
             .WithName("GetBuildings")

@@ -32,6 +32,9 @@ Já existem:
 - `AccessControlRepository` para carregar o contexto da decisão e criar/listar/consultar `AccessEvent`s;
 - `UserRepository` com operações CRUD assíncronas e tratamento de email duplicado;
 - `IdentityPasswordHashService` com `PasswordHasher<User>` do ASP.NET Core Identity;
+- migration `AddUserRole`, que adiciona o papel obrigatório e atribui `SecurityOperator` por omissão aos Users existentes;
+- `BootstrapAdminSeeder` para garantir o primeiro Admin com credenciais fornecidas por configuração segura;
+- serialização das alterações de papel, bootstrap e exclusão de Users com advisory lock, impedindo rebaixar ou excluir o último Admin;
 - consultas de `AccessPermission` com `AsNoTracking` e tradução das FKs de User e AccessPoint para resultados explícitos;
 - consultas de `AccessPoint` com `AsNoTracking`;
 - validação da FK específica `FloorId` na criação e atualização;
@@ -43,7 +46,7 @@ Ainda não existem:
 
 - projeto automatizado de testes de integração com PostgreSQL;
 - implementação de `OccupancySession`/`SecurityAlert` ou publicação SignalR;
-- autenticação e autorização.
+- emissão e validação de JWT ou aplicação de policies (responsabilidade da API).
 
 ## Dependências
 
@@ -224,7 +227,7 @@ Os repositórios dos demais recursos continuam planejados.
 
 O delete consulta `AccessCards`, `AccessPermissions` e `OccupancySessions` e retorna conflito quando há dependentes. As FKs `Restrict` são a proteção final para inserções concorrentes; violações das três constraints conhecidas também viram `HasDependents`, e a entidade é destacada do change tracker. `AccessEvents` não bloqueia o delete: `AccessEvent.UserId` é opcional e seu relacionamento usa `DeleteBehavior.SetNull`, preservando o registo de auditoria com `user_id` nulo.
 
-`IdentityPasswordHashService` implementa `IPasswordHashService` com `Microsoft.AspNetCore.Identity.PasswordHasher<User>`. O serviço persiste apenas o resultado de `HashPassword`; o formato inclui salt aleatório, portanto hashes da mesma password não são iguais. Testes exercitam `VerifyHashedPassword` com password correta e incorreta para verificar essa primitiva. Isso não implementa verificação de credenciais num caso de uso nem login: ambos permanecem planejados.
+`IdentityPasswordHashService` implementa `IPasswordHashService` com `Microsoft.AspNetCore.Identity.PasswordHasher<User>`. O serviço persiste apenas o resultado de `HashPassword`; o formato inclui salt aleatório, portanto hashes da mesma password não são iguais. Testes exercitam `VerifyHashedPassword` com password correta e incorreta para verificar essa primitiva. O login implementado usa essa abstração no `AuthenticationService`; a Infrastructure não implementa o caso de uso nem a emissão de JWT, que pertencem à Application e à API, respetivamente.
 
 ## Migrations
 
@@ -265,6 +268,13 @@ dotnet user-secrets set \
 
 Em `Development`, `InitializeDevelopmentDatabaseAsync` cria um scope, executa `MigrateAsync` e só depois chama `DevelopmentDataSeeder`. Fora de `Development`, a API não aplica migrations nem executa esse seed automaticamente.
 
+A migration `AddUserRole` adiciona a coluna `users.role` com valor default
+`SecurityOperator`, preservando os Users que já existiam. Em produção e nos
+outros ambientes não-Development, a equipa de deployment é responsável por
+aplicar a migration antes de executar a nova versão da API. O bootstrap do
+Admin é executado pelo host da API, não pelo seed de desenvolvimento; consulte
+[Autenticação e autorização](authentication-authorization.md).
+
 ## Seed
 
 O seed de desenvolvimento é determinístico e mínimo. GUIDs fixos identificam:
@@ -287,7 +297,7 @@ Antes de inserir cada registo, o seeder consulta o respetivo GUID. Por isso, rei
 
 `DependencyInjectionTests` resolve o contexto em dois scopes e verifica a mesma instância dentro de um scope e instâncias diferentes entre scopes. Também confirma o provider Npgsql, a coluna `access_point_id` em `snake_case` e a rejeição de connection string vazia ou composta apenas por espaços.
 
-`IdentityPasswordHashServiceTests` verifica que o hash não é texto puro, duas codificações da mesma password diferem por causa do salt, `VerifyHashedPassword` aceita a password correta e rejeita uma incorreta. Estes testes cobrem a primitiva de hashing/verificação do Identity, não autenticação ou login da aplicação.
+`IdentityPasswordHashServiceTests` verifica que o hash não é texto puro, duas codificações da mesma password diferem por causa do salt, `VerifyPassword` aceita a password correta e rejeita uma incorreta ou hash ausente. Os cenários de login da aplicação são cobertos separadamente por `AuthenticationServiceTests`.
 
 Também foi feita uma validação manual contra PostgreSQL 18 real num container Docker descartável, exposto apenas em `55432`. Além da migration e do seed, o smoke test do slice de `Buildings` observou, em sequência, os status `200/201/200/200/204/404/400/409`. As respostas `404`, `400` e `409` usaram content type `application/problem+json`.
 

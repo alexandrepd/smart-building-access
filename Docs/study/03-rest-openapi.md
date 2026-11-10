@@ -40,7 +40,7 @@ Uma response contém:
 - headers;
 - body opcional.
 
-Exemplo planejado para controlo de acesso:
+Exemplo de controlo de acesso: esta rota está protegida por uma policy de papel.
 
 ```http
 POST /api/access/requests
@@ -56,9 +56,10 @@ Authorization: Bearer <token>
 
 ## Exemplo do projeto: decisão de acesso e auditoria
 
-> O exemplo HTTP anterior representa um cliente autenticado previsto para uma
-> fase futura. Hoje, `POST /api/access/requests` está implementado sem
-> autenticação; não envie nem dependa de um token neste fluxo atual.
+> O login JWT e a policy de acesso estão implementados. Antes de chamar
+> `POST /api/access/requests`, obtenha um token em `POST /api/auth/login` e
+> envie-o no header de autorização pelo esquema Bearer. A policy aceita
+> `Admin` e `SecurityOperator`.
 
 ### 1. Analogia simples
 
@@ -70,7 +71,8 @@ válido ao qual anexar essa anotação.
 
 ### 2. Definição técnica
 
-`POST /api/access/requests` é um endpoint de comando: recebe `cardNumber`,
+`POST /api/access/requests` é um endpoint de comando protegido pela policy
+`AccessOperations` (papel `Admin` ou `SecurityOperator`): recebe `cardNumber`,
 `accessPointId` e `direction`, executa a decisão e grava um `AccessEvent`.
 Quando a decisão foi processada para AccessPoint conhecido, retorna `200 OK`
 tanto para conceder como para negar; o consumidor verifica `result` e
@@ -120,10 +122,10 @@ AccessPoint válido gera `200` e um evento com `result: "CardNotFound"` e
 evento. Eventos podem ser lidos pelas duas rotas GET. Falhas de validação não
 são decisões negadas e não criam evento.
 
-O fluxo implementado ainda não atualiza `OccupancySession`, publica
-notificações SignalR, processa alertas ou autentica/autoriza o chamador.
-Esses pontos pertencem a fases posteriores; o endpoint não deve ser descrito
-como protegido ou como fonte de estado de ocupação.
+O fluxo implementado exige autenticação/autorização, mas ainda não atualiza
+`OccupancySession`, publica notificações SignalR ou processa alertas. A
+identidade do chamador não substitui a decisão baseada no cartão, AccessPoint
+e permissão.
 
 ### 4. Resposta de entrevista
 
@@ -133,8 +135,8 @@ como protegido ou como fonte de estado de ocupação.
 > concessão ou negação, porque ambas são decisões válidas do domínio; `400`
 > representa request inválido e `404` representa AccessPoint desconhecido,
 > que não pode ser referenciado pela FK do evento. O evento inclui direção,
-> resultado e instante UTC. O fluxo não atualiza ocupação nem autentica o
-> chamador.”
+> resultado e instante UTC. O fluxo não atualiza ocupação; a policy exige
+> papel `Admin` ou `SecurityOperator`.”
 
 ### 5. Exercício prático
 
@@ -296,7 +298,7 @@ O recurso `Floor` segue o mesmo CRUD em `/api/floors`. `POST` retorna `404` quan
 
 Os metadados `.WithName`, `.WithSummary`, `.Produces`, `.ProducesValidationProblem` e `.ProducesProblem` alimentam o documento OpenAPI code-first. `404` e `409` são descritos como Problem Details, enquanto `400` é descrito como Validation Problem Details. O ficheiro `SmartBuilding.Api.http` contém requests manuais para os cenários dos recursos administrativos; também inclui exemplos de listagem, criação, consulta, substituição e mudança de estado de cartões, além de requests do Access Control. O gerenciamento de cartões, a gestão de permissões e a decisão/processamento de pedidos de acesso estão implementados. Consulte a seção de Access Control acima para o contrato e seus limites.
 
-O recurso `Users` também possui CRUD em `/api/users`: listagem e consulta retornam `200`, criação retorna `201` com `Location`, update retorna `200` e delete retorna `204`. Email duplicado na criação ou atualização resulta em `409`; IDs inexistentes em consulta/update/delete resultam em `404`; dados inválidos resultam em `400`. `CreateUserRequest` exige nome de até 200 caracteres, email de até 320 e password de 12 a 128 caracteres. `TrimmedEmailAddressAttribute` valida o email após `Trim`, então whitespace externo é aceito; `UserService` remove-o e canonicaliza para lowercase antes de persistir. `UpdateUserRequest` não inclui password e `UserResponse` nunca inclui password ou hash. Hashing e a primitiva de verificação do Identity estão testados, mas login, verificação de credenciais no fluxo da aplicação, JWT e autorização continuam planejados.
+O recurso `Users` também possui CRUD em `/api/users`, protegido por `AdminOnly`: listagem e consulta retornam `200`, criação retorna `201` com `Location`, update retorna `200` e delete retorna `204`. Email duplicado na criação ou atualização resulta em `409`; IDs inexistentes em consulta/update/delete resultam em `404`; dados inválidos resultam em `400`. `CreateUserRequest` exige nome de até 200 caracteres, email de até 320 e password de 12 a 128 caracteres. `TrimmedEmailAddressAttribute` valida o email após `Trim`, então whitespace externo é aceito; `UserService` remove-o e canonicaliza para lowercase antes de persistir. `UpdateUserRequest` não inclui password e `UserResponse` nunca inclui password ou hash. O caso de uso de login verifica credenciais através do serviço de hash; JWT e autorização por papéis estão implementados nesta branch.
 
 ### AccessCard: HTTP e separação em camadas
 
@@ -310,7 +312,7 @@ O recurso `Users` também possui CRUD em `/api/users`: listagem e consulta retor
 
 **Exercício prático:** use o ficheiro `SmartBuilding.Api.http` para listar, criar, consultar, substituir, ativar e desativar um cartão. Tente um número já existente e um `UserId` desconhecido e identifique os status esperados. Envie `ExpiresAt` com um offset diferente de `Z`, depois consulte a resposta e explique por que o instante permanece igual, embora a representação seja UTC. Desenhe o percurso do request pelas quatro partes (endpoint, serviço, interface do repositório e implementação) e indique em que camada cada status HTTP é escolhido.
 
-O gerenciamento de `AccessCards` está **implementado nesta branch**. A gestão CRUD de permissões e a decisão/processamento do pedido com criação de `AccessEvent` também estão implementados. Isso não significa que a autorização de clientes da API esteja pronta: autenticação, JWT e autorização por papéis, assim como a atualização de `OccupancySession`, continuam futuras.
+O gerenciamento de `AccessCards` está **implementado nesta branch** e protegido por `AdminOnly`. A gestão CRUD de permissões também exige Admin. A decisão/processamento e a criação de `AccessEvent` usam a policy `AccessOperations`, que permite `Admin` ou `SecurityOperator`. A atualização de `OccupancySession` continua futura.
 
 No smoke PostgreSQL, `  Alex@Example.com  ` foi criado com `201` e armazenado como `alex@example.com`; repetição do email retornou `409`. O fluxo também confirmou update `200`, delete `204`, hash persistido e ausência de password/hash na response. Cartões bloqueiam o delete com `409`; `AccessEvent` sobrevive à remoção de User com `UserId` nulo.
 
@@ -318,7 +320,7 @@ No smoke PostgreSQL, `  Alex@Example.com  ` foi criado com `201` e armazenado co
 
 **Analogia simples:** é como o funcionário que mantém a lista de pessoas autorizadas a entrar numa sala. Cadastrar ou corrigir a lista não é o mesmo que verificar, no momento da tentativa, o crachá, o leitor e todas as regras para abrir a porta.
 
-**Definição técnica:** `AccessPermission` é um recurso administrativo que associa um `User` a um `AccessPoint`, com início, fim opcional e estado ativo. A API expõe operações CRUD sobre esse recurso. Separadamente, o caso de uso implementado de Access Control avalia as permissões no momento do pedido e produz um `AccessEvent`.
+**Definição técnica:** `AccessPermission` é um recurso administrativo que associa um `User` a um `AccessPoint`, com início, fim opcional e estado ativo. A API expõe operações CRUD sobre esse recurso, protegidas por `AdminOnly`. Separadamente, o caso de uso implementado de Access Control avalia as permissões no momento do pedido e produz um `AccessEvent`.
 
 **Exemplo do projeto:** em `/api/permissions`, `GET` lista ou consulta por ID (`200`, ou `404` para ID desconhecido); `POST` cria e retorna `201 Created`, body e `Location`; `PUT /{id}` substitui User, AccessPoint, intervalo e `IsActive`, retornando `200`; `DELETE /{id}` retorna `204`, ou `404` se a permissão não existir. No POST e PUT, User ou AccessPoint inexistente também resulta em `404`. Criar não recebe estado ativo e a permissão é criada ativa. Os requests usam `DateTimeOffset`; `ValidFrom` e o `ValidUntil` opcional são normalizados para UTC. Se `ValidUntil` estiver presente, deve ser estritamente posterior a `ValidFrom`; igualdade ou término anterior é inválido (`400`).
 
@@ -326,7 +328,7 @@ No smoke PostgreSQL, `  Alex@Example.com  ` foi criado com `201` e armazenado co
 
 **Exercício prático:** desenhe o caminho endpoint → service → interface de repositório → implementação. Escreva requests para criar uma permissão sem `ValidUntil`, consultar por ID, substituir e desativar via `PUT`, e remover. Preveja os status para User inexistente, AccessPoint inexistente, `ValidUntil == ValidFrom` e ID desconhecido. Depois use dois offsets diferentes que representem o mesmo instante para explicar por que a Application compara instantes e persiste valores UTC. Por fim, explique por que uma permissão criada não significa, por si só, que uma tentativa real será concedida.
 
-A gestão CRUD de `AccessPermission`, a decisão/processamento de acesso e a criação/consulta de `AccessEvent`s estão **implementados nesta branch**. A atualização de `OccupancySession`, alertas, SignalR e autenticação continuam **planejados/não implementados**.
+A gestão CRUD de `AccessPermission`, a decisão/processamento de acesso, a criação/consulta de `AccessEvent`s e a autenticação/autorização JWT estão **implementados nesta branch**. A atualização de `OccupancySession`, alertas e SignalR continuam **planejados/não implementados**.
 
 ### Validar e normalizar email
 
@@ -367,7 +369,7 @@ Antes de versionar, diferencie mudanças compatíveis de breaking changes. Adici
 
 **Por que password só aparece no POST de Users?**
 
-> A password inicial é necessária para criar a credencial, mas é convertida em hash antes de persistir e nunca aparece na response. `PUT /api/users/{id}` altera somente nome, email e estado ativo; assim, uma atualização de perfil não troca silenciosamente a credencial. Fluxo explícito de alteração de password e login ainda estão planejados.
+> A password inicial é necessária para criar a credencial, mas é convertida em hash antes de persistir e nunca aparece na response. `PUT /api/users/{id}` altera somente nome, email e estado ativo; assim, uma atualização de perfil não troca silenciosamente a credencial. O login está implementado separadamente; alteração de password continua não implementada.
 
 **Por que aceitar whitespace externo no email?**
 
@@ -375,4 +377,4 @@ Antes de versionar, diferencie mudanças compatíveis de breaking changes. Adici
 
 ## Exercício
 
-Abra o documento OpenAPI em Development e compare as cinco operações de `/api/access-points` com `SmartBuilding.Api.http`. Explique o body, `Location`, status e content type de cada cenário. Trace como sucesso, `FloorNotFound` e dependentes se tornam respostas HTTP e por que o delete bloqueado usa `409`. Para Users, envie um email com whitespace externo e explique a diferença entre validação do formato e normalização; descreva como o teste de hash com password errada difere de um login, que ainda não existe. Depois especifique em papel o futuro `POST /api/access/requests`, incluindo autenticação, retry e idempotência, sem descrevê-lo como implementado.
+Abra o documento OpenAPI em Development e compare as cinco operações de `/api/access-points` com `SmartBuilding.Api.http`. Explique o body, `Location`, status e content type de cada cenário. Trace como sucesso, `FloorNotFound` e dependentes se tornam respostas HTTP e por que o delete bloqueado usa `409`. Para Users, envie um email com whitespace externo e explique a diferença entre validação do formato e normalização; diferencie o teste da primitiva de hash do caso de uso implementado em `POST /api/auth/login`. Identifique que os pedidos de Access Control exigem `Admin` ou `SecurityOperator`, enquanto CRUD administrativo exige `Admin`. Explique quais capacidades continuam planejadas, incluindo ocupação, alertas e idempotência de eventos.

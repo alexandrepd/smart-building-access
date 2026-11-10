@@ -6,6 +6,18 @@ namespace SmartBuilding.Infrastructure.Data;
 
 public static class DatabaseInitializer
 {
+    public static async Task EnsureBootstrapAdminAsync(
+        this IServiceProvider services,
+        string? email,
+        string? password,
+        CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = services.CreateAsyncScope();
+        BootstrapAdminSeeder seeder =
+            scope.ServiceProvider.GetRequiredService<BootstrapAdminSeeder>();
+        await seeder.EnsureAdminExistsAsync(email, password, cancellationToken);
+    }
+
     public static async Task InitializeDevelopmentDatabaseAsync(
         this IServiceProvider services,
         CancellationToken cancellationToken = default)

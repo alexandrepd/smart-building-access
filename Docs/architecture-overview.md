@@ -43,7 +43,7 @@ O Domain é o núcleo e não referencia nenhuma outra camada do sistema. Applica
 | `SmartBuilding.Domain` | Vocabulário, estado e resultados do negócio | Entidades e resultados de Access Control implementados; sessões/alertas ainda sem processamento |
 | `SmartBuilding.Application` | Casos de uso, DTOs, contratos e orquestração | CRUDs e decisão de Access Control com auditoria de eventos implementados |
 | `SmartBuilding.Infrastructure` | EF Core, PostgreSQL e implementações técnicas | Persistência base e repositórios administrativos e de Access Control implementados |
-| `SmartBuilding.Api` | Host HTTP, endpoints, autenticação e composição | Minimal APIs, validação, Problem Details e rotas de decisão/eventos implementados; autenticação e autorização planejadas |
+| `SmartBuilding.Api` | Host HTTP, endpoints, autenticação e composição | Minimal APIs, validação, Problem Details, tokens JWT e autorização por policies implementados |
 | `SmartBuilding.UnitTests` | Testes unitários, arquiteturais e de persistência | Inclui testes de `AccessControlService`, além dos testes dos CRUDs, hashing, validação HTTP de User e metadados |
 
 ## Fluxo atual
@@ -68,9 +68,9 @@ Antes de servir endpoints, a API exige `ConnectionStrings:SmartBuilding`. Em `De
 
 Os CRUDs administrativos de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. A decisão de acesso também está implementada: `POST /api/access/requests` avalia cartão, User, AccessPoint, direção e permissão, e grava um `AccessEvent` para cada pedido processado com AccessPoint conhecido. `GET /api/access/events` e `GET /api/access/events/{id}` consultam esse histórico. A permissão deve estar ativa e satisfazer `ValidFrom <= now < ValidUntil`, sendo `ValidUntil` opcional. O CRUD administrativo de `AccessPermission` e a sua avaliação em tempo de pedido são capacidades relacionadas, mas distintas.
 
-O fluxo de decisão não atualiza `OccupancySession`, não envia notificações SignalR, não processa alertas e não autentica/autoriza o chamador; esses comportamentos continuam planejados.
+O fluxo de decisão exige a policy `AccessOperations` (`Admin` ou `SecurityOperator`). Ainda não atualiza `OccupancySession`, não envia notificações SignalR nem processa alertas; esses comportamentos continuam planejados.
 
-O CRUD administrativo de `Users` também está implementado em `/api/users`. A validação HTTP verifica o email após remover whitespace externo, e a Application normaliza-o para lowercase antes de persistir; solicita hash da password na criação e as responses omitem password e hash. Updates não alteram credenciais e email duplicado na atualização também é tratado como conflito. O repositório protege email único e bloqueia remoção com cartões, permissões ou sessões de ocupação. Eventos de auditoria são preservados com `UserId` nulo. Hashing de password e testes da primitiva de verificação não significam que login, verificação de credenciais no fluxo da aplicação, JWT ou autorização já existam: esses itens continuam planejados para a fase 6.
+O CRUD administrativo de `Users` também está implementado em `/api/users` e protegido por `AdminOnly`. A validação HTTP verifica o email após remover whitespace externo, e a Application normaliza-o para lowercase antes de persistir; solicita hash da password na criação e as responses omitem password e hash. Users começam como `SecurityOperator`; um Admin pode atribuir papéis, sem rebaixar o último Admin. O login JWT e as policies estão implementados; consulte [Autenticação e autorização](authentication-authorization.md) para configuração segura, bootstrap e limites. A UI continua ausente.
 
 ## Fluxo implementado de uma solicitação de acesso
 
@@ -130,7 +130,7 @@ Cada fase deve terminar com build, testes e um pull request focado. Tecnologias 
 | Domain estrutural | Concluída pelo Definition of Done atual |
 | Database | Persistência base implementada e validada |
 | API funcional | CRUDs administrativos e rotas de decisão/eventos implementados nesta branch |
-| Access Control | Decisão, auditoria e consultas de evento implementadas nesta branch; ocupação, SignalR, alertas e autenticação seguem futuras |
+| Access Control | Decisão, auditoria, consultas de evento e autenticação/autorização JWT implementadas nesta branch; ocupação, SignalR e alertas seguem futuros |
 
 PostgreSQL 18 foi executado num container descartável, na porta isolada `55432`, para validar a migration, o arranque, a idempotência do seed e os slices de `Buildings`, `Floors`, `AccessPoints` e `Users`. Para Users, o smoke confirmou email uppercase com espaços externos criado em `201` e canonicalizado para lowercase, duplicidade `409`, consulta `200`, atualização `200` e remoção `204`; também confirmou hash armazenado pelo `PasswordHasher<User>`, response sem password/hash, delete bloqueado por cartão com `409` e evento preservado com `UserId` nulo. Isso não significa que a fase futura de Docker da aplicação foi implementada.
 
