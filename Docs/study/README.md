@@ -46,7 +46,7 @@ Para ler a preparação completa num único ficheiro, abra o [README de Entrevis
 | Git fundamental | Módulo 6 | branches, Conventional Commits, PRs e reviews | Fluxo usado neste repositório |
 | PostgreSQL e EF migrations | Módulo 4 | EF Core, Npgsql, migration e seed | Persistência implementada e validada em PostgreSQL |
 | Colaboração e qualidade | Módulos 6 e 7 | PR pequeno, revisão, testes e documentação | Praticar comunicação técnica e resposta a feedback |
-| Containers e deployment frontend | Módulo 6 | Angular em Nginx é um caminho planejado | Fase Docker ainda não implementada |
+| Containers e deployment frontend | Módulo 6 | Compose local com Angular/Nginx, API e PostgreSQL | Execução local validada; CI/CD e Kubernetes ainda estão planejados |
 | CI/CD e GitHub Actions | Módulo 6 | pipeline planejado | Fase CI ainda não implementada |
 | Kubernetes | Módulo 6 | manifests planejados | Fase futura; conhecimento valorizado, não baseline atual |
 | Windows Server | Módulo 6 | IIS, Kestrel, TLS e logs | Estudo conceitual complementar |
@@ -69,11 +69,11 @@ Este repositório prova trabalho prático em .NET, APIs, PostgreSQL, EF Core, mi
 
 A vaga aceita backend com .NET **ou** Java. Como o projeto usa .NET, não é necessário adicionar Java. Numa entrevista, você pode explicar que os princípios de API, arquitetura, banco e containers são transferíveis entre stacks.
 
-Windows Server também será estudado conceitualmente. O deployment principal do projeto continua planejado com Docker e Kubernetes.
+Windows Server também será estudado conceitualmente. Docker Compose já foi validado para execução local; CI/CD e deployment Kubernetes continuam planejados.
 
 ## Ordem recomendada
 
-Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e gestão CRUD de AccessPermissions estão implementados. O processamento/decisão de Access Control, auditoria/consulta de `AccessEvent`s, login JWT e autorização por papéis estão implementados nesta branch. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. O frontend Angular começou com login, guarda de rota e interceptor Bearer, mas ainda não tem CRUDs nem dashboard operacional. Atualização de `OccupancySession`, notificações SignalR e processamento de alertas continuam futuros. Docker, CI/CD e Kubernetes continuam nas fases posteriores.
+Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e gestão CRUD de AccessPermissions estão implementados. O processamento/decisão de Access Control, auditoria/consulta de `AccessEvent`s, login JWT e autorização por papéis estão implementados nesta branch. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. O frontend Angular começou com login, guarda de rota e interceptor Bearer, mas ainda não tem CRUDs nem dashboard operacional. A aplicação também tem Docker Compose validado para execução local, incluindo Angular servido por Nginx, API e PostgreSQL. CI/CD e Kubernetes continuam planejados; atualização de `OccupancySession`, notificações SignalR e processamento de alertas continuam futuros.
 
 Para estudar o fluxo implementado em cinco níveis — analogia simples,
 definição, exemplo do projeto, resposta de entrevista e exercício — consulte

@@ -73,3 +73,9 @@ adicione o ficheiro `.env` ao Git. Para parar os serviços, execute
 `docker compose down`; acrescente `--volumes` apenas quando quiser eliminar os
 dados locais do PostgreSQL. O volume segue o layout exigido pela imagem oficial
 do PostgreSQL 18, que guarda os dados numa subpasta versionada.
+
+Se a porta `8080` já estiver ocupada, altere `WEB_PORT` no `.env`, por exemplo
+para `8081`, e aceda à aplicação pela mesma porta no browser.
+
+As imagens .NET usadas pelo Compose respeitam a versão do SDK indicada em
+`global.json`; mantenha esses ficheiros alinhados quando atualizar o SDK.

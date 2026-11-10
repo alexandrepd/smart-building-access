@@ -123,6 +123,47 @@ simulator
 
 PostgreSQL precisa de volume para persistência. Secrets reais não entram no compose versionado.
 
+### Validação local do Smart Building
+
+#### Explicação simples
+
+Pense no Compose como uma planta que liga as partes da aplicação. O browser
+entra pela porta do Nginx; o Nginx serve o Angular e encaminha pedidos `/api`
+para a API. A base de dados e a API executam em containers separados.
+
+#### Definição técnica
+
+Docker Compose configura e executa serviços relacionados, redes e portas. Uma
+porta publicada liga uma porta do host à porta interna do container; a variável
+`WEB_PORT` escolhe a porta do host, enquanto o serviço web escuta internamente
+na porta `8080`. O proxy reverso Nginx encaminha os pedidos `/api` pela rede
+interna do Compose.
+
+#### Exemplo do projeto
+
+Na validação local, `WEB_PORT=8081` foi aceite e o container Angular iniciou
+com o mapeamento `0.0.0.0:8081->8080`. `GET http://localhost:8081/` retornou
+`200`, e `GET http://localhost:8081/api/auth/login` foi encaminhado pelo Nginx
+e retornou `405`, esperado para um `GET` num endpoint de login que suporta
+`POST`. Os containers da API e da base de dados estavam saudáveis. O Dockerfile
+da API usa o SDK `10.0.102`, alinhado com `global.json`.
+
+#### Resposta de entrevista
+
+> Validei localmente o ambiente com Docker Compose. O Nginx serve a aplicação
+> Angular e encaminha `/api` para a API; a porta externa é configurável por
+> `WEB_PORT`. Com a porta `8081`, a página respondeu `200` e o pedido GET ao
+> endpoint de login retornou `405`, como esperado porque a operação aceita
+> POST. A API e a base de dados estavam saudáveis. Isto comprova o smoke test
+> local, não uma pipeline CI/CD nem um deployment Kubernetes.
+
+#### Exercício prático
+
+Explique o percurso de `GET /` e de um pedido `/api` desde o host até ao
+container correto. Depois, altere `WEB_PORT` para uma porta disponível,
+confirme o mapeamento e explique por que um `GET` ao endpoint de login pode
+retornar `405` sem significar que o proxy falhou.
+
 ## Kubernetes
 
 ### Analogia

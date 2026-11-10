@@ -2550,8 +2550,21 @@ Existe uma configuração local em `docker-compose.yml` com PostgreSQL 18, API e
 interface Angular. A API usa uma imagem multi-stage .NET, a interface é
 servida por Nginx e encaminha `/api` para a API na rede interna. Segredos e
 credenciais são exigidos por `.env`, que permanece ignorado; `.env.example`
-documenta apenas os nomes e placeholders. O Compose é destinado ao ambiente
-local de desenvolvimento e ainda não substitui CI/CD ou Kubernetes.
+documenta os nomes e valores de exemplo, incluindo `WEB_PORT=8080`. O Compose
+aceita `WEB_PORT` para escolher a porta publicada pela interface (por omissão,
+`8080`). O Dockerfile da API usa o SDK .NET `10.0.102`, alinhado com
+`global.json`.
+
+A validação local do Compose foi concluída: com `WEB_PORT=8081`, a image Angular
+foi construída e o container iniciou com o mapeamento
+`0.0.0.0:8081->8080`. `GET http://localhost:8081/` retornou `200`. O pedido
+`GET http://localhost:8081/api/auth/login` foi encaminhado pelo Nginx e retornou
+`405`, esperado porque o endpoint de login aceita `POST`. Os containers da API e
+da base de dados estavam saudáveis durante a validação.
+
+**Estado:** Docker e Compose estão implementados e verificados para execução
+local. Esta validação não implementa CI/CD nem deployment Kubernetes, que
+continuam nas fases seguintes.
 
 Definition of Done:
 
