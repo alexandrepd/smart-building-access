@@ -76,8 +76,9 @@ válido ao qual anexar essa anotação.
 `accessPointId` e `direction`, executa a decisão e grava um `AccessEvent`.
 Quando a decisão foi processada para AccessPoint conhecido, retorna `200 OK`
 tanto para conceder como para negar; o consumidor verifica `result` e
-`reason`. Request inválido retorna `400` com RFC 7807
-`ValidationProblemDetails`. AccessPoint desconhecido retorna `404`, pois
+`reason`. Request inválido retorna `400` com RFC 7807 Problem Details:
+erros de validação por campo usam `ValidationProblemDetails`; JSON malformado
+ou enum desconhecido usa uma resposta genérica. AccessPoint desconhecido retorna `404`, pois
 `AccessEvent.AccessPointId` é uma FK obrigatória e não se grava evento sem
 ponto válido. As rotas `GET /api/access/events` e
 `GET /api/access/events/{id}` listam o histórico e consultam um evento.
@@ -122,6 +123,12 @@ AccessPoint válido gera `200` e um evento com `result: "CardNotFound"` e
 evento. Eventos podem ser lidos pelas duas rotas GET. Falhas de validação não
 são decisões negadas e não criam evento.
 
+Um envelope ilegível não é uma recusa do segurança: `"direction": "Sideways"`
+nem sequer representa uma direção válida. A desserialização rejeita esse
+JSON antes do serviço de acesso. Quando o framework lança
+`BadHttpRequestException`, o handler global preserva o status `4xx`; uma
+falha interna inesperada continua a ser `500`, sem expor detalhes internos.
+
 O fluxo implementado exige autenticação/autorização. Decisões concedidas
 associadas a um User também atualizam `OccupancySession` atomicamente com o
 `AccessEvent`; a API publica notificações SignalR de acesso e ocupação após a
@@ -139,7 +146,9 @@ cartão, AccessPoint e permissão.
 > resultado e instante UTC. Para decisões concedidas associadas a um User, a
 > transição de `OccupancySession` é gravada atomicamente com o evento. Entry
 > duplicada e Exit sem sessão não alteram a ocupação, mas o evento continua a
-> ser registado. A policy exige papel `Admin` ou `SecurityOperator`.”
+> ser registado. Um enum JSON desconhecido é erro do pedido, não falha do
+> servidor: retorna `400`, sem decisão nem evento. Erros internos continuam
+> como `500`. A policy exige papel `Admin` ou `SecurityOperator`.”
 
 ### 5. Exercício prático
 
@@ -149,8 +158,11 @@ cartão, AccessPoint e permissão.
    continua sendo `200` com `CardNotFound`.
 3. Use um AccessPoint desconhecido: explique por que o resultado passa a
    `404` e por que não pode haver `AccessEvent`.
-4. Altere `direction` para enum inválido ou omita um campo e identifique o
-   `400` de validação, distinguindo-o de uma decisão negada.
+4. Anote a quantidade de eventos e a ocupação. Altere `direction` para
+   `"Sideways"` e depois envie JSON incompleto. Confirme `400` com
+   `application/problem+json` e que eventos e ocupação não mudaram.
+   Compare com um campo obrigatório vazio, cuja validação inclui erros
+   por campo, e com uma decisão negada, que retorna `200` e gera evento.
 5. Explique com um instante `now` por que `ValidUntil == now` já está fora do
    intervalo, enquanto `ValidFrom == now` ainda está dentro.
 

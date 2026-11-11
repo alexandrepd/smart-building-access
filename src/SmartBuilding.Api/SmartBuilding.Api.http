@@ -366,6 +366,19 @@ Content-Type: application/json
 
 ###
 
+# Returns 400 Problem Details before access evaluation; creates no event or occupancy change.
+POST {{SmartBuilding.Api_HostAddress}}/api/access/requests
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+	"cardNumber": "CARD-1001",
+	"accessPointId": "30000000-0000-0000-0000-000000000001",
+	"direction": "Sideways"
+}
+
+###
+
 # Returns the latest access decisions, including granted and denied requests.
 GET {{SmartBuilding.Api_HostAddress}}/api/access/events
 Authorization: Bearer {{accessToken}}
