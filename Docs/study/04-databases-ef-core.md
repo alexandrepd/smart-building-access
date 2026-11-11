@@ -269,7 +269,7 @@ Por isso, o repositório também compara `ConstraintName`: somente as três FKs 
 
 `UserRepository` também usa `AsNoTracking` nas leituras e trata a violação do índice único `ix_users_email` como email duplicado. Antes de remover um `User`, verifica `AccessCards`, `AccessPermissions` e `OccupancySessions`; as FKs `Restrict` protegem a mesma regra contra concorrência. `AccessEvent.UserId`, ao contrário, é opcional e usa `SetNull`: o user pode ser removido sem apagar o `AccessEvent`, cuja referência fica nula para preservar auditoria.
 
-Passwords não são guardadas em texto simples. `IdentityPasswordHashService` usa `PasswordHasher<User>` do ASP.NET Core Identity, que gera hashes com salt aleatório; portanto, duas codificações da mesma password não são iguais. Os testes da primitiva `VerifyHashedPassword` verificam hash, não substituem o caso de uso. O fluxo de login está implementado separadamente em `AuthenticationService`, que verifica credenciais de Users ativos; a API emite JWT. Refresh/revogação, MFA e login na UI Angular continuam não implementados.
+Passwords não são guardadas em texto simples. `IdentityPasswordHashService` usa `PasswordHasher<User>` do ASP.NET Core Identity, que gera hashes com salt aleatório; portanto, duas codificações da mesma password não são iguais. Os testes da primitiva `VerifyHashedPassword` verificam hash, não substituem o caso de uso. O fluxo de login está implementado separadamente em `AuthenticationService`, que verifica credenciais de Users ativos; a API emite JWT e a UI Angular implementa login. Refresh/revogação, MFA e provedor externo continuam não implementados.
 
 ## Idempotência versus transação
 

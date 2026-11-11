@@ -1,16 +1,26 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { forkJoin, Observable } from 'rxjs';
+import { forkJoin, Observable, of, switchMap } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
-import { AccessPoint, AdminApiService, Building, Floor } from './admin-api.service';
+import {
+  AccessCard,
+  AccessEvent,
+  AccessPermission,
+  AccessPoint,
+  AdminApiService,
+  Building,
+  BuildingUser,
+  Floor,
+} from './admin-api.service';
 
-type Resource = 'buildings' | 'floors' | 'access-points';
+type Resource = 'buildings' | 'floors' | 'access-points' | 'users' | 'cards' | 'permissions';
 
 @Component({
   selector: 'app-management-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [DatePipe, ReactiveFormsModule, RouterLink],
   templateUrl: './management.page.html',
   styleUrl: './management.page.scss',
 })
@@ -23,9 +33,13 @@ export class ManagementPage implements OnInit {
   protected readonly buildings = signal<Building[]>([]);
   protected readonly floors = signal<Floor[]>([]);
   protected readonly accessPoints = signal<AccessPoint[]>([]);
+  protected readonly users = signal<BuildingUser[]>([]);
+  protected readonly accessCards = signal<AccessCard[]>([]);
+  protected readonly accessPermissions = signal<AccessPermission[]>([]);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly editingId = signal<string | null>(null);
+  protected readonly editingUserRole = signal<BuildingUser['role'] | null>(null);
   protected readonly errorMessage = signal('');
   protected readonly successMessage = signal('');
 
@@ -49,6 +63,28 @@ export class ManagementPage implements OnInit {
     isActive: [true],
     supportsEntry: [true],
     supportsExit: [true],
+  });
+
+  protected readonly userForm = this.formBuilder.nonNullable.group({
+    name: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(200)]],
+    email: ['', [Validators.required, Validators.email, Validators.maxLength(320)]],
+    password: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(128)]],
+    role: ['SecurityOperator' as BuildingUser['role'], Validators.required],
+    isActive: [true],
+  });
+
+  protected readonly accessCardForm = this.formBuilder.nonNullable.group({
+    userId: ['', Validators.required],
+    cardNumber: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(100)]],
+    expiresAt: [''],
+  });
+
+  protected readonly accessPermissionForm = this.formBuilder.nonNullable.group({
+    userId: ['', Validators.required],
+    accessPointId: ['', Validators.required],
+    validFrom: ['', Validators.required],
+    validUntil: [''],
+    isActive: [true],
   });
 
   ngOnInit(): void {
@@ -108,6 +144,52 @@ export class ManagementPage implements OnInit {
       isActive: accessPoint.isActive,
       supportsEntry: accessPoint.supportsEntry,
       supportsExit: accessPoint.supportsExit,
+    });
+    this.errorMessage.set('');
+    this.successMessage.set('');
+  }
+
+  protected editUser(user: BuildingUser): void {
+    this.resetForms();
+    this.resource.set('users');
+    this.editingId.set(user.id);
+    this.editingUserRole.set(user.role);
+    this.userForm.controls.password.clearValidators();
+    this.userForm.controls.password.updateValueAndValidity({ emitEvent: false });
+    this.userForm.patchValue({
+      name: user.name,
+      email: user.email,
+      password: '',
+      role: user.role,
+      isActive: user.isActive,
+    });
+    this.errorMessage.set('');
+    this.successMessage.set('');
+  }
+
+  protected editAccessCard(card: AccessCard): void {
+    this.resetForms();
+    this.resource.set('cards');
+    this.editingId.set(card.id);
+    this.accessCardForm.patchValue({
+      userId: card.userId,
+      cardNumber: card.cardNumber,
+      expiresAt: card.expiresAt ? this.toLocalDateTime(card.expiresAt) : '',
+    });
+    this.errorMessage.set('');
+    this.successMessage.set('');
+  }
+
+  protected editAccessPermission(permission: AccessPermission): void {
+    this.resetForms();
+    this.resource.set('permissions');
+    this.editingId.set(permission.id);
+    this.accessPermissionForm.patchValue({
+      userId: permission.userId,
+      accessPointId: permission.accessPointId,
+      validFrom: this.toLocalDateTime(permission.validFrom),
+      validUntil: permission.validUntil ? this.toLocalDateTime(permission.validUntil) : '',
+      isActive: permission.isActive,
     });
     this.errorMessage.set('');
     this.successMessage.set('');
@@ -175,7 +257,105 @@ export class ManagementPage implements OnInit {
         this.submitRequest(request);
         break;
       }
+      case 'users': {
+        if (this.userForm.invalid) {
+          this.userForm.markAllAsTouched();
+          this.errorMessage.set('Preencha os campos obrigatórios corretamente.');
+          return;
+        }
+        const { name, email, password, role, isActive } = this.userForm.getRawValue();
+        const id = this.editingId();
+        const request = id
+          ? this.api
+              .updateUser(id, { name: name.trim(), email: email.trim(), isActive })
+              .pipe(
+                switchMap((updated) =>
+                  role !== this.editingUserRole() ? this.api.updateUserRole(id, role) : of(updated),
+                ),
+              )
+          : this.api
+              .createUser({ name: name.trim(), email: email.trim(), password })
+              .pipe(
+                switchMap((created) =>
+                  role === created.role ? of(created) : this.api.updateUserRole(created.id, role),
+                ),
+              );
+        this.submitRequest(request);
+        break;
+      }
+      case 'cards': {
+        if (this.accessCardForm.invalid) {
+          this.accessCardForm.markAllAsTouched();
+          this.errorMessage.set('Preencha os campos obrigatórios corretamente.');
+          return;
+        }
+        const { userId, cardNumber, expiresAt } = this.accessCardForm.getRawValue();
+        const expiration = expiresAt ? new Date(expiresAt) : null;
+        if (expiration !== null && !Number.isFinite(expiration.getTime())) {
+          this.errorMessage.set('A data de expiração do cartão não é válida.');
+          return;
+        }
+        const requestData = {
+          userId,
+          cardNumber: cardNumber.trim(),
+          expiresAt: expiration?.toISOString() ?? null,
+        };
+        const id = this.editingId();
+        const request = id
+          ? this.api.updateAccessCard(id, requestData)
+          : this.api.createAccessCard(requestData);
+        this.submitRequest(request);
+        break;
+      }
+      case 'permissions': {
+        if (this.accessPermissionForm.invalid) {
+          this.accessPermissionForm.markAllAsTouched();
+          this.errorMessage.set('Preencha os campos obrigatórios corretamente.');
+          return;
+        }
+        const { userId, accessPointId, validFrom, validUntil, isActive } =
+          this.accessPermissionForm.getRawValue();
+        const validFromDate = new Date(validFrom);
+        const validUntilDate = validUntil ? new Date(validUntil) : null;
+        if (
+          !Number.isFinite(validFromDate.getTime()) ||
+          (validUntilDate !== null &&
+            (!Number.isFinite(validUntilDate.getTime()) || validUntilDate <= validFromDate))
+        ) {
+          this.errorMessage.set('A data de fim tem de ser posterior à data de início.');
+          return;
+        }
+        const requestData = {
+          userId,
+          accessPointId,
+          validFrom: validFromDate.toISOString(),
+          validUntil: validUntilDate?.toISOString() ?? null,
+        };
+        const id = this.editingId();
+        const request = id
+          ? this.api.updateAccessPermission(id, { ...requestData, isActive })
+          : this.api.createAccessPermission(requestData);
+        this.submitRequest(request);
+        break;
+      }
     }
+  }
+
+  protected toggleAccessCard(card: AccessCard): void {
+    this.saving.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.api.setAccessCardActive(card.id, !card.isActive).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.successMessage.set(card.isActive ? 'Cartão desativado.' : 'Cartão ativado.');
+        this.load();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.saving.set(false);
+        this.errorMessage.set(this.describeError(error));
+      },
+    });
   }
 
   protected remove(id: string): void {
@@ -187,7 +367,13 @@ export class ManagementPage implements OnInit {
         ? this.api.deleteBuilding(id)
         : resource === 'floors'
           ? this.api.deleteFloor(id)
-          : this.api.deleteAccessPoint(id);
+          : resource === 'access-points'
+            ? this.api.deleteAccessPoint(id)
+            : resource === 'users'
+              ? this.api.deleteUser(id)
+              : resource === 'cards'
+                ? this.api.deleteAccessCard(id)
+                : this.api.deleteAccessPermission(id);
 
     this.saving.set(true);
     this.errorMessage.set('');
@@ -218,6 +404,21 @@ export class ManagementPage implements OnInit {
     return this.floors().find((floor) => floor.id === id)?.name ?? 'Piso indisponível';
   }
 
+  protected userName(id: string): string {
+    return this.users().find((user) => user.id === id)?.name ?? 'Utilizador indisponível';
+  }
+
+  protected accessPointName(id: string): string {
+    return this.accessPoints().find((point) => point.id === id)?.name ?? 'Ponto indisponível';
+  }
+
+  protected permissionValidity(permission: AccessPermission): string {
+    const start = new Date(permission.validFrom).toLocaleString();
+    return permission.validUntil
+      ? `${start} – ${new Date(permission.validUntil).toLocaleString()}`
+      : `${start} – sem data de fim`;
+  }
+
   protected load(): void {
     this.loading.set(true);
     this.errorMessage.set('');
@@ -225,11 +426,17 @@ export class ManagementPage implements OnInit {
       buildings: this.api.getBuildings(),
       floors: this.api.getFloors(),
       accessPoints: this.api.getAccessPoints(),
+      users: this.api.getUsers(),
+      accessCards: this.api.getAccessCards(),
+      accessPermissions: this.api.getAccessPermissions(),
     }).subscribe({
-      next: ({ buildings, floors, accessPoints }) => {
+      next: ({ buildings, floors, accessPoints, users, accessCards, accessPermissions }) => {
         this.buildings.set(buildings);
         this.floors.set(floors);
         this.accessPoints.set(accessPoints);
+        this.users.set(users);
+        this.accessCards.set(accessCards);
+        this.accessPermissions.set(accessPermissions);
         this.loading.set(false);
       },
       error: (error: HttpErrorResponse) => {
@@ -239,7 +446,7 @@ export class ManagementPage implements OnInit {
     });
   }
 
-  private submitRequest(request: Observable<Building | Floor | AccessPoint>): void {
+  private submitRequest(request: Observable<unknown>): void {
     this.saving.set(true);
     request.subscribe({
       next: () => {
@@ -267,6 +474,34 @@ export class ManagementPage implements OnInit {
       supportsEntry: true,
       supportsExit: true,
     });
+    this.userForm.reset({
+      name: '',
+      email: '',
+      password: '',
+      role: 'SecurityOperator',
+      isActive: true,
+    });
+    this.userForm.controls.password.setValidators([
+      Validators.required,
+      Validators.minLength(12),
+      Validators.maxLength(128),
+    ]);
+    this.userForm.controls.password.updateValueAndValidity({ emitEvent: false });
+    this.accessCardForm.reset({ userId: '', cardNumber: '', expiresAt: '' });
+    this.accessPermissionForm.reset({
+      userId: '',
+      accessPointId: '',
+      validFrom: '',
+      validUntil: '',
+      isActive: true,
+    });
+    this.editingUserRole.set(null);
+  }
+
+  private toLocalDateTime(value: string): string {
+    const date = new Date(value);
+    const offset = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
   }
 
   private describeError(error: HttpErrorResponse): string {

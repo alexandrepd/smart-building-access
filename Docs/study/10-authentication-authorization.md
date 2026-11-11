@@ -47,6 +47,13 @@ permite a `SecurityOperator` autenticado consultar eventos, enquanto as
 contagens administrativas e a gestão ficam reservadas a Admin. O guard serve
 à navegação e à UX: as policies da API continuam a impor a autorização real.
 
+Na gestão Angular, a criação de User exige password com pelo menos 12
+caracteres; a password não é mostrada novamente depois da criação. O formulário
+permite selecionar `Admin` ou `SecurityOperator`. Na edição, perfil e estado
+ativo são alteráveis, enquanto a mudança de papel usa o endpoint dedicado
+`PUT /api/users/{id}/role`. A UI também gere AccessCards e AccessPermissions,
+mas todos esses pedidos continuam sujeitos a `AdminOnly` no servidor.
+
 O primeiro Admin é criado no arranque apenas quando ainda não existe um Admin.
 Nesse caso, `Authentication:BootstrapAdmin:Email` e
 `Authentication:BootstrapAdmin:Password` devem estar definidos por provider
@@ -101,9 +108,10 @@ aplicar a migration antes de iniciar esta versão.
 5. Explique como `AddUserRole` preserva Users existentes e por que um
    ambiente de produção precisa de migração antes de iniciar a versão nova.
 6. Explique por que um guard não pode substituir `AdminOnly` na API.
-7. Liste duas capacidades não implementadas (por exemplo, refresh token ou
-   UIs de gestão de Users/AccessCards/AccessPermissions) sem as apresentar
-   como experiência já construída.
+7. Explique por que esconder um botão de alteração de papel não é controlo de
+   autorização suficiente e qual camada tem de proteger o endpoint.
+8. Liste duas capacidades não implementadas (por exemplo, refresh token,
+   revogação imediata de JWT ou MFA) sem as apresentar como existentes.
 
 Consulte a [documentação técnica de autenticação e autorização](../authentication-authorization.md)
 e a [camada API](../api-layer.md).

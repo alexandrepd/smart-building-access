@@ -87,13 +87,31 @@ navegação e pelas policies já existentes na API para autorizar os requests. A
 interface usa Reactive Forms para criar, consultar, atualizar e remover
 `Buildings`, `Floors` e `AccessPoints`; inclui seletores para relações entre
 entidades, campos de estado ativo e suporte a Entry/Exit nos AccessPoints. O
-guard não substitui a autorização da API.
+guard não substitui a autorização da API. A gestão também permite criar,
+consultar, atualizar e remover Users, AccessCards e AccessPermissions:
 
-A UI de Users, AccessCards e AccessPermissions, os dados de ocupação,
-atualizações SignalR e testes frontend automatizados não estão implementados.
-O build de produção Angular passa com
-`cd src/smart-building-web && npm run build`; isto não implica que a Fase 7
-esteja concluída.
+- Users são criados com password de pelo menos 12 caracteres, que não é
+  mostrada novamente após a criação. O formulário permite selecionar
+  `Admin`/`SecurityOperator`; a edição altera perfil e estado ativo, e a
+  alteração de papel usa o endpoint dedicado da API.
+- AccessCards podem ser emitidos, editados, eliminados, ativados e
+  desativados.
+- AccessPermissions podem ser criadas, editadas e revogadas, com seletores de
+  User e AccessPoint, início obrigatório e fim opcional. O cliente valida que
+  o fim, quando preenchido, é posterior ao início.
+
+Todos estes pedidos continuam sujeitos à autorização `AdminOnly` no servidor;
+o guard Angular é apenas uma barreira de navegação no cliente. O alvo de testes
+Angular está configurado com `@angular/build:unit-test`/Vitest e
+`admin-api.service.spec.ts` contém seis testes de contratos HTTP do service:
+listagem de Users, formato do payload de criação de User, atualização de papel,
+desativação de AccessCard e criação/atualização de AccessPermission. O resultado
+do build e dos testes desta branch ainda não está reportado.
+
+A Fase 7 continua em desenvolvimento: console de pedidos de acesso, simulação
+e cobertura mais ampla de componentes e E2E não estão implementados. Dashboard
+de ocupação/ocupação atual e SignalR/tempo real também não estão
+implementados, e pertencem às fases seguintes do roadmap.
 
 ## Fluxo implementado de uma solicitação de acesso
 
@@ -154,7 +172,7 @@ Cada fase deve terminar com build, testes e um pull request focado. Tecnologias 
 | Database | Persistência base implementada e validada |
 | API funcional | CRUDs administrativos e rotas de decisão/eventos implementados nesta branch |
 | Access Control | Decisão, auditoria, consultas de evento e autenticação/autorização JWT implementadas nesta branch; ocupação, SignalR e alertas seguem futuros |
-| Frontend Angular (Fase 7) | Dashboard de eventos e CRUD de Buildings/Floors/AccessPoints implementados; restantes operações e testes frontend pendentes |
+| Frontend Angular (Fase 7) | Login, dashboard de eventos e CRUD Admin de Buildings/Floors/AccessPoints/Users/AccessCards/AccessPermissions implementados; testes focados do service configurados; restantes experiências e cobertura mais ampla pendentes |
 
 PostgreSQL 18 foi executado num container descartável, na porta isolada `55432`, para validar a migration, o arranque, a idempotência do seed e os slices de `Buildings`, `Floors`, `AccessPoints` e `Users`. Para Users, o smoke confirmou email uppercase com espaços externos criado em `201` e canonicalizado para lowercase, duplicidade `409`, consulta `200`, atualização `200` e remoção `204`; também confirmou hash armazenado pelo `PasswordHasher<User>`, response sem password/hash, delete bloqueado por cartão com `409` e evento preservado com `UserId` nulo. Isso não significa que a fase futura de Docker da aplicação foi implementada.
 

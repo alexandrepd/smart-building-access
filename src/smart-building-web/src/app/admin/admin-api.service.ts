@@ -40,6 +40,33 @@ export interface AccessEvent {
   reason: string;
 }
 
+export interface BuildingUser {
+  id: string;
+  name: string;
+  email: string;
+  isActive: boolean;
+  createdAt: string;
+  role: 'Admin' | 'SecurityOperator';
+}
+
+export interface AccessCard {
+  id: string;
+  userId: string;
+  cardNumber: string;
+  isActive: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface AccessPermission {
+  id: string;
+  userId: string;
+  accessPointId: string;
+  isActive: boolean;
+  validFrom: string;
+  validUntil: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AdminApiService {
   private readonly http = inject(HttpClient);
@@ -108,5 +135,78 @@ export class AdminApiService {
 
   getAccessEvents(): Observable<AccessEvent[]> {
     return this.http.get<AccessEvent[]>('/api/access/events');
+  }
+
+  getUsers(): Observable<BuildingUser[]> {
+    return this.http.get<BuildingUser[]>('/api/users/');
+  }
+
+  createUser(request: { name: string; email: string; password: string }): Observable<BuildingUser> {
+    return this.http.post<BuildingUser>('/api/users/', request);
+  }
+
+  updateUser(
+    id: string,
+    request: Pick<BuildingUser, 'name' | 'email' | 'isActive'>,
+  ): Observable<BuildingUser> {
+    return this.http.put<BuildingUser>(`/api/users/${id}`, request);
+  }
+
+  updateUserRole(id: string, role: BuildingUser['role']): Observable<BuildingUser> {
+    return this.http.put<BuildingUser>(`/api/users/${id}/role`, { role });
+  }
+
+  deleteUser(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/users/${id}`);
+  }
+
+  getAccessCards(): Observable<AccessCard[]> {
+    return this.http.get<AccessCard[]>('/api/cards/');
+  }
+
+  createAccessCard(
+    request: Pick<AccessCard, 'userId' | 'cardNumber' | 'expiresAt'>,
+  ): Observable<AccessCard> {
+    return this.http.post<AccessCard>('/api/cards/', request);
+  }
+
+  updateAccessCard(
+    id: string,
+    request: Pick<AccessCard, 'userId' | 'cardNumber' | 'expiresAt'>,
+  ): Observable<AccessCard> {
+    return this.http.put<AccessCard>(`/api/cards/${id}`, request);
+  }
+
+  setAccessCardActive(id: string, isActive: boolean): Observable<AccessCard> {
+    const action = isActive ? 'activate' : 'deactivate';
+    return this.http.post<AccessCard>(`/api/cards/${id}/${action}`, null);
+  }
+
+  deleteAccessCard(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/cards/${id}`);
+  }
+
+  getAccessPermissions(): Observable<AccessPermission[]> {
+    return this.http.get<AccessPermission[]>('/api/permissions/');
+  }
+
+  createAccessPermission(
+    request: Pick<AccessPermission, 'userId' | 'accessPointId' | 'validFrom' | 'validUntil'>,
+  ): Observable<AccessPermission> {
+    return this.http.post<AccessPermission>('/api/permissions/', request);
+  }
+
+  updateAccessPermission(
+    id: string,
+    request: Pick<
+      AccessPermission,
+      'userId' | 'accessPointId' | 'validFrom' | 'validUntil' | 'isActive'
+    >,
+  ): Observable<AccessPermission> {
+    return this.http.put<AccessPermission>(`/api/permissions/${id}`, request);
+  }
+
+  deleteAccessPermission(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/permissions/${id}`);
   }
 }

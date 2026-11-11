@@ -78,6 +78,14 @@ de `/management` a `Admin`; utilizadores `SecurityOperator` autenticados podem
 consultar eventos, mas não têm acesso à gestão administrativa nem às contagens
 administrativas do dashboard.
 
+Na gestão Angular, a criação de User exige password com pelo menos 12
+caracteres e a password nunca é mostrada novamente depois da criação. O
+formulário permite selecionar `Admin` ou `SecurityOperator`; na edição, perfil
+e estado ativo são alteráveis, enquanto a mudança de papel usa
+`PUT /api/users/{id}/role`. A UI também gere AccessCards e AccessPermissions,
+mas esses pedidos e os de Users continuam sujeitos a `AdminOnly` no servidor.
+O guard `/management` é controlo de navegação, não uma fronteira de segurança.
+
 Novos Users não enviam papel no request de criação e recebem
 `SecurityOperator` por omissão. O endpoint `PUT /api/users/{id}/role` permite
 atribuir `Admin` ou `SecurityOperator`, mas está sob `AdminOnly`. Não é possível

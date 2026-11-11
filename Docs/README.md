@@ -34,10 +34,14 @@ O fluxo de Access Control desta branch está descrito em
 [exemplo progressivo para entrevistas](study/03-rest-openapi.md#exemplo-do-projeto-decisão-de-acesso-e-auditoria).
 
 A aplicação Angular já tem dashboard com histórico de `AccessEvent` e CRUD
-Admin de Buildings, Floors e AccessPoints, além de login, guards e interceptor
-Bearer. A Fase 7 continua em desenvolvimento: outras UIs e testes frontend
-ainda faltam. Consulte [visão geral da arquitetura](architecture-overview.md)
-e a [revisão Angular para entrevistas](study/09-angular-interview-review.md).
+Admin de Buildings, Floors, AccessPoints, Users, AccessCards e
+AccessPermissions, além de login, guards e interceptor Bearer. A Fase 7
+continua em desenvolvimento: console de pedidos de acesso, simulação e
+cobertura mais ampla de componentes e E2E ainda não estão implementados.
+Dashboard de ocupação e SignalR/tempo real também não estão implementados e
+pertencem às fases seguintes. Consulte a
+[visão geral da arquitetura](architecture-overview.md) e a
+[revisão Angular para entrevistas](study/09-angular-interview-review.md).
 O comando de execução local e o proxy para a API estão no
 [README principal](../README.md).
 

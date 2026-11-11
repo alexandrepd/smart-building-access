@@ -359,9 +359,11 @@ O bootstrap do primeiro Admin requer `Authentication:BootstrapAdmin:Email` e
 `Authentication:BootstrapAdmin:Password` via configuração segura quando não
 existe Admin. `Development` aplica migrations automaticamente; em produção e
 nos demais ambientes, a equipa de deployment deve aplicar `AddUserRole` antes
-de iniciar esta versão. Angular/login no cliente, refresh/revogação de tokens,
-MFA e provedor externo não estão implementados. O roadmap não é alterado por
-esta documentação de comportamento já existente no código.
+de iniciar esta versão. O frontend Angular já implementa login, dashboard de
+`AccessEvent` e gestão Admin de Buildings, Floors, AccessPoints, Users,
+AccessCards e AccessPermissions. Refresh/revogação de tokens, MFA e provedor
+externo não estão implementados. O roadmap não é alterado por esta
+documentação de comportamento já existente no código.
 
 ## Paginação
 
@@ -373,4 +375,4 @@ O futuro hub `/accessHub` notificará eventos, alertas e alterações de ocupaç
 
 ## Próximos passos
 
-Os vertical slices de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O processamento/decisão de acesso e as três rotas de `AccessEvent` documentadas acima estão implementados. Login JWT e autorização por papéis também estão implementados nesta branch. O frontend Angular consulta o histórico de eventos no dashboard e disponibiliza CRUD de `Buildings`, `Floors` e `AccessPoints` para Admin; a UI ainda não cobre Users, AccessCards nem AccessPermissions. Atualização de ocupação, alertas e SignalR continuam planejados. A aplicação de migrations fora de Development permanece responsabilidade do deployment.
+Os vertical slices de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O processamento/decisão de acesso e as três rotas de `AccessEvent` documentadas acima estão implementados. Login JWT e autorização por papéis também estão implementados nesta branch. O frontend Angular consulta o histórico de eventos no dashboard e disponibiliza CRUD Admin das seis entidades de gestão. Dashboard de ocupação, console de pedidos de acesso, atualização de ocupação, alertas, SignalR e simulação ainda não estão implementados; consulte o estado da [Fase 7 no plano](smart-building-project-plan.md#phase-7---angular). A aplicação de migrations fora de Development permanece responsabilidade do deployment.

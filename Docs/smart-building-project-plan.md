@@ -2465,16 +2465,31 @@ pontos de acesso. A rota `/management` é
 protegida para `Admin` por guard Angular e pelas policies já aplicadas na API;
 inclui formulários reativos de criar, consultar, atualizar e remover
 `Buildings`, `Floors` e `AccessPoints`, com seletores das relações, estado
-ativo e suporte a entrada/saída nos pontos de acesso. O build de produção
-`cd src/smart-building-web && npm run build` passa.
+ativo e suporte a entrada/saída nos pontos de acesso. A interface também
+permite CRUD de Users, AccessCards e AccessPermissions. A criação de User exige
+password de pelo menos 12 caracteres, não a mostra novamente e permite
+selecionar Admin/SecurityOperator; a edição altera perfil/estado ativo e o
+papel é alterado por endpoint dedicado. Cartões podem ser emitidos, editados,
+eliminados e ativados/desativados. Permissões podem ser criadas, editadas e
+revogadas, com User e AccessPoint selecionáveis, início obrigatório, fim
+opcional e validação no cliente de que o fim é posterior ao início. Os
+endpoints continuam sujeitos a `AdminOnly` na API; o guard Angular não
+substitui essa autorização.
 
-**Ainda por implementar nesta fase:** interfaces de gestão de Users, Access
-Cards e Access Permissions, bem como testes frontend automatizados. Os
-SecurityOperators veem eventos, mas não contagens administrativas nem a rota
-de gestão. Ocupação e atualizações em tempo real com SignalR pertencem às fases
-seguintes e não fazem parte desta implementação. A Fase 7 permanece em
+O target Angular está configurado com `@angular/build:unit-test`/Vitest, e
+`admin-api.service.spec.ts` contém seis testes dos contratos HTTP: listagem de
+Users, formato do payload de criação de User, alteração de papel, desativação
+de cartão e criação/atualização de AccessPermission. Os resultados de build e
+testes desta branch ainda não estão reportados.
+
+**Ainda por implementar nesta fase:** dashboard de ocupação/ocupação atual,
+console de pedidos de acesso, SignalR/atualizações em tempo real, simulação e
+cobertura mais ampla de componentes e E2E. Os SecurityOperators veem eventos,
+mas não contagens administrativas nem a rota de gestão. A Fase 7 permanece em
 desenvolvimento: o seu Definition of Done — operar o sistema principal pelo
-frontend — ainda não foi atingido.
+frontend — ainda não foi atingido. Ocupação e SignalR continuam também
+dependentes das fases seguintes; esta atualização não altera a ordem nem os
+critérios do roadmap.
 
 ---
 

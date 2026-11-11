@@ -37,7 +37,7 @@ Para ler a preparação completa num único ficheiro, abra o [README de Entrevis
 
 | Requisito da vaga | Onde estudar | Evidência/ligação ao projeto | Estado |
 |---|---|---|---|
-| Frontend Angular sólido | Módulos 5 e 9 | Login, dashboard de `AccessEvent`, guard e CRUD de Buildings/Floors/AccessPoints | Fase 7 em desenvolvimento; UIs restantes e testes frontend automatizados faltam |
+| Frontend Angular sólido | Módulos 5 e 9 | Login, dashboard de `AccessEvent`, guard e CRUD Admin de Buildings/Floors/AccessPoints/Users/AccessCards/AccessPermissions | Fase 7 em desenvolvimento; console, simulação e cobertura mais ampla faltam; ocupação e tempo real pertencem a fases seguintes |
 | UX intuitiva para self-service | Módulos 1, 5 e 9 | Dashboard de eventos e formulários administrativos parciais | Melhorias e fluxos restantes ainda requerem implementação e validação |
 | Backend .NET ou Java | Módulo 2 | API, Application, Domain e Infrastructure em .NET 10 | .NET aplicado no projeto; Java é alternativa da vaga, não requisito para duplicar a stack |
 | RESTful APIs | Módulos 3 e 10 | CRUDs administrativos, Access Control e `POST /api/auth/login` | Autenticação JWT e policies de autorização implementadas; ocupação, alertas e SignalR continuam futuros |
@@ -56,7 +56,8 @@ Para ler a preparação completa num único ficheiro, abra o [README de Entrevis
 
 Este repositório prova trabalho prático em .NET, APIs, PostgreSQL, EF Core,
 migrations e testes, além de uma implementação Angular parcial: login,
-dashboard de eventos e gestão de Buildings, Floors e AccessPoints. Não prova
+dashboard de eventos e gestão de Buildings, Floors, AccessPoints, Users,
+AccessCards e AccessPermissions. Não prova
 experiência profissional ou experiência Angular em produção. Não transforme
 conteúdo estudado em experiência que não teve; explique o que já construiu e
 seja claro sobre as UIs, os testes frontend e os fluxos ainda em falta.
@@ -78,7 +79,7 @@ Windows Server também será estudado conceitualmente. Docker Compose já foi va
 
 ## Ordem recomendada
 
-Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e gestão CRUD de AccessPermissions estão implementados. O processamento/decisão de Access Control, auditoria/consulta de `AccessEvent`s, login JWT e autorização por papéis estão implementados nesta branch. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. O frontend Angular tem login, dashboard com os 10 `AccessEvent`s mais recentes e CRUD de Buildings, Floors e AccessPoints para Admin; as UIs de Users, AccessCards e AccessPermissions e os testes frontend automatizados faltam. A aplicação também tem Docker Compose validado para execução local, incluindo Angular servido por Nginx, API e PostgreSQL. CI/CD e Kubernetes continuam planejados; atualização de `OccupancySession`, notificações SignalR e processamento de alertas continuam futuros.
+Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e AccessPermissions estão implementadas. O processamento/decisão de Access Control, auditoria/consulta de `AccessEvent`s, login JWT e autorização por papéis estão implementados nesta branch. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. O frontend Angular tem login, dashboard com os 10 `AccessEvent`s mais recentes e CRUD Admin das seis entidades de gestão. O target de testes está configurado com Vitest e há testes focados nos mapeamentos HTTP do service; build/testes desta branch ainda sem resultado reportado. Console de pedidos, simulação e cobertura mais ampla de componentes/E2E ainda não estão implementados na Fase 7; dashboard de ocupação e SignalR/tempo real pertencem às fases seguintes. A aplicação também tem Docker Compose validado para execução local, incluindo Angular servido por Nginx, API e PostgreSQL. CI/CD e Kubernetes continuam planejados; atualização de `OccupancySession` e processamento de alertas continuam futuros.
 
 Para estudar o fluxo implementado em cinco níveis — analogia simples,
 definição, exemplo do projeto, resposta de entrevista e exercício — consulte

@@ -4,11 +4,12 @@
 
 Este guia serve para revisão rápida antes de uma entrevista Full-Stack. O
 frontend Angular já tem login, dashboard com histórico de `AccessEvent` e
-gestão administrativa de `Buildings`, `Floors` e `AccessPoints`. A Fase 7
-continua em desenvolvimento: gestão de Users, AccessCards e AccessPermissions,
-testes frontend automatizados e outras operações ainda faltam. Ocupação e
-SignalR pertencem a fases posteriores. Não apresente comportamento planeado
-como implementado.
+gestão administrativa de `Buildings`, `Floors`, `AccessPoints`, Users,
+AccessCards e AccessPermissions. A Fase 7 continua em desenvolvimento:
+console de pedidos de acesso, simulação e cobertura mais ampla de componentes
+e E2E ainda faltam. Dashboard de ocupação/ocupação atual e SignalR/tempo real
+também não estão implementados e pertencem às fases seguintes. Não apresente
+comportamento planeado como implementado.
 
 O projeto não fixou uma versão Angular. Os conceitos são estáveis; confirme a versão usada pela empresa antes de afirmar detalhes dependentes da versão.
 
@@ -271,10 +272,10 @@ Validação frontend oferece feedback imediato. A API valida novamente porque o 
 ### Analogia simples
 
 O dashboard é como o livro de registos da portaria: mostra as entradas e
-saídas mais recentes. A área de gestão é como um balcão com formulários para
-manter a lista de edifícios, pisos e pontos de acesso. O crachá de Admin abre
-esse balcão; o de SecurityOperator permite consultar os eventos, mas não
-alterar a configuração.
+saídas mais recentes. A área de gestão é como o balcão onde a equipa mantém
+edifícios, pisos, pontos de acesso, pessoas, cartões e permissões. O crachá de
+Admin abre esse balcão; o de SecurityOperator permite consultar os eventos,
+mas não alterar a configuração.
 
 ### Definição técnica
 
@@ -283,7 +284,9 @@ Um dashboard Angular pode obter dados através de um service baseado em
 modelam e validam campos e relações no cliente. Um route guard pode restringir
 a navegação por papel, mas não substitui autenticação e autorização aplicadas
 pela API. Os dados e operações administrativas devem continuar sujeitos às
-policies do servidor.
+policies do servidor. Para credenciais e permissões, os formulários devem
+evitar expor passwords depois da criação e tratar o papel como operação
+autorizada, não apenas como campo visual.
 
 ### Exemplo concreto no Smart Building
 
@@ -297,11 +300,26 @@ A rota `/management` é Admin-only por guard Angular e pelas policies existentes
 na API. Os formulários reativos implementam criar, consultar, atualizar e
 remover `Buildings`, `Floors` e `AccessPoints`; usam seletores para relações
 (por exemplo, escolher o Building de um Floor), campos de ativo e, para
-AccessPoints, suporte de entrada e saída. A UI de Users, AccessCards e
-AccessPermissions não existe. O dashboard não mostra ocupação, a aplicação
-não usa SignalR para atualização em tempo real e não há testes frontend
-automatizados. O build de produção `cd src/smart-building-web && npm run build`
-passa.
+AccessPoints, suporte de entrada e saída.
+
+A gestão de Users cria contas com password mínima de 12 caracteres (que não é
+mostrada novamente), permite escolher `Admin` ou `SecurityOperator`, e permite
+editar perfil e estado ativo. A mudança de papel usa o endpoint dedicado. A
+gestão de AccessCards permite emitir, editar, eliminar e ativar/desativar
+cartões. A gestão de AccessPermissions permite criar, editar e revogar
+permissões, selecionando User e AccessPoint; exige início, aceita fim opcional
+e valida no cliente que o fim seja posterior ao início. Todos os endpoints
+continuam protegidos por `AdminOnly` na API; o guard é somente controlo de
+navegação.
+
+O target de testes usa `@angular/build:unit-test`/Vitest. O spec
+`admin-api.service.spec.ts` contém seis testes de contratos HTTP: listagem de
+Users, formato do payload de criação de User, atualização de papel,
+desativação de AccessCard e criação/atualização de AccessPermission. Não estão
+reportados aqui resultados de execução do build ou dos testes. Console de
+pedidos de acesso, simulação e cobertura mais ampla de componentes e E2E não
+estão implementados nesta fase; dashboard de ocupação e SignalR/tempo real
+pertencem às fases seguintes.
 
 ### Resposta de entrevista
 
@@ -309,10 +327,15 @@ passa.
 > os resultados e mostra os dez mais recentes. Os indicadores de concedidos e
 > negados resumem os eventos devolvidos pela API; apenas Admin recebe ainda
 > contagens de Buildings, Floors e AccessPoints. Também implementei a rota
-> Admin-only `/management` e formulários reativos para CRUD de Buildings,
-> Floors e AccessPoints. O guard melhora a navegação, mas a API mantém a
-> autorização real. Ainda faltam as UIs de Users, cartões e permissões, testes
-> frontend, ocupação e SignalR; portanto a Fase 7 não está concluída.
+> Admin-only `/management` e formulários reativos para gerir Buildings,
+> Floors, AccessPoints, Users, AccessCards e AccessPermissions. A criação de
+> User exige password mínima de 12 caracteres e o papel é alterado pelo
+> endpoint dedicado. O guard melhora a navegação, mas a API mantém a
+> autorização real. O target Vitest e testes de mapeamento do admin service
+> estão configurados; os resultados ainda não estão reportados. Dashboard de
+> console de pedidos, simulação e cobertura mais ampla de componentes/E2E
+> ainda faltam nesta fase. Ocupação e SignalR pertencem às fases seguintes;
+> portanto, a Fase 7 não está concluída.
 
 ### Exercício prático
 
@@ -325,6 +348,12 @@ Desenhe o fluxo de uma edição de Floor e explique:
    precisa verificar?
 5. Se o formulário mostrar sucesso mas a lista não mudar, que passos seguiria
    na Network tab e no fluxo component → service → API?
+
+Como extensão, desenhe também a criação de uma AccessPermission: identifique
+os controlos de seleção de User/AccessPoint, a validação de início/fim,
+o request enviado pelo service e os limites entre validação Angular e
+autorização `AdminOnly` no servidor. Explique por que a password de criação
+de User não deve ser carregada de volta ao formulário após a resposta.
 
 Como extensão, adicione paginação ao histórico e decida se os indicadores
 devem resumir a página atual ou o conjunto completo. Explique como evitar

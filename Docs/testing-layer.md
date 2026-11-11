@@ -208,7 +208,18 @@ Casos principais incluem login, CRUD, pedido de acesso, persistência do evento,
 
 ### Testes de frontend
 
-Quando Angular existir, serão necessários testes de componentes, services, guards e fluxos críticos. Testes end-to-end devem cobrir somente jornadas de maior valor.
+O target de testes Angular está configurado com `@angular/build:unit-test` e
+Vitest. `src/app/admin/admin-api.service.spec.ts` contém seis testes de
+contratos HTTP do service: listagem de Users, formato do payload de criação de
+User, atualização de papel, desativação de AccessCard e criação/atualização de
+AccessPermission. Estes são testes do service e não demonstram o comportamento
+dos componentes, guards ou jornadas completas.
+
+O resultado da execução dos testes e do build desta branch ainda não está
+reportado; não tratar a configuração nem a existência do spec como prova de
+que os comandos passaram. Permanecem por implementar/testar cobertura mais
+ampla de componentes e E2E para jornadas de maior valor, incluindo as
+experiências de ocupação e pedido de acesso quando forem desenvolvidas.
 
 ## Convenção de nomes
 

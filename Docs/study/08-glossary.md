@@ -59,7 +59,7 @@
 - **Concorrência:** operações simultâneas sobre estado relacionado.
 - **AsNoTracking:** consulta sem tracking para leitura.
 
-No Smart Building, `PasswordHasher<User>` do ASP.NET Core Identity gera o hash na criação do utilizador. O hash nunca é devolvido pela API, e testes da primitiva Identity verificam passwords. O caso de uso de login verifica credenciais de User ativo e emite um token JWT; a interface Angular, refresh/revogação, MFA e provedor externo continuam por implementar.
+No Smart Building, `PasswordHasher<User>` do ASP.NET Core Identity gera o hash na criação do utilizador. O hash nunca é devolvido pela API, e testes da primitiva Identity verificam passwords. O caso de uso de login verifica credenciais de User ativo e emite um token JWT; a interface Angular implementa login e gestão Admin dos recursos. Refresh/revogação, MFA e provedor externo continuam por implementar.
 
 ## Angular
 
