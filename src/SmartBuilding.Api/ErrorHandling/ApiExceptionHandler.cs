@@ -13,10 +13,14 @@ internal sealed class ApiExceptionHandler(
         Exception exception,
         CancellationToken cancellationToken)
     {
-        int statusCode = exception is ApplicationValidationException
-            ? StatusCodes.Status400BadRequest
-            : StatusCodes.Status500InternalServerError;
-        string title = statusCode == StatusCodes.Status400BadRequest
+        int statusCode = exception switch
+        {
+            ApplicationValidationException => StatusCodes.Status400BadRequest,
+            BadHttpRequestException { StatusCode: >= 400 and < 500 } requestException =>
+                requestException.StatusCode,
+            _ => StatusCodes.Status500InternalServerError
+        };
+        string title = statusCode < StatusCodes.Status500InternalServerError
             ? "Invalid request."
             : "An unexpected error occurred.";
 
@@ -26,7 +30,7 @@ internal sealed class ApiExceptionHandler(
         }
         else
         {
-            logger.LogWarning(exception, "API request validation failed.");
+            logger.LogWarning(exception, "API request rejected with status {StatusCode}.", statusCode);
         }
 
         httpContext.Response.StatusCode = statusCode;

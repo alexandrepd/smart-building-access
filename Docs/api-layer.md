@@ -330,7 +330,11 @@ Os endpoints usam semântica HTTP consistente:
 
 ## Tratamento de erros
 
-`AddProblemDetails`, `UseExceptionHandler` e `ApiExceptionHandler` formam o tratamento global. Somente `ApplicationValidationException`, exceção específica da Application, vira `400 Bad Request`; o handler preserva o nome da propriedade e produz `ValidationProblemDetails` com erros por campo. Exceções inesperadas viram `500 Internal Server Error` e são registradas no log, sem expor stack trace.
+`AddProblemDetails`, `UseExceptionHandler` e `ApiExceptionHandler` formam o tratamento global. `ApplicationValidationException`, exceção específica da Application, vira `400 Bad Request`; o handler preserva o nome da propriedade e produz `ValidationProblemDetails` com erros por campo.
+
+`BadHttpRequestException` com status entre `400` e `499` preserva o código indicado pelo transporte. JSON malformado e enums JSON desconhecidos, como `"direction": "Sideways"`, retornam `400` com Problem Details genérico, não `500`. O mesmo mapeamento preserva códigos como `413` e `415` quando emitidos pelo framework; não introduz novos limites de tamanho ou formatos suportados. Essas falhas acontecem antes da decisão de acesso e não geram `AccessEvent` nem alteram a ocupação.
+
+Rejeições de pedidos são registradas como warning. Exceções inesperadas continuam a retornar `500 Internal Server Error` e são registradas como error. As respostas genéricas não expõem mensagens internas nem stack traces.
 
 O bloqueio de remoção de um edifício com pisos, de um piso com pontos de acesso ou sessões de ocupação, e de um ponto de acesso com permissões, eventos ou alertas são conflitos de estado conhecidos. Os endpoints retornam `409 Conflict` com Problem Details. A criação ou atualização de um piso cujo `BuildingId` não existe retorna `404` com Problem Details; de forma equivalente, criar ou atualizar um ponto de acesso com `FloorId` inexistente retorna `404`. Recursos desconhecidos também retornam `404`. Respostas vazias `404` e outros status sem body passam por `UseStatusCodePages` para manter o formato de erro consistente. Os contratos OpenAPI declaram `ValidationProblemDetails` para `400` e Problem Details para `404` e `409`.
 

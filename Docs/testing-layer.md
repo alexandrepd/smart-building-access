@@ -31,6 +31,17 @@ long polling e preservação da resposta REST quando a leitura de ocupação
 falha. `AccessEventPublisherTests` cobre decisões negadas e falhas de envio.
 Esses testes não substituem integração automatizada com PostgreSQL.
 
+`ApiExceptionHandlerTests` acrescenta sete casos HTTP com TestServer e o
+handler global real: enum desconhecido, JSON malformado, preservação de
+`413`/`415`, erros por campo de `ApplicationValidationException` e respostas
+genéricas `500` para falhas inesperadas, incluindo uma exceção de transporte
+sem status de cliente. O host força exceções de binding para exercitar o
+mesmo caminho que revelou o defeito no Compose. Não usa PostgreSQL,
+autenticação nem serviços de acesso reais; o teste manual descrito abaixo
+complementa essa cobertura, sem substituir integração automatizada.
+Após a correção, os 145 testes .NET passaram e a solução compilou sem
+avisos nem erros.
+
 Na validação manual do Compose atualizado, o login Admin, as consultas do
 dashboard e o hub passaram pelo Nginx na porta `8081`. O hub rejeitou uma
 negociação sem token com `401`; uma ligação autenticada confirmou upgrade
@@ -39,6 +50,15 @@ persistiu a decisão `CardNotFound` e apareceu no dashboard sem refresh.
 Esse evento de teste permanece no histórico de auditoria. O banco e o seu
 container foram preservados durante a atualização. Esta verificação não
 cobre Entry/Exit concedidos nem substitui testes automatizados de integração.
+
+Na regressão manual do tratamento de erros, apenas o container da API foi
+reconstruído. Pedidos autenticados com `"direction": "Sideways"` e JSON
+incompleto retornaram `400` com `application/problem+json`. Comparações antes
+e depois confirmaram os mesmos 93 IDs de eventos e as mesmas sessões dos
+10 ocupantes, sem mudanças nas quantidades dos cadastros. Os containers
+PostgreSQL e web foram preservados e a API permaneceu saudável. Essa
+verificação usa os dados de demonstração locais e não constitui uma suíte
+automatizada de integração com PostgreSQL.
 
 ## Organização atual
 
@@ -58,6 +78,8 @@ SmartBuilding.UnitTests/
 │   └── Users/
 │       └── UserServiceTests.cs
 ├── Api/
+│   ├── ErrorHandling/
+│   │   └── ApiExceptionHandlerTests.cs
 │   └── Users/
 │       └── UserRequestValidationTests.cs
 ├── Architecture/
