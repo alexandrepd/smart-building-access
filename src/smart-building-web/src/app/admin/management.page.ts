@@ -3,7 +3,7 @@ import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { forkJoin, Observable, of, switchMap } from 'rxjs';
+import { forkJoin, Observable } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import {
   AccessCard,
@@ -264,23 +264,7 @@ export class ManagementPage implements OnInit {
           return;
         }
         const { name, email, password, role, isActive } = this.userForm.getRawValue();
-        const id = this.editingId();
-        const request = id
-          ? this.api
-              .updateUser(id, { name: name.trim(), email: email.trim(), isActive })
-              .pipe(
-                switchMap((updated) =>
-                  role !== this.editingUserRole() ? this.api.updateUserRole(id, role) : of(updated),
-                ),
-              )
-          : this.api
-              .createUser({ name: name.trim(), email: email.trim(), password })
-              .pipe(
-                switchMap((created) =>
-                  role === created.role ? of(created) : this.api.updateUserRole(created.id, role),
-                ),
-              );
-        this.submitRequest(request);
+        this.saveUser(name.trim(), email.trim(), password, role, isActive);
         break;
       }
       case 'cards': {
@@ -419,9 +403,9 @@ export class ManagementPage implements OnInit {
       : `${start} – sem data de fim`;
   }
 
-  protected load(): void {
+  protected load(preserveMessages = false): void {
     this.loading.set(true);
-    this.errorMessage.set('');
+    if (!preserveMessages) this.errorMessage.set('');
     forkJoin({
       buildings: this.api.getBuildings(),
       floors: this.api.getFloors(),
@@ -461,6 +445,53 @@ export class ManagementPage implements OnInit {
         this.errorMessage.set(this.describeError(error));
       },
     });
+  }
+
+  private saveUser(
+    name: string,
+    email: string,
+    password: string,
+    role: BuildingUser['role'],
+    isActive: boolean,
+  ): void {
+    const id = this.editingId();
+    const request = id
+      ? this.api.updateUser(id, { name, email, isActive })
+      : this.api.createUser({ name, email, password });
+
+    this.saving.set(true);
+    request.subscribe({
+      next: (user) => {
+        if (user.role === role) {
+          this.finishSave();
+          return;
+        }
+
+        this.api.updateUserRole(user.id, role).subscribe({
+          next: () => this.finishSave(),
+          error: (error: HttpErrorResponse) => {
+            this.saving.set(false);
+            this.editUser(user);
+            this.errorMessage.set(
+              `O perfil foi guardado, mas não foi possível alterar o papel. ${this.describeError(error)} Pode corrigir o papel e tentar novamente.`,
+            );
+            this.load(true);
+          },
+        });
+      },
+      error: (error: HttpErrorResponse) => {
+        this.saving.set(false);
+        this.errorMessage.set(this.describeError(error));
+      },
+    });
+  }
+
+  private finishSave(): void {
+    this.saving.set(false);
+    this.editingId.set(null);
+    this.resetForms();
+    this.successMessage.set('Alterações guardadas.');
+    this.load();
   }
 
   private resetForms(): void {

@@ -2480,7 +2480,10 @@ O target Angular está configurado com `@angular/build:unit-test`/Vitest, e
 `admin-api.service.spec.ts` contém seis testes dos contratos HTTP: listagem de
 Users, formato do payload de criação de User, alteração de papel, desativação
 de cartão e criação/atualização de AccessPermission. Os resultados de build e
-testes desta branch ainda não estão reportados.
+testes desta branch foram verificados: o build de produção passou e os sete
+testes passaram, incluindo uma regressão da página que confirma que, se a
+alteração de papel falhar após criar um User, o perfil criado fica carregado
+para permitir corrigir o papel sem repetir a criação.
 
 **Ainda por implementar nesta fase:** dashboard de ocupação/ocupação atual,
 console de pedidos de acesso, SignalR/atualizações em tempo real, simulação e
