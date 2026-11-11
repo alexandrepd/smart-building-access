@@ -10,7 +10,7 @@ Preparação para entrevista: [README-ENTREVISTA.md](README-ENTREVISTA.md).
 - projetos API, Application, Domain, Infrastructure e UnitTests;
 - modelo inicial de domínio;
 - OpenAPI configurado na API;
-- frontend Angular iniciado com login JWT, rota de painel protegida e interceptor Bearer;
+- frontend Angular com login JWT, painel, console de pedidos de acesso, gestão Admin e interceptor Bearer;
 - desenvolvimento organizado por fases em [Docs/smart-building-project-plan.md](Docs/smart-building-project-plan.md).
 
 ## Pré-requisitos

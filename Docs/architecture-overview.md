@@ -103,19 +103,21 @@ consultar, atualizar e remover Users, AccessCards e AccessPermissions:
 Todos estes pedidos continuam sujeitos à autorização `AdminOnly` no servidor;
 o guard Angular é apenas uma barreira de navegação no cliente. O alvo de testes
 Angular está configurado com `@angular/build:unit-test`/Vitest e
-`admin-api.service.spec.ts` contém seis testes de contratos HTTP do service:
+`admin-api.service.spec.ts` contém sete testes de contratos HTTP do service:
 listagem de Users, formato do payload de criação de User, atualização de papel,
 desativação de AccessCard e criação/atualização de AccessPermission. Além
-desses seis testes do service, há um teste da página para o caso em que a
-criação do User é bem-sucedida mas a atribuição do papel falha: o registo
-permanece editável e a interface informa que o perfil foi guardado
-parcialmente. O build de produção passou e os sete testes passaram nesta
+do teste de pedido de acesso, há quatro testes de páginas: recuperação quando
+a atribuição de papel falha, envio/apresentação da decisão, seletores Admin e
+validação do GUID. O build de produção passou e os 11 testes passaram nesta
 branch.
 
-A Fase 7 continua em desenvolvimento: console de pedidos de acesso, simulação
-e cobertura mais ampla de componentes e E2E não estão implementados. Dashboard
-de ocupação/ocupação atual e SignalR/tempo real também não estão
-implementados, e pertencem às fases seguintes do roadmap.
+O console `/access-request` permite a Admin e SecurityOperator submeter
+tentativas à API e consultar eventos recentes. Admin seleciona cartões e
+pontos de acesso; SecurityOperator informa manualmente o número do cartão e o
+GUID do ponto, pois os endpoints de listagem dessas opções são Admin-only. A
+Fase 7 continua em desenvolvimento: simulação e cobertura mais ampla de
+componentes e E2E ainda não estão implementadas. Dashboard de ocupação e
+SignalR/tempo real pertencem às fases seguintes do roadmap.
 
 ## Fluxo implementado de uma solicitação de acesso
 
@@ -176,7 +178,7 @@ Cada fase deve terminar com build, testes e um pull request focado. Tecnologias 
 | Database | Persistência base implementada e validada |
 | API funcional | CRUDs administrativos e rotas de decisão/eventos implementados nesta branch |
 | Access Control | Decisão, auditoria, consultas de evento e autenticação/autorização JWT implementadas nesta branch; ocupação, SignalR e alertas seguem futuros |
-| Frontend Angular (Fase 7) | Login, dashboard de eventos e CRUD Admin de Buildings/Floors/AccessPoints/Users/AccessCards/AccessPermissions implementados; testes focados do service configurados; restantes experiências e cobertura mais ampla pendentes |
+| Frontend Angular (Fase 7) | Login, dashboard de eventos, console de pedidos Admin/SecurityOperator e CRUD Admin das seis entidades implementados; 11 testes focados e build de produção verificados; simulação e cobertura mais ampla pendentes |
 
 PostgreSQL 18 foi executado num container descartável, na porta isolada `55432`, para validar a migration, o arranque, a idempotência do seed e os slices de `Buildings`, `Floors`, `AccessPoints` e `Users`. Para Users, o smoke confirmou email uppercase com espaços externos criado em `201` e canonicalizado para lowercase, duplicidade `409`, consulta `200`, atualização `200` e remoção `204`; também confirmou hash armazenado pelo `PasswordHasher<User>`, response sem password/hash, delete bloqueado por cartão com `409` e evento preservado com `UserId` nulo. Isso não significa que a fase futura de Docker da aplicação foi implementada.
 

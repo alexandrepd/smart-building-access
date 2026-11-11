@@ -1,0 +1,190 @@
+<main class="request-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/dashboard" aria-label="Smart Building Access, painel">
+      <span class="brand-mark"><i></i><i></i><i></i></span>
+      <span>SMART<span>BUILDING</span></span>
+    </a>
+    <nav aria-label="Navegação principal">
+      <a routerLink="/dashboard">Painel</a>
+      <span aria-current="page">Pedido de acesso</span>
+      @if (isAdmin) {
+        <a routerLink="/management">Administração</a>
+      }
+    </nav>
+    <div class="account">
+      <div class="account-copy">
+        <strong>{{ session?.name }}</strong>
+        <span>{{ session?.role }}</span>
+      </div>
+      <button type="button" (click)="auth.logout()">Terminar sessão</button>
+    </div>
+  </header>
+
+  <section class="content">
+    <p class="eyebrow">OPERAÇÕES</p>
+    <h1>Pedido de acesso</h1>
+    <p class="intro">
+      Registe uma tentativa de entrada ou saída. A decisão é tomada pela API e fica no histórico.
+    </p>
+
+    @if (errorMessage()) {
+      <div class="notice error" role="alert">{{ errorMessage() }}</div>
+    }
+    @if (successMessage()) {
+      <div class="notice success" role="status">{{ successMessage() }}</div>
+    }
+    @if (optionsError()) {
+      <div class="notice warning" role="status">
+        {{ optionsError() }} Pode introduzir manualmente os identificadores.
+      </div>
+    }
+
+    <section class="request-panel" aria-labelledby="request-heading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">NOVA OPERAÇÃO</p>
+          <h2 id="request-heading">Registar tentativa</h2>
+        </div>
+      </div>
+      <form [formGroup]="requestForm" (ngSubmit)="submitRequest()">
+        <div class="form-grid">
+          <label>
+            Número do cartão
+            @if (isAdmin && accessCards().length > 0) {
+              <select id="card-number" formControlName="cardNumber">
+                <option value="">Selecione um cartão</option>
+                @for (card of accessCards(); track card.id) {
+                  <option [value]="card.cardNumber">
+                    {{ card.cardNumber }}{{ card.isActive ? '' : ' (inativo)' }}
+                  </option>
+                }
+              </select>
+            } @else {
+              <input
+                id="card-number"
+                formControlName="cardNumber"
+                maxlength="100"
+                autocomplete="off"
+                placeholder="Ex.: CARD-001"
+              />
+            }
+            @if (
+              requestForm.controls.cardNumber.touched && requestForm.controls.cardNumber.invalid
+            ) {
+              <small class="field-error">Indique um número de cartão válido.</small>
+            }
+          </label>
+
+          <label>
+            Ponto de acesso
+            @if (isAdmin && accessPoints().length > 0) {
+              <select id="access-point-id" formControlName="accessPointId">
+                <option value="">Selecione um ponto de acesso</option>
+                @for (point of accessPoints(); track point.id) {
+                  <option [value]="point.id">
+                    {{ point.name }}{{ point.isActive ? '' : ' (inativo)' }}
+                  </option>
+                }
+              </select>
+            } @else {
+              <input
+                id="access-point-id"
+                formControlName="accessPointId"
+                autocomplete="off"
+                placeholder="GUID do ponto de acesso"
+                aria-describedby="access-point-help"
+              />
+            }
+            <small id="access-point-help">
+              @if (isAdmin && accessPoints().length > 0) {
+                Selecione um ponto registado.
+              } @else {
+                Introduza o GUID do ponto de acesso.
+              }
+            </small>
+            @if (
+              requestForm.controls.accessPointId.touched &&
+              requestForm.controls.accessPointId.invalid
+            ) {
+              <small class="field-error">Introduza um GUID válido.</small>
+            }
+          </label>
+
+          <label>
+            Direção
+            <select id="direction" formControlName="direction">
+              <option value="Entry">Entrada</option>
+              <option value="Exit">Saída</option>
+            </select>
+          </label>
+        </div>
+
+        @if (isAdmin && loadingOptions()) {
+          <p class="loading" role="status">A carregar cartões e pontos de acesso...</p>
+        }
+
+        <div class="form-actions">
+          <button type="submit" [disabled]="saving() || loadingOptions()">
+            {{ saving() ? 'A registar...' : 'Registar pedido' }}
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="history-panel" aria-labelledby="history-heading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">AUDITORIA</p>
+          <h2 id="history-heading">Eventos recentes</h2>
+        </div>
+        <button
+          type="button"
+          class="secondary-button"
+          (click)="loadEvents()"
+          [disabled]="loadingEvents()"
+        >
+          {{ loadingEvents() ? 'A atualizar...' : 'Atualizar histórico' }}
+        </button>
+      </div>
+      @if (eventsError()) {
+        <div class="notice error" role="alert">{{ eventsError() }}</div>
+      }
+      @if (loadingEvents() && events().length === 0) {
+        <p class="loading" role="status">A carregar histórico...</p>
+      } @else if (events().length === 0) {
+        <p class="empty-state">Ainda não existem eventos de acesso.</p>
+      } @else {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Data e hora</th>
+                <th>Resultado</th>
+                <th>Direção</th>
+                <th>Ponto de acesso</th>
+                <th>Motivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (event of events(); track event.id) {
+                <tr>
+                  <td data-label="Data e hora">{{ event.occurredAt | date: 'short' }}</td>
+                  <td data-label="Resultado">
+                    <span class="result" [class.denied]="event.result !== 'Granted'">
+                      {{ resultLabel(event.result) }}
+                    </span>
+                  </td>
+                  <td data-label="Direção">{{ directionLabel(event.direction) }}</td>
+                  <td data-label="Ponto de acesso">
+                    <code>{{ shortId(event.accessPointId) }}</code>
+                  </td>
+                  <td data-label="Motivo">{{ event.reason }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  </section>
+</main>

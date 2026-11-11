@@ -209,18 +209,18 @@ Casos principais incluem login, CRUD, pedido de acesso, persistência do evento,
 ### Testes de frontend
 
 O target de testes Angular está configurado com `@angular/build:unit-test` e
-Vitest. `src/app/admin/admin-api.service.spec.ts` contém seis testes de
-contratos HTTP do service: listagem de Users, formato do payload de criação de
-User, atualização de papel, desativação de AccessCard e criação/atualização de
-AccessPermission. Um sétimo teste cobre a página de gestão: quando a criação
-de User é concluída mas a alteração de papel falha, o registo mantém-se
-editável e a interface comunica o resultado parcial. O build de produção
-passou e os sete testes passaram nesta branch. Esta cobertura focada não
-substitui testes de outros componentes, guards ou jornadas completas.
+Vitest. `src/app/admin/admin-api.service.spec.ts` contém sete testes de
+contratos HTTP do service, incluindo o payload de `POST /api/access/requests`.
+Quatro testes de páginas cobrem a recuperação quando a alteração de papel
+falha, o envio e a apresentação de uma decisão de acesso, os seletores Admin
+de cartões/pontos e a validação do GUID. O build de produção e os 11 testes
+passaram nesta branch. Esta cobertura focada não substitui testes de outros
+componentes, guards ou jornadas completas.
 
-Permanecem por implementar/testar cobertura mais ampla de componentes e E2E
-para jornadas de maior valor, incluindo as
-experiências de ocupação e pedido de acesso quando forem desenvolvidas.
+Permanece por implementar/testar cobertura mais ampla de componentes e E2E
+para jornadas de maior valor, incluindo a jornada de pedido de acesso e as
+futuras experiências de ocupação; a existência dos quatro testes de páginas
+não significa cobertura E2E.
 
 ## Convenção de nomes
 

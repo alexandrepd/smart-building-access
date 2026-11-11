@@ -133,6 +133,30 @@ describe('AdminApiService', () => {
     expect(request.request.body).toEqual(update);
     request.flush({ id: permissionId, ...update });
   });
+
+  it('submits an access request using the access-control contract', () => {
+    const requestBody = {
+      cardNumber: 'CARD-001',
+      accessPointId: '01234567-89ab-cdef-0123-456789abcdef',
+      direction: 'Entry' as const,
+    };
+
+    api.requestAccess(requestBody).subscribe();
+
+    const request = http.expectOne('/api/access/requests');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(requestBody);
+    request.flush({
+      id: 'event-id',
+      accessPointId: requestBody.accessPointId,
+      accessCardId: 'card-id',
+      userId: 'user-id',
+      occurredAt: '2026-01-01T10:00:00Z',
+      direction: 'Entry',
+      result: 'Granted',
+      reason: 'Access granted.',
+    });
+  });
 });
 
 describe('ManagementPage', () => {

@@ -37,7 +37,7 @@ Para ler a preparação completa num único ficheiro, abra o [README de Entrevis
 
 | Requisito da vaga | Onde estudar | Evidência/ligação ao projeto | Estado |
 |---|---|---|---|
-| Frontend Angular sólido | Módulos 5 e 9 | Login, dashboard de `AccessEvent`, guard e CRUD Admin de Buildings/Floors/AccessPoints/Users/AccessCards/AccessPermissions | Fase 7 em desenvolvimento; console, simulação e cobertura mais ampla faltam; ocupação e tempo real pertencem a fases seguintes |
+| Frontend Angular sólido | Módulos 5 e 9 | Login, dashboard de `AccessEvent`, console de pedidos, guard e CRUD Admin das seis entidades | Fase 7 em desenvolvimento; simulação e cobertura mais ampla faltam; ocupação e tempo real pertencem a fases seguintes |
 | UX intuitiva para self-service | Módulos 1, 5 e 9 | Dashboard de eventos e formulários administrativos parciais | Melhorias e fluxos restantes ainda requerem implementação e validação |
 | Backend .NET ou Java | Módulo 2 | API, Application, Domain e Infrastructure em .NET 10 | .NET aplicado no projeto; Java é alternativa da vaga, não requisito para duplicar a stack |
 | RESTful APIs | Módulos 3 e 10 | CRUDs administrativos, Access Control e `POST /api/auth/login` | Autenticação JWT e policies de autorização implementadas; ocupação, alertas e SignalR continuam futuros |
@@ -79,7 +79,7 @@ Windows Server também será estudado conceitualmente. Docker Compose já foi va
 
 ## Ordem recomendada
 
-Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e AccessPermissions estão implementadas. O processamento/decisão de Access Control, auditoria/consulta de `AccessEvent`s, login JWT e autorização por papéis estão implementados nesta branch. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. O frontend Angular tem login, dashboard com os 10 `AccessEvent`s mais recentes e CRUD Admin das seis entidades de gestão. O target de testes está configurado com Vitest; seis testes cobrem contratos HTTP do service Admin e um teste cobre a recuperação da página quando a criação de User tem êxito mas a atualização do papel falha. Build e os sete testes passaram nesta branch. Console de pedidos, simulação e cobertura mais ampla de componentes/E2E ainda não estão implementados na Fase 7; dashboard de ocupação e SignalR/tempo real pertencem às fases seguintes. A aplicação também tem Docker Compose validado para execução local, incluindo Angular servido por Nginx, API e PostgreSQL. CI/CD e Kubernetes continuam planejados; atualização de `OccupancySession` e processamento de alertas continuam futuros.
+Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e AccessPermissions estão implementadas. O processamento/decisão de Access Control, auditoria/consulta de `AccessEvent`s, login JWT e autorização por papéis estão implementados nesta branch. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. O frontend Angular tem login, dashboard com os 10 `AccessEvent`s mais recentes, console de pedidos acessível a Admin/SecurityOperator e CRUD Admin das seis entidades de gestão. O target de testes está configurado com Vitest: sete testes cobrem contratos HTTP do service Admin e quatro testes cobrem comportamento das páginas, incluindo pedido de acesso, seletores Admin, validação do GUID e recuperação da alteração de papel. Build e os 11 testes passaram nesta branch. Simulação e cobertura mais ampla de componentes/E2E ainda não estão implementadas na Fase 7; dashboard de ocupação e SignalR/tempo real pertencem às fases seguintes. A aplicação também tem Docker Compose validado para execução local, incluindo Angular servido por Nginx, API e PostgreSQL. CI/CD e Kubernetes continuam planejados; atualização de `OccupancySession` e processamento de alertas continuam futuros.
 
 Para estudar o fluxo implementado em cinco níveis — analogia simples,
 definição, exemplo do projeto, resposta de entrevista e exercício — consulte
@@ -88,15 +88,15 @@ definição, exemplo do projeto, resposta de entrevista e exercício — consult
 Para estudar autenticação JWT e autorização `Admin`/`SecurityOperator` nos
 mesmos cinco níveis, consulte o [módulo de autenticação e autorização](10-authentication-authorization.md).
 
-Para rever em cinco níveis o dashboard Angular, os formulários administrativos,
-os limites do guard e as lacunas da Fase 7, consulte o [exemplo progressivo de
-dashboard e gestão](09-angular-interview-review.md#exemplo-progressivo-dashboard-e-gestão-administrativa).
+Para rever em cinco níveis o dashboard, o console de pedidos, os formulários
+administrativos, os limites do guard e as lacunas da Fase 7, consulte o
+[exemplo progressivo Angular](09-angular-interview-review.md#exemplo-progressivo-dashboard-gestão-e-console-de-pedidos).
 
 Para preparação de entrevista, pode estudar Angular em paralelo com a implementação:
 
 1. revisar o [módulo Angular](05-angular-rxjs.md);
 2. usar a [revisão intensiva](09-angular-interview-review.md) para perguntas e respostas em voz alta;
-3. relacionar os conceitos com o dashboard e a gestão administrativa Angular já implementados;
+3. relacionar os conceitos com o dashboard, o console e a gestão administrativa Angular já implementados;
 4. identificar as lacunas restantes sem descrever funcionalidades futuras como existentes;
 5. estudar deployment em profundidade nas fases 13 a 15.
 

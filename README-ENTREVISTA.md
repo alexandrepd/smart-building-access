@@ -24,7 +24,7 @@ Guia de revisão rápida, em português, para a vaga Full-Stack Angular/.NET. Ca
 
 ### “O que está implementado e o que ainda falta?”
 
-> Estão implementados o modelo de domínio, persistência PostgreSQL, CRUDs de Buildings, Floors, AccessPoints, Users, Cards e Permissions, decisão de acesso com auditoria, e login JWT com autorização por papéis. No frontend, o dashboard mostra os dez `AccessEvent`s mais recentes e totais concedidos/negados do histórico devolvido pela API; Admin também vê contagens de Buildings, Floors e AccessPoints. A rota de gestão Admin-only oferece CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e AccessPermissions. O target de testes Vitest está configurado, com seis testes de contratos HTTP do service Admin e um teste da página para recuperação de atualização parcial do papel; o build de produção e os sete testes passaram nesta branch. Ainda faltam o dashboard de ocupação, console de pedidos de acesso, simulação, SignalR e cobertura mais ampla de componentes/E2E. A Fase 7 continua em desenvolvimento.
+> Estão implementados o modelo de domínio, persistência PostgreSQL, CRUDs de Buildings, Floors, AccessPoints, Users, Cards e Permissions, decisão de acesso com auditoria, e login JWT com autorização por papéis. No frontend, o dashboard mostra os dez `AccessEvent`s mais recentes e totais concedidos/negados do histórico devolvido pela API; Admin também vê contagens de Buildings, Floors e AccessPoints. A rota de gestão Admin-only oferece CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e AccessPermissions. O console de pedidos está disponível a Admin e SecurityOperator: Admin seleciona cartões/pontos existentes e SecurityOperator introduz os identificadores, porque as listagens são Admin-only. O target de testes Vitest tem sete testes de contratos HTTP e quatro testes de páginas; o build de produção e os 11 testes passaram nesta branch. Ainda faltam o dashboard de ocupação, simulação, SignalR e cobertura mais ampla de componentes/E2E. A Fase 7 continua em desenvolvimento.
 
 ## Angular e UX
 
@@ -246,7 +246,7 @@ Use STAR: situação, tarefa, ação e resultado. Explique como reproduziu, que 
 - “Route guards improve navigation, but authorization must be enforced by the backend.”
 - “The API returns Problem Details so clients receive a consistent error format.”
 - “I reproduce the issue, inspect the network request, isolate the failing layer, and add a regression test.”
-- “The Angular client has a JWT login flow, an event-history dashboard, and Admin CRUD screens for buildings, floors, and access points. User/card/permission screens, frontend automated tests, occupancy, and SignalR are still missing, so Phase 7 is in progress.”
+- “The Angular client has a JWT login flow, an event-history dashboard, an access-request console, Admin CRUD screens for buildings, floors, access points, users, cards, and permissions, and focused frontend tests. Occupancy, simulation, broader component/E2E coverage, and SignalR are still missing, so Phase 7 is in progress.”
 
 ## Revisão de Véspera
 
