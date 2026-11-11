@@ -26,6 +26,19 @@
     <h1>Olá, {{ session?.name?.split(' ')?.[0] }}.</h1>
     <p class="intro">Atividade recente de controlo de acessos.</p>
 
+    <div class="live-status" role="status" aria-live="polite">
+      @switch (dashboard.liveState()) {
+        @case ('connecting') { <span>A ligar às atualizações em tempo real...</span> }
+        @case ('connected') { <span>Atualizações em tempo real ativas.</span> }
+        @case ('reconnecting') { <span>Ligação interrompida. A restabelecer atualizações em tempo real...</span> }
+        @case ('disconnected') { <span>Atualizações em tempo real desligadas. Os dados podem estar desatualizados.</span> }
+        @case ('error') { <span>Não foi possível ligar às atualizações em tempo real. Os dados podem estar desatualizados.</span> }
+      }
+      @if (dashboard.liveState() === 'error' || dashboard.liveState() === 'disconnected') {
+        <button type="button" (click)="dashboard.connect()">Tentar novamente</button>
+      }
+    </div>
+
     @if (errorMessage()) {
       <div class="notice error" role="alert">{{ errorMessage() }}</div>
     }
@@ -149,8 +162,8 @@
       </section>
 
       <p class="scope-note">
-        A ocupação é calculada a partir das sessões ativas na API. Atualizações automáticas em tempo
-        real e notificações continuam indisponíveis até à fase SignalR.
+        A ocupação é calculada a partir das sessões ativas na API e atualizada em tempo real enquanto
+        a ligação estiver ativa.
       </p>
     }
   </section>

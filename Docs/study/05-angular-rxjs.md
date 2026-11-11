@@ -175,17 +175,68 @@ Estado local pertence ao componente. Estado partilhado pode ficar em service, Si
 
 Não adicionar uma biblioteca global de estado apenas porque o projeto usa Angular.
 
-## SignalR
+## Exemplo progressivo: SignalR no dashboard
 
-SignalR mantém uma conexão para o servidor enviar atualizações:
+### 1. Analogia simples
 
-```text
-AccessEventCreated
-SecurityAlertCreated
-OccupancyChanged
-```
+REST é como pedir à receção uma lista atual do edifício. SignalR é como a
+receção telefonar quando há uma nova mudança. Se a chamada cair, você não
+recebe o que foi dito nesse intervalo; por isso, ao voltar a ligar, pede uma
+lista atualizada.
 
-Ao reconectar, o cliente deve buscar um snapshot atual porque mensagens podem ter sido perdidas. REST fornece estado; SignalR fornece mudanças em tempo real.
+### 2. Definição técnica
+
+SignalR permite ao servidor enviar notificações a clientes com uma conexão
+ativa. A notificação é uma mudança, não um histórico durável: sem mecanismo de
+replay, mensagens durante uma desconexão podem não chegar. Um snapshot REST
+reconcilia o estado depois da ligação ser restabelecida.
+
+### 3. Exemplo concreto no Smart Building
+
+`AccessHub` está em `/hubs/access` e exige `AccessOperations` (`Admin` ou
+`SecurityOperator`). O browser fornece o JWT por `accessTokenFactory`; o
+bearer handler aceita o parâmetro `access_token` de query apenas no caminho
+do hub, nunca nas rotas REST. A API publica a resposta REST
+`AccessEventResponse` como `AccessEventCreated` depois de um pedido
+processado ser persistido. Para resultado concedido, consulta então a
+ocupação atual e publica o array completo como `OccupancyChanged`; para
+resultado negado, não consulta ocupação.
+
+No cliente, `DashboardService` carrega eventos e ocupação por REST no início,
+regista os handlers e liga-se com reconexão automática. Atualiza eventos e
+substitui o snapshot de ocupação recebido. Ao conectar (para fechar o intervalo
+entre a carga inicial e o handshake) e ao reconectar, carrega novamente o
+snapshot REST. Se uma chamada REST falha, conserva o tratamento de erro
+existente; falha da conexão SignalR não remove a carga REST. Publicações no
+servidor são best effort e registadas, sem alterar a resposta REST. Alertas
+não estão implementados, portanto não existe `SecurityAlertCreated`.
+
+### 4. Resposta de entrevista
+
+> “Uso REST para a carga inicial e SignalR para atualizações enquanto o
+> dashboard está ligado. O hub `/hubs/access` exige a policy
+> `AccessOperations`. Cada pedido registado publica `AccessEventCreated` com
+> o mesmo contrato `AccessEventResponse`; só uma decisão concedida consulta
+> e envia o snapshot completo de ocupação. O Angular tenta reconectar
+> automaticamente e busca um novo snapshot REST após reconectar, porque o
+> hub não faz replay durável. A publicação é best effort para não transformar
+> uma falha de notificação numa falha da resposta de acesso. Alertas ainda
+> não estão implementados.”
+
+### 5. Exercício prático
+
+1. Trace `POST /api/access/requests` desde persistência até
+   `AccessEventCreated`; explique por que uma negação não consulta ocupação.
+2. Desenhe o caminho de autenticação do browser e indique por que
+   `access_token` só pode ser lido no caminho `/hubs/access`.
+3. Simule conceptualmente uma desconexão e explique como o snapshot REST após
+   reconectar reconcilia eventos e ocupação, e o que não consegue recuperar.
+4. Explique como a interface mantém o carregamento inicial e o erro REST se o
+   hub falhar.
+5. Consulte [Camada API](../api-layer.md#signalr-e-atualizações-do-dashboard)
+   e [Autenticação e autorização](../authentication-authorization.md) para
+   confirmar contrato, policy e limites. Não afirme replay durável, alerta ou
+   validação PostgreSQL que não existe.
 
 ## Build e deployment
 

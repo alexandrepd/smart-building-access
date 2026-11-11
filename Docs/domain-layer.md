@@ -126,7 +126,7 @@ erDiagram
 
 O fluxo de decisão implementado avalia os dados das entidades na Application, na ordem: cartão inexistente; cartão inativo; cartão expirado; utilizador inativo; AccessPoint inativo; direção não suportada; nenhuma permissão ativa; permissão ativa fora da validade atual; acesso concedido. A primeira condição aplicável determina o `AccessResult`. Os pedidos com AccessPoint conhecido são auditados em todos esses resultados, incluindo negativas. Nesta branch, somente um pedido concedido associado a um User tenta alterar `OccupancySession`: Entry cria uma sessão se não houver uma aberta para o mesmo User/piso; Exit fecha a sessão aberta nesse par. Entry duplicada, Exit sem sessão e saída anterior à entrada são no-op para ocupação, sem transformar um acesso concedido em negado nem apagar o `AccessEvent`.
 
-As entidades continuam sendo modelos mutáveis com propriedades públicas, valores padrão e coleções de navegação; não encapsulam todas as invariantes. A unicidade da sessão aberta por User/piso e a ordem temporal também são protegidas na persistência; SignalR e processamento de alertas continuam planejados.
+As entidades continuam sendo modelos mutáveis com propriedades públicas, valores padrão e coleções de navegação; não encapsulam todas as invariantes. A unicidade da sessão aberta por User/piso e a ordem temporal também são protegidas na persistência. A publicação SignalR pertence à borda da API e está implementada para eventos de acesso/ocupação; processamento e notificações de alertas continuam planejados.
 
 O Domain não autentica o cliente: o login e a autorização HTTP são
 implementados nas camadas Application/API; a decisão de acesso continua sendo

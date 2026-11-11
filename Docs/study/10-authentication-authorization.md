@@ -35,7 +35,7 @@ Campos malformados são erros de validação `400`.
 | Policy | Papéis aceites | Exemplo |
 |---|---|---|
 | `AdminOnly` | `Admin` | gestão de Buildings, Floors, AccessPoints, Cards, Permissions e Users |
-| `AccessOperations` | `Admin`, `SecurityOperator` | pedido de acesso e consulta de `AccessEvent`s |
+| `AccessOperations` | `Admin`, `SecurityOperator` | pedido de acesso, consulta de `AccessEvent`s e hub `/hubs/access` |
 
 `GET /` e o login permitem acesso anónimo. Os novos Users recebem
 `SecurityOperator` por omissão. Apenas um `Admin` pode alterar papéis através
@@ -47,6 +47,12 @@ permite a `SecurityOperator` autenticado consultar eventos e o console
 `/access-request` permite a ambos os papéis submeter pedidos, enquanto as
 contagens administrativas e a gestão ficam reservadas a Admin. O guard serve
 à navegação e à UX: as policies da API continuam a impor a autorização real.
+
+O hub SignalR `/hubs/access` também exige `AccessOperations`. Para o cliente
+browser, `accessTokenFactory` fornece o JWT e o bearer handler aceita
+`access_token` na query somente nesse caminho; não aceita tokens de query nas
+rotas REST. A limitação de caminho não torna URL um lugar seguro para
+credenciais: use HTTPS e evite registar a URL ou o token.
 
 Na gestão Angular, a criação de User exige password com pelo menos 12
 caracteres; a password não é mostrada novamente depois da criação. O formulário
@@ -92,7 +98,9 @@ aplicar a migration antes de iniciar esta versão.
 > as policies da API. O JWT é assinado, não cifrado, por isso evito claims
 > sensíveis e mantenho a chave de assinatura em configuração segura. A
 > interface continua parcial e a migration de papéis precisa ser aplicada
-> operacionalmente fora de Development.”
+> operacionalmente fora de Development. O hub SignalR `/hubs/access` também
+> exige `AccessOperations`; a query `access_token` só é lida nesse caminho
+> para suportar o browser e nunca nas rotas REST.”
 
 ### 5. Exercício prático
 
@@ -113,6 +121,9 @@ aplicar a migration antes de iniciar esta versão.
    autorização suficiente e qual camada tem de proteger o endpoint.
 8. Liste duas capacidades não implementadas (por exemplo, refresh token,
    revogação imediata de JWT ou MFA) sem as apresentar como existentes.
+9. Explique por que o JWT do browser é aceite na query apenas em
+   `/hubs/access`, qual o risco de uma URL com credencial e que policy protege
+   o hub.
 
 Consulte a [documentação técnica de autenticação e autorização](../authentication-authorization.md)
 e a [camada API](../api-layer.md).

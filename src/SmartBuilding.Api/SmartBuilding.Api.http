@@ -19,6 +19,14 @@ Content-Type: application/json
 
 @accessToken = {{login.response.body.accessToken}}
 
+# SignalR negotiation (Admin or SecurityOperator). Connect a SignalR client to
+# /hubs/access with this token to receive AccessEventCreated and, for granted
+# requests, OccupancyChanged. Query-string tokens are accepted only on this hub.
+POST {{SmartBuilding.Api_HostAddress}}/hubs/access/negotiate?negotiateVersion=1
+Authorization: Bearer {{accessToken}}
+
+###
+
 # Every request below this point uses the bearer token from the login response.
 GET {{SmartBuilding.Api_HostAddress}}/api/buildings
 Authorization: Bearer {{accessToken}}

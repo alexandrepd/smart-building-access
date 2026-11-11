@@ -139,6 +139,10 @@ porta publicada liga uma porta do host à porta interna do container; a variáve
 na porta `8080`. O proxy reverso Nginx encaminha os pedidos `/api` pela rede
 interna do Compose.
 
+Para SignalR, o Nginx também encaminha `/hubs/`, preservando o upgrade para
+WebSocket. Nessa rota, o buffering está desativado e o access log não regista
+URLs que possam conter tokens de autenticação.
+
 #### Exemplo do projeto
 
 Na validação local, `WEB_PORT=8081` foi aceite e o container Angular iniciou
@@ -163,6 +167,11 @@ Explique o percurso de `GET /` e de um pedido `/api` desde o host até ao
 container correto. Depois, altere `WEB_PORT` para uma porta disponível,
 confirme o mapeamento e explique por que um `GET` ao endpoint de login pode
 retornar `405` sem significar que o proxy falhou.
+
+Com o dashboard autenticado, confirme no browser a ligação WebSocket em
+`/hubs/access` e a indicação de tempo real ativo. Explique por que encaminhar
+apenas `/api` não basta para o hub e por que a query com JWT não deve aparecer
+nos logs do proxy.
 
 ## Kubernetes
 

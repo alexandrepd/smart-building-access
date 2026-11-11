@@ -332,6 +332,23 @@ code {
   font-size: 10px;
   line-height: 1.6;
 }
+.live-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: #607080;
+  font-size: 12px;
+}
+.live-status button {
+  padding: 6px 10px;
+  border: 1px solid #aab8c5;
+  border-radius: 5px;
+  color: #263c53;
+  background: #fff;
+  cursor: pointer;
+}
 .notice {
   margin-bottom: 16px;
   padding: 11px 14px;

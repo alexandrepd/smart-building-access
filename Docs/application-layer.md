@@ -40,8 +40,9 @@ O processamento/decisão, auditoria por `AccessEvent`, caso de uso de login e
 consulta de ocupação estão implementados nesta branch. Um pedido concedido
 produz uma intenção de transição para Occupancy; a Infrastructure grava a
 sessão e o evento na mesma transação. A Application calcula durações a partir
-de `TimeProvider` e dos instantes UTC da sessão. Notificações SignalR e
-processamento de alertas permanecem planejados. A gestão CRUD de
+de `TimeProvider` e dos instantes UTC da sessão. A API publica notificações
+SignalR depois do caso de uso; o processamento de alertas permanece planejado.
+A gestão CRUD de
 `AccessPermission` e a decisão no momento do pedido são casos de uso distintos.
 
 No slice `Users`, `UserService` normaliza nome e email, converte email para lowercase, valida o formato do endereço e exige password entre 12 e 128 caracteres na criação. A password é encaminhada para `IPasswordHashService`; a atualização recebe apenas nome, email e `IsActive`, nunca uma password.
@@ -244,5 +245,6 @@ Os 15 casos de `UserService` cobrem normalização de email e persistência some
 Implementar progressivamente os casos de uso restantes. A gestão CRUD de
 `AccessPermission` e a decisão/auditoria de Access Control estão
 implementadas, assim como a transição de `OccupancySession` para pedidos
-concedidos associados a um User. Alertas e notificações SignalR permanecem
-planejados e não devem ser inferidos a partir do fluxo atual.
+concedidos associados a um User. As notificações SignalR de acesso/ocupação
+estão implementadas na API, fora da Application; alertas continuam planejados
+e não devem ser inferidos a partir do fluxo atual.

@@ -124,8 +124,8 @@ são decisões negadas e não criam evento.
 
 O fluxo implementado exige autenticação/autorização. Decisões concedidas
 associadas a um User também atualizam `OccupancySession` atomicamente com o
-`AccessEvent`; notificações SignalR e processamento de alertas ainda não estão
-implementados. A identidade do chamador não substitui a decisão baseada no
+`AccessEvent`; a API publica notificações SignalR de acesso e ocupação após a
+persistência. Alertas ainda não estão implementados. A identidade do chamador não substitui a decisão baseada no
 cartão, AccessPoint e permissão.
 
 ### 4. Resposta de entrevista
@@ -331,7 +331,7 @@ No smoke PostgreSQL, `  Alex@Example.com  ` foi criado com `201` e armazenado co
 
 **Exercício prático:** desenhe o caminho endpoint → service → interface de repositório → implementação. Escreva requests para criar uma permissão sem `ValidUntil`, consultar por ID, substituir e desativar via `PUT`, e remover. Preveja os status para User inexistente, AccessPoint inexistente, `ValidUntil == ValidFrom` e ID desconhecido. Depois use dois offsets diferentes que representem o mesmo instante para explicar por que a Application compara instantes e persiste valores UTC. Por fim, explique por que uma permissão criada não significa, por si só, que uma tentativa real será concedida.
 
-A gestão CRUD de `AccessPermission`, a decisão/processamento de acesso, a criação/consulta de `AccessEvent`s, as transições básicas de `OccupancySession`, a consulta de ocupação atual e a autenticação/autorização JWT estão **implementados nesta branch**. Alertas e SignalR continuam **planejados/não implementados**.
+A gestão CRUD de `AccessPermission`, a decisão/processamento de acesso, a criação/consulta de `AccessEvent`s, as transições básicas de `OccupancySession`, a consulta de ocupação atual, a autenticação/autorização JWT e as notificações SignalR de eventos de acesso/ocupação estão **implementados nesta branch**. Alertas e replay durável continuam **planejados/não implementados**; a integração SignalR ainda não foi validada contra PostgreSQL.
 
 ### Validar e normalizar email
 
@@ -380,4 +380,4 @@ Antes de versionar, diferencie mudanças compatíveis de breaking changes. Adici
 
 ## Exercício
 
-Abra o documento OpenAPI em Development e compare as cinco operações de `/api/access-points` com `SmartBuilding.Api.http`. Explique o body, `Location`, status e content type de cada cenário. Trace como sucesso, `FloorNotFound` e dependentes se tornam respostas HTTP e por que o delete bloqueado usa `409`. Para Users, envie um email com whitespace externo e explique a diferença entre validação do formato e normalização; diferencie o teste da primitiva de hash do caso de uso implementado em `POST /api/auth/login`. Identifique que os pedidos de Access Control exigem `Admin` ou `SecurityOperator`, enquanto CRUD administrativo exige `Admin`. A ocupação atual e suas transições básicas estão implementadas; alertas e SignalR continuam planejados.
+Abra o documento OpenAPI em Development e compare as cinco operações de `/api/access-points` com `SmartBuilding.Api.http`. Explique o body, `Location`, status e content type de cada cenário. Trace como sucesso, `FloorNotFound` e dependentes se tornam respostas HTTP e por que o delete bloqueado usa `409`. Para Users, envie um email com whitespace externo e explique a diferença entre validação do formato e normalização; diferencie o teste da primitiva de hash do caso de uso implementado em `POST /api/auth/login`. Identifique que os pedidos de Access Control exigem `Admin` ou `SecurityOperator`, enquanto CRUD administrativo exige `Admin`. A ocupação atual, suas transições básicas e notificações SignalR de acesso/ocupação estão implementadas; alertas e replay durável continuam planejados.

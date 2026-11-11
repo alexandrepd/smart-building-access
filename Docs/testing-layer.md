@@ -24,6 +24,22 @@ Os testes focados em User/hash/API totalizam 20 casos: 15 de Application, três 
 
 Ainda não existe `SmartBuilding.IntegrationTests`.
 
+Na entrega SignalR, os 138 testes .NET passaram. Entre eles há 16 casos de
+`AccessHubTests`, usando TestServer com serviços de aplicação substituídos,
+para autorização, restrição do token em query, broadcasts em WebSocket e
+long polling e preservação da resposta REST quando a leitura de ocupação
+falha. `AccessEventPublisherTests` cobre decisões negadas e falhas de envio.
+Esses testes não substituem integração automatizada com PostgreSQL.
+
+Na validação manual do Compose atualizado, o login Admin, as consultas do
+dashboard e o hub passaram pelo Nginx na porta `8081`. O hub rejeitou uma
+negociação sem token com `401`; uma ligação autenticada confirmou upgrade
+WebSocket `101` e handshake JSON SignalR. Um pedido com cartão inexistente
+persistiu a decisão `CardNotFound` e apareceu no dashboard sem refresh.
+Esse evento de teste permanece no histórico de auditoria. O banco e o seu
+container foram preservados durante a atualização. Esta verificação não
+cobre Entry/Exit concedidos nem substitui testes automatizados de integração.
+
 ## Organização atual
 
 ```text
@@ -209,18 +225,16 @@ Casos principais incluem login, CRUD, pedido de acesso, persistência do evento,
 ### Testes de frontend
 
 O target de testes Angular está configurado com `@angular/build:unit-test` e
-Vitest. `src/app/admin/admin-api.service.spec.ts` contém sete testes de
-contratos HTTP do service, incluindo o payload de `POST /api/access/requests`.
-Quatro testes de páginas cobrem a recuperação quando a alteração de papel
-falha, o envio e a apresentação de uma decisão de acesso, os seletores Admin
-de cartões/pontos e a validação do GUID. O build de produção e os 11 testes
-passaram nesta branch. Esta cobertura focada não substitui testes de outros
-componentes, guards ou jornadas completas.
+Vitest. Os 21 testes e o build de produção passaram na entrega SignalR.
+Além dos contratos HTTP e do console de pedidos, os testes do dashboard
+cobrem atualizações ao vivo, deduplicação de eventos, substituição da
+ocupação, reconciliação REST após reconexão, falhas de ligação e limpeza
+ao destruir a página. O cliente SignalR é simulado nesses testes.
 
 Permanece por implementar/testar cobertura mais ampla de componentes e E2E
 para jornadas de maior valor, incluindo a jornada de pedido de acesso e as
-futuras experiências de ocupação; a existência dos quatro testes de páginas
-não significa cobertura E2E.
+experiências de ocupação; os testes de páginas com mocks não significam
+cobertura E2E.
 
 ## Convenção de nomes
 

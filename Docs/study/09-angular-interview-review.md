@@ -7,9 +7,10 @@ frontend Angular já tem login, dashboard com histórico de `AccessEvent`,
 console de pedidos de acesso e gestão administrativa de `Buildings`, `Floors`,
 `AccessPoints`, Users, AccessCards e AccessPermissions. A Fase 7 continua em
 desenvolvimento: simulação e cobertura mais ampla de componentes e E2E ainda
-faltam. O dashboard de ocupação por piso da Fase 8 está implementado nesta
-branch; SignalR/tempo real pertence à Fase 9. Não apresente
-comportamento planeado como implementado.
+faltam. O dashboard de ocupação por piso da Fase 8 e as notificações SignalR
+de eventos/ocupação da Fase 9 estão implementados nesta branch. Alertas,
+replay durável e validação de integração PostgreSQL da Fase 9 ainda faltam.
+Não apresente comportamento planeado como implementado.
 
 O projeto não fixou uma versão Angular. Os conceitos são estáveis; confirme a versão usada pela empresa antes de afirmar detalhes dependentes da versão.
 
@@ -313,7 +314,11 @@ aplicadas no backend.
 
 Na Fase 8 desta branch, o dashboard consulta `GET /api/occupancy/current` e
 mostra todos os pisos, contagens, ocupantes e duração atual desde a entrada.
-O snapshot é atualizado quando a página carrega; SignalR ainda não existe.
+Na Fase 9, também recebe `AccessEventCreated` e snapshots completos
+`OccupancyChanged` pelo hub `/hubs/access`. SignalR atualiza a tela enquanto
+ligado; reconexão automática seguida de snapshot REST reconcilia dados
+potencialmente perdidos. A conexão ao hub não substitui o carregamento inicial
+nem o tratamento de erro REST. Não há replay durável nem notificação de alerta.
 
 A rota `/management` é Admin-only por guard Angular e pelas policies existentes
 na API. Os formulários reativos implementam criar, consultar, atualizar e
@@ -331,14 +336,12 @@ e valida no cliente que o fim seja posterior ao início. Todos os endpoints
 continuam protegidos por `AdminOnly` na API; o guard é somente controlo de
 navegação.
 
-O target de testes usa `@angular/build:unit-test`/Vitest. O spec
-`admin-api.service.spec.ts` contém oito testes de contratos HTTP, incluindo os
-pedidos de acesso e ocupação. Há cinco testes de páginas, cobrindo gravação
-parcial de User/papel, pedido e resposta de acesso, seletores Admin, validação
-de GUID e apresentação da ocupação. Build de produção e os 13 testes passaram
-na branch de console; a cobertura da página de ocupação está em validação.
-Simulação e cobertura mais ampla de componentes/E2E ainda não estão
-implementadas nesta fase.
+O target de testes usa `@angular/build:unit-test`/Vitest. Os specs incluem
+contratos HTTP e comportamento do dashboard: URL/token do hub, atualização de
+eventos e ocupação, reconciliação de alterações simultâneas a snapshots REST,
+erros de conexão e REST, retry e limpeza ao destruir o service. Não se afirma
+aqui execução ou aprovação de build/testes desta fase. Simulação e cobertura
+mais ampla de componentes/E2E ainda não estão implementadas nesta fase.
 
 ### Resposta de entrevista
 
@@ -353,11 +356,15 @@ implementadas nesta fase.
 > mostra a decisão auditada; Admin usa seletores de cartões e pontos, enquanto
 > SecurityOperator insere os identificadores porque as listagens são
 > Admin-only. O guard melhora a navegação, mas a API mantém a autorização e a
-> decisão real. O target Vitest tem oito testes de contratos HTTP e cinco
-> testes de páginas. Nesta branch, o dashboard consulta ocupação por piso,
+> decisão real. Os specs Vitest cobrem contratos REST e o comportamento live
+> do dashboard. Nesta branch, o dashboard consulta ocupação por piso,
 > com sessões e duração calculada no servidor; a consulta e as transições
-> básicas da Fase 8 estão implementadas. Simulação e cobertura mais ampla de
-> componentes/E2E da Fase 7 ainda faltam; SignalR pertence à Fase 9.
+> básicas da Fase 8 estão implementadas. O dashboard também recebe
+> `AccessEventCreated` e `OccupancyChanged` por SignalR, reconecta
+> automaticamente e recarrega o snapshot REST após reconectar. Alertas, replay
+> durável e validação PostgreSQL desta integração ainda faltam. Simulação e
+> cobertura mais ampla de componentes/E2E da Fase 7 também não estão
+> implementadas.
 
 ### Exercício prático
 
@@ -440,7 +447,13 @@ Uma resposta de entrevista deve mostrar trade-off, não afirmar que existe armaz
 
 Use estado local para um componente. Use service/Signals para estado partilhado simples. Introduza store global quando o fluxo e a complexidade realmente justificarem.
 
-No Smart Building, REST fornecerá snapshot/paginação. SignalR poderá entregar `AccessEventCreated`, `SecurityAlertCreated` e `OccupancyChanged`. Depois de reconectar, recarregue um snapshot: eventos podem ter sido perdidos durante desconexão.
+No Smart Building, REST fornece a carga inicial e snapshot de reconciliação;
+SignalR implementado entrega `AccessEventCreated` e `OccupancyChanged` em
+`/hubs/access`. O dashboard usa reconexão automática e volta a carregar REST
+após reconectar. Como não há replay durável, uma notificação pode não chegar
+durante a desconexão. `SecurityAlertCreated` é planejado, não implementado.
+Para explicar o fluxo nos cinco níveis de estudo, consulte o
+[exemplo progressivo SignalR no módulo Angular](05-angular-rxjs.md#exemplo-progressivo-signalr-no-dashboard).
 
 ## 15. Testes Angular
 

@@ -70,7 +70,7 @@ Os papéis do domínio são `Admin` e `SecurityOperator`.
 | Policy | Requisito | Aplicação |
 |---|---|---|
 | `AdminOnly` | papel `Admin` | `/api/buildings`, `/api/floors`, `/api/access-points`, `/api/cards`, `/api/permissions` e `/api/users` |
-| `AccessOperations` | papel `Admin` ou `SecurityOperator` | `POST /api/access/requests`, `GET /api/access/events` e `GET /api/access/events/{id}` |
+| `AccessOperations` | papel `Admin` ou `SecurityOperator` | `POST /api/access/requests`, `GET /api/access/events`, `GET /api/access/events/{id}` e hub SignalR `/hubs/access` |
 | Anónimo | não requer autenticação | `GET /` e `POST /api/auth/login` |
 
 Sem token válido, uma rota protegida responde `401`; com identidade válida,
@@ -79,6 +79,15 @@ não apenas pelo guard da interface Angular. O frontend restringe a navegação
 de `/management` a `Admin`; utilizadores `SecurityOperator` autenticados podem
 consultar eventos, mas não têm acesso à gestão administrativa nem às contagens
 administrativas do dashboard.
+
+O hub `/hubs/access` usa a mesma policy `AccessOperations`. Para suportar
+clientes browser SignalR, o bearer handler também pode obter `access_token`
+da query string, mas somente em requests para o caminho do hub; tokens de
+query não são aceites nas rotas REST. Como tokens em URL podem acabar em logs,
+devem ser protegidos como credenciais e usados sobre HTTPS.
+
+O hub fecha a ligação quando a autenticação expira; o cliente não pode
+continuar a receber broadcasts indefinidamente com um JWT expirado.
 
 Na gestão Angular, a criação de User exige password com pelo menos 12
 caracteres e a password nunca é mostrada novamente depois da criação. O
@@ -153,13 +162,15 @@ da API.
 
 ## Limites e cuidados
 
-- Tokens de acesso são credenciais: não os registe em logs ou os exponha em
-  URLs.
+- Tokens de acesso são credenciais: não os registe em logs. A exceção técnica
+  da query string é limitada ao caminho do hub SignalR; proteja essa ligação
+  com HTTPS e evite capturar a URL em logs.
 - Claims e payload JWT são legíveis; assinatura protege integridade, não
   confidencialidade.
 - A API não implementa refresh, logout com revogação, MFA ou gestão de sessões.
 - As rotas CRUD administrativas requerem `Admin`; as rotas de decisão e
   auditoria de `AccessEvent` aceitam `Admin` e `SecurityOperator`.
 - A autenticação do chamador não altera a regra de decisão de acesso.
-  Occupancy é atualizada nesta branch após decisões concedidas; alertas e
-  SignalR continuam por implementar.
+  Occupancy é atualizada nesta branch após decisões concedidas; o hub
+  `/hubs/access` e os eventos SignalR de acesso/ocupação estão implementados.
+  Alertas não estão implementados e não há notificações de alerta.

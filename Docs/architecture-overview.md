@@ -68,7 +68,7 @@ Antes de servir endpoints, a API exige `ConnectionStrings:SmartBuilding`. Em `De
 
 Os CRUDs administrativos de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. A decisão de acesso também está implementada: `POST /api/access/requests` avalia cartão, User, AccessPoint, direção e permissão, e grava um `AccessEvent` para cada pedido processado com AccessPoint conhecido. `GET /api/access/events` e `GET /api/access/events/{id}` consultam esse histórico. A permissão deve estar ativa e satisfazer `ValidFrom <= now < ValidUntil`, sendo `ValidUntil` opcional. O CRUD administrativo de `AccessPermission` e a sua avaliação em tempo de pedido são capacidades relacionadas, mas distintas.
 
-O fluxo de decisão exige a policy `AccessOperations` (`Admin` ou `SecurityOperator`). Nesta branch, decisões concedidas associadas a um User atualizam `OccupancySession` atomicamente com o evento; consulta de ocupação está disponível em `GET /api/occupancy/current`. Atualizações SignalR e processamento de alertas continuam planejados.
+O fluxo de decisão exige a policy `AccessOperations` (`Admin` ou `SecurityOperator`). Nesta branch, decisões concedidas associadas a um User atualizam `OccupancySession` atomicamente com o evento; consulta de ocupação está disponível em `GET /api/occupancy/current`. O hub autenticado `/hubs/access` publica `AccessEventCreated` para pedidos registados e, depois da persistência de um pedido concedido, publica `OccupancyChanged` com um snapshot atual. Alertas e replay durável não estão implementados.
 
 O CRUD administrativo de `Users` também está implementado em `/api/users` e protegido por `AdminOnly`. A validação HTTP verifica o email após remover whitespace externo, e a Application normaliza-o para lowercase antes de persistir; solicita hash da password na criação e as responses omitem password e hash. Users começam como `SecurityOperator`; um Admin pode atribuir papéis, sem rebaixar o último Admin. O login JWT e as policies estão implementados; consulte [Autenticação e autorização](authentication-authorization.md) para configuração segura, bootstrap e limites.
 
@@ -82,8 +82,9 @@ enquanto a tabela mostra apenas os mais recentes. Só o papel `Admin` recebe
 também as contagens de Buildings, Floors e AccessPoints. Um `SecurityOperator`
 autenticado pode consultar eventos, mas não vê essas contagens administrativas.
 Admin e SecurityOperator também consultam a ocupação atual por piso; o painel
-apresenta contagem, ocupantes e duração desde a entrada. O resultado é um
-snapshot carregado com os dados do painel, não uma atualização em tempo real.
+apresenta contagem, ocupantes e duração desde a entrada. REST fornece um
+snapshot; o painel também recebe atualizações em tempo real pelo SignalR
+implementado na Fase 9.
 
 A rota `/management` é restrita a `Admin` por um guard Angular para controlar a
 navegação e pelas policies já existentes na API para autorizar os requests. A
@@ -105,14 +106,11 @@ consultar, atualizar e remover Users, AccessCards e AccessPermissions:
 
 Todos estes pedidos continuam sujeitos à autorização `AdminOnly` no servidor;
 o guard Angular é apenas uma barreira de navegação no cliente. O alvo de testes
-Angular está configurado com `@angular/build:unit-test`/Vitest e
-`admin-api.service.spec.ts` contém oito testes de contratos HTTP do service:
-listagem de Users, formato do payload de criação de User, atualização de papel,
-desativação de AccessCard e criação/atualização de AccessPermission. Além
-dos testes de pedido de acesso e consulta de ocupação, há cinco testes de
-páginas: recuperação quando a atribuição de papel falha, envio/apresentação da
-decisão, seletores Admin, validação do GUID e apresentação de ocupação. O build
-de produção e os 13 testes passaram no frontend nesta branch.
+Angular está configurado com `@angular/build:unit-test`/Vitest. Os specs
+abordam contratos REST e comportamento do dashboard, incluindo URL/token do
+hub, atualização de eventos e ocupação, reconciliação com snapshots REST e
+falhas/reconexão. Esta documentação não afirma que o build ou os testes da
+Fase 9 foram executados ou passaram.
 
 O console `/access-request` permite a Admin e SecurityOperator submeter
 tentativas à API e consultar eventos recentes. Admin seleciona cartões e
@@ -120,8 +118,9 @@ pontos de acesso; SecurityOperator informa manualmente o número do cartão e o
 GUID do ponto, pois os endpoints de listagem dessas opções são Admin-only. A
 Fase 7 continua em desenvolvimento: simulação e cobertura mais ampla de
 componentes e E2E ainda não estão implementadas. A consulta de ocupação por
-piso e a atualização das sessões estão implementadas na Fase 8.
-SignalR/tempo real pertence à Fase 9.
+piso e a atualização das sessões estão implementadas na Fase 8. A Fase 9
+implementa notificações SignalR de eventos e ocupação; alertas, replay durável
+e validação de integração com PostgreSQL continuam pendentes.
 
 ## Fluxo implementado de uma solicitação de acesso
 
@@ -181,7 +180,7 @@ Cada fase deve terminar com build, testes e um pull request focado. Tecnologias 
 | Domain estrutural | Concluída pelo Definition of Done atual |
 | Database | Persistência base implementada e validada |
 | API funcional | CRUDs administrativos e rotas de decisão/eventos implementados nesta branch |
-| Access Control | Decisão, auditoria, consultas de evento, autenticação/autorização JWT e ocupação implementadas nesta branch; SignalR e alertas seguem futuros |
+| Access Control | Decisão, auditoria, consultas de evento, autenticação/autorização JWT, ocupação e notificações SignalR de eventos/ocupação implementadas nesta branch; alertas, replay durável e validação de integração da Fase 9 com PostgreSQL pendentes |
 | Frontend Angular (Fase 7) | Login, dashboard de eventos, console de pedidos Admin/SecurityOperator e CRUD Admin das seis entidades implementados; 11 testes focados e build de produção verificados; simulação e cobertura mais ampla pendentes |
 
 PostgreSQL 18 foi executado num container descartável, na porta isolada `55432`, para validar a migration, o arranque, a idempotência do seed e os slices de `Buildings`, `Floors`, `AccessPoints` e `Users`. Para Users, o smoke confirmou email uppercase com espaços externos criado em `201` e canonicalizado para lowercase, duplicidade `409`, consulta `200`, atualização `200` e remoção `204`; também confirmou hash armazenado pelo `PasswordHasher<User>`, response sem password/hash, delete bloqueado por cartão com `409` e evento preservado com `UserId` nulo. Isso não significa que a fase futura de Docker da aplicação foi implementada.

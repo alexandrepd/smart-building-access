@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using SmartBuilding.Api.Contracts.AccessControl;
+using SmartBuilding.Api.Hubs;
 using SmartBuilding.Api.Security;
 using SmartBuilding.Application.AccessControl;
 
@@ -44,6 +45,7 @@ internal static class AccessControlEndpoints
         RequestAccessAsync(
             AccessRequestRequest request,
             IAccessControlService service,
+            AccessEventPublisher publisher,
             CancellationToken cancellationToken)
     {
         AccessRequestResult result = await service.RequestAccessAsync(
@@ -53,16 +55,20 @@ internal static class AccessControlEndpoints
                 request.Direction),
             cancellationToken);
 
-        return result.Status switch
+        switch (result.Status)
         {
-            AccessDecisionStatus.Recorded =>
-                TypedResults.Ok(AccessEventResponse.FromDto(result.AccessEvent!)),
-            AccessDecisionStatus.AccessPointNotFound => TypedResults.Problem(
-                title: "Access point not found.",
-                statusCode: StatusCodes.Status404NotFound),
-            _ => throw new InvalidOperationException(
-                $"Unsupported access decision status: {result.Status}.")
-        };
+            case AccessDecisionStatus.Recorded:
+                var response = AccessEventResponse.FromDto(result.AccessEvent!);
+                await publisher.PublishAsync(response);
+                return TypedResults.Ok(response);
+            case AccessDecisionStatus.AccessPointNotFound:
+                return TypedResults.Problem(
+                    title: "Access point not found.",
+                    statusCode: StatusCodes.Status404NotFound);
+            default:
+                throw new InvalidOperationException(
+                    $"Unsupported access decision status: {result.Status}.");
+        }
     }
 
     private static async Task<Ok<IReadOnlyList<AccessEventResponse>>> GetEventsAsync(

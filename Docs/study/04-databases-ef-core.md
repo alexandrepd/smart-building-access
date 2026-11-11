@@ -124,8 +124,9 @@ por User/piso serializa essas transições; o índice único parcial
 SecurityOperator) e devolve todos os pisos, incluindo os vazios, com sessões
 abertas, contagem atual e `DurationSeconds`. A duração é calculada pela
 Application no processamento de cada consulta, a partir de `EnteredAt` e do
-`TimeProvider`; não é uma duração persistida na sessão. O endpoint devolve um
-snapshot, não atualizações em tempo real.
+`TimeProvider`; não é uma duração persistida na sessão. O endpoint REST
+devolve um snapshot; o dashboard recebe também atualizações SignalR após
+decisões de acesso.
 
 ### 4. Resposta de entrevista
 
@@ -136,7 +137,9 @@ snapshot, não atualizações em tempo real.
 > sessão aberta para esse par. Entry duplicada e Exit sem sessão são no-op
 > para a ocupação, mas o evento continua auditado. A duração não é armazenada:
 > é calculada em cada consulta de `GET /api/occupancy/current`. A consulta
-> ainda é um snapshot; SignalR continua futuro.”
+> REST continua a oferecer um snapshot; o dashboard recebe também atualizações
+> SignalR, mas não há replay durável e a integração ainda não foi validada
+> contra PostgreSQL.”
 
 ### 5. Exercício prático
 
