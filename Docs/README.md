@@ -39,9 +39,12 @@ Floors, AccessPoints, Users, AccessCards e AccessPermissions, além de login,
 guards e interceptor Bearer. A Fase 7 continua em desenvolvimento: simulação
 e cobertura mais ampla de componentes e E2E ainda não estão implementadas.
 A consulta de ocupação por piso e as transições de `OccupancySession` estão
-implementadas (Fase 8); SignalR/tempo real pertence à Fase 9. Consulte a
+implementadas (Fase 8). A Fase 9 implementa o hub autenticado e atualizações
+SignalR de `AccessEvent`/ocupação no dashboard; alertas e replay durável ainda
+não existem, e a validação de integração da Fase 9 com PostgreSQL está
+pendente. Consulte a
 [visão geral da arquitetura](architecture-overview.md), a
-[camada API](api-layer.md#consulta-de-ocupação), a
+[camada API](api-layer.md#signalr-e-atualizações-do-dashboard), a
 [revisão Angular para entrevistas](study/09-angular-interview-review.md) e o
 [módulo de PostgreSQL/EF Core](study/04-databases-ef-core.md#exemplo-progressivo-ocupação-por-piso).
 O comando de execução local e o proxy para a API estão no

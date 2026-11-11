@@ -890,29 +890,32 @@ SecurityAlert created
 
 # 14. SignalR
 
-Criar um hub:
+Hub usado pela implementação atual:
 
 ```text
-/accessHub
+/hubs/access
 ```
 
-Eventos possíveis:
+Notificações implementadas:
 
 ```text
 AccessEventCreated
-SecurityAlertCreated
 OccupancyChanged
 ```
 
-Exemplo:
+`AccessEventCreated` carrega `AccessEventResponse`; após a persistência de uma
+decisão concedida, `OccupancyChanged` carrega o snapshot atual completo.
+O hub exige `AccessOperations`; clientes browser podem apresentar
+`access_token` na query somente neste caminho. Publicações são best effort,
+sem replay durável.
 
-```text
-Card CARD-001 entered Floor 2
-```
+`SecurityAlertCreated` permanece planejado: alertas ainda não são
+implementados e não há notificação de alerta. A integração desta fase também
+não foi validada contra PostgreSQL.
 
-O Angular recebe imediatamente.
-
-Não utilizar polling contínuo para o dashboard principal.
+O dashboard Angular recebe as notificações por SignalR, tenta reconectar
+automaticamente e recarrega snapshots REST após reconectar. REST continua
+responsável pelo carregamento inicial e pelo tratamento de erros.
 
 ---
 
@@ -2495,9 +2498,10 @@ validação do GUID. Build de produção e os 11 testes passaram nesta branch.
 componentes e E2E. Os SecurityOperators veem eventos e podem registar pedidos,
 mas não contagens administrativas nem a rota de gestão. A Fase 7 permanece
 em desenvolvimento: o seu Definition of Done — operar o sistema principal
-pelo frontend — ainda não foi atingido. A Fase 8 de ocupação está em
-desenvolvimento nesta branch; SignalR continua dependente da Fase 9. Esta
-atualização não altera a ordem nem os critérios do roadmap.
+pelo frontend — ainda não foi atingido. A Fase 8 de ocupação está
+implementada; as notificações SignalR da Fase 9 também estão implementadas,
+com alertas e replay durável ainda pendentes. Esta atualização não altera a
+ordem nem os critérios do roadmap.
 
 ---
 
@@ -2547,6 +2551,25 @@ Implementar:
 Definition of Done:
 
 Dashboard atualiza sem refresh.
+
+### Estado nesta branch
+
+Implementados o hub autenticado `/hubs/access` sob `AccessOperations`
+(`Admin`/`SecurityOperator`), a extração de JWT por `access_token` de query
+somente neste caminho para clientes browser, e as notificações
+`AccessEventCreated`/`OccupancyChanged`. Após um pedido processado ser
+persistido, `AccessEventCreated` publica o `AccessEventResponse` da resposta
+REST. Apenas decisões concedidas consultam e publicam o snapshot atual de
+ocupação; pedidos negados não leem ocupação. Falhas de envio ou de leitura do
+snapshot são best effort, registadas e não alteram a resposta REST.
+
+O dashboard Angular aplica os eventos, mantém o carregamento/error handling
+REST, reconecta automaticamente e recarrega o snapshot REST após reconectar.
+Não há replay durável: eventos ocorridos durante uma desconexão podem ser
+perdidos até à reconciliação pelo snapshot. Alertas e a notificação
+`SecurityAlertCreated` não estão implementados. A validação de integração da
+Fase 9 com PostgreSQL continua pendente; portanto, esta descrição não afirma
+validação PostgreSQL do fluxo SignalR.
 
 ---
 

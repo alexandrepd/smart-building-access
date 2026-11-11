@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using SmartBuilding.Api.Configuration;
 using SmartBuilding.Api.Endpoints;
 using SmartBuilding.Api.ErrorHandling;
+using SmartBuilding.Api.Hubs;
 using SmartBuilding.Api.Security;
 using SmartBuilding.Application;
 using SmartBuilding.Application.Authentication;
@@ -27,6 +28,10 @@ builder.Services.AddValidation();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(
         new JsonStringEnumConverter(allowIntegerValues: false)));
+builder.Services.AddSignalR().AddJsonProtocol(options =>
+    options.PayloadSerializerOptions.Converters.Add(
+        new JsonStringEnumConverter(allowIntegerValues: false)));
+builder.Services.AddScoped<AccessEventPublisher>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddApplication();
@@ -38,6 +43,7 @@ builder.Services
     .AddJwtBearer(options =>
     {
         options.MapInboundClaims = false;
+        options.Events = new AccessHubJwtBearerEvents();
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -100,5 +106,7 @@ app.MapAccessPermissionEndpoints();
 app.MapAccessControlEndpoints();
 app.MapOccupancyEndpoints();
 app.MapUserEndpoints();
+app.MapHub<AccessHub>(AccessHub.Path, options =>
+    options.CloseOnAuthenticationExpiration = true);
 
 app.Run();

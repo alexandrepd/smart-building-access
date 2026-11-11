@@ -328,6 +328,17 @@ containers da API e da base de dados estavam saudáveis nessa validação.
 O ficheiro `.env.example` declara `WEB_PORT=8080`, e a configuração Compose
 usa esse valor como fallback se a variável não for definida.
 
+O Nginx encaminha `/hubs/` para a API com suporte ao upgrade WebSocket,
+sem buffering e com timeout de leitura de 100 segundos. O access log dessa
+rota fica desativado para não registar tokens JWT presentes na query string.
+O dashboard usa o mesmo endereço público para REST e SignalR.
+
+No smoke da entrega SignalR, a negociação sem token devolveu `401`,
+o upgrade WebSocket autenticado devolveu `101` e o handshake JSON foi
+confirmado através do Nginx. Uma decisão `CardNotFound` apareceu no dashboard
+sem recarregar a página. O PostgreSQL existente foi preservado; Entry/Exit
+concedidos ainda não estão cobertos por essa validação manual.
+
 Este é um smoke test manual de execução local, não um teste automatizado nem
 uma validação de CI/CD ou Kubernetes. A validação confirma o caminho de
 entrada web e o proxy; não altera o estado futuro das funcionalidades de

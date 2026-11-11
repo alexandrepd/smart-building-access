@@ -1,7 +1,13 @@
 {
-  "/api": {
+  "/api/**": {
     "target": "http://localhost:5077",
     "secure": false,
     "changeOrigin": true
+  },
+  "/hubs/**": {
+    "target": "http://localhost:5077",
+    "secure": false,
+    "changeOrigin": true,
+    "ws": true
   }
 }

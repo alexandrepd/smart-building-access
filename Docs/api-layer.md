@@ -22,6 +22,7 @@ A API contém:
 - grupo de Minimal APIs em `/api/permissions` para listar, consultar, criar, substituir e remover permissões;
 - grupo de Minimal APIs em `/api/access` para processar pedidos e consultar `AccessEvent`s;
 - endpoint `GET /api/occupancy/current` para consultar sessões abertas e contagens por piso;
+- hub SignalR autenticado em `/hubs/access` para notificações de `AccessEvent` e snapshots de ocupação;
 - endpoint anónimo `POST /api/auth/login` que valida credenciais e emite JWT Bearer;
 - autenticação de tokens JWT (esquema HTTP Bearer) e policies `AdminOnly`/`AccessOperations` aplicadas no servidor;
 - CRUD administrativo protegido por `Admin` e operações de Access Control permitidas a `Admin` ou `SecurityOperator`;
@@ -37,7 +38,7 @@ A API contém:
 
 Ainda não contém:
 
-- atualização automática em tempo real, processamento de alertas ou notificações SignalR;
+- notificações de alertas ou replay durável de mensagens SignalR;
 - Swagger UI interativo;
 - health checks completos.
 
@@ -172,10 +173,12 @@ Nesta branch, uma decisão `Granted` associada a um User também tenta atualizar
 `AccessEvent`: Entry abre uma sessão se não houver uma aberta para o User/piso;
 Exit fecha a sessão correspondente. Repetir Entry, enviar Exit sem sessão ou
 ter uma saída anterior à entrada não altera ocupação. Em todos esses casos,
-um pedido autorizado continua concedido e o evento bruto é mantido. Requests
-negados continuam apenas auditados. O fluxo ainda não envia notificações
-SignalR nem executa worker/regras de alertas. A policy autoriza o chamador,
-mas não altera a decisão de acesso.
+um pedido autorizado continua concedido e o evento bruto é mantido. Requests negados continuam apenas auditados, sem leitura de ocupação. Depois
+da persistência, a API publica `AccessEventCreated` e, para resultado
+concedido, obtém e publica o snapshot atual de ocupação pelo hub SignalR. A
+publicação é best effort; o worker/regras de alertas e notificações de alerta
+ainda não estão implementados. A policy autoriza o chamador, mas não altera a
+decisão de acesso.
 
 ## Consulta de ocupação
 
@@ -186,7 +189,8 @@ mas não altera a decisão de acesso.
 A rota exige `AccessOperations` (`Admin` ou `SecurityOperator`). Cada piso
 inclui edifício, nome, contagem atual e ocupantes com `UserId`, nome,
 `EnteredAt` e `DurationSeconds`, calculado na hora da consulta. A resposta é
-um snapshot; ainda não recebe atualizações automáticas em tempo real.
+um snapshot; o dashboard também recebe snapshots posteriores por SignalR,
+descrito na secção seguinte.
 
 ## Composition root
 
@@ -299,8 +303,8 @@ Os CRUDs de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e
 a gestão CRUD de `AccessPermissions` estão implementados nesta branch.
 Também estão implementados o processamento/decisão de pedidos e as consultas
 de `AccessEvent`, a atualização atómica de `OccupancySession` para pedidos
-concedidos e `GET /api/occupancy/current`. Alertas e SignalR continuam
-planejados.
+concedidos, `GET /api/occupancy/current` e as notificações SignalR de
+`AccessEvent`/ocupação. Alertas e replay durável continuam planejados.
 
 ## Fluxo implementado para Users
 
@@ -386,10 +390,36 @@ documentação de comportamento já existente no código.
 
 Eventos de acesso crescerão continuamente. Consultas de histórico devem exigir paginação e aceitar filtros sem carregar todo o conjunto em memória.
 
-## SignalR
+## SignalR e atualizações do dashboard
 
-O futuro hub `/accessHub` notificará eventos, alertas e alterações de ocupação. SignalR pertence à borda da API; a decisão sobre quando publicar decorre dos casos de uso.
+O hub `AccessHub` está mapeado em `/hubs/access` e exige a policy
+`AccessOperations` (`Admin` ou `SecurityOperator`). Um pedido de acesso
+processado com sucesso é persistido antes da publicação de
+`AccessEventCreated`, cujo payload é o mesmo `AccessEventResponse` devolvido
+por `POST /api/access/requests`. Se o resultado for `Granted`, o publisher
+consulta a ocupação atual depois da persistência e publica
+`OccupancyChanged` com o array completo `CurrentOccupancyResponse`; decisões
+negadas não consultam ocupação.
+
+As publicações são best effort: exceções ao enviar qualquer notificação ou
+obter o snapshot são registadas e não alteram a resposta REST já decidida.
+Uma falha na publicação do evento não impede a tentativa separada de publicar
+ocupação para um evento concedido. Os clientes ligados recebem broadcasts;
+o hub não fornece replay durável de mensagens.
+
+O bearer handler aceita o parâmetro de query `access_token` apenas quando o
+request está no caminho do hub `/hubs/access`, para suportar clientes browser
+SignalR que não conseguem definir o header Bearer em todos os transportes.
+Tokens em query string continuam sensíveis; use HTTPS e evite registá-los.
+Esse mecanismo não habilita bearer em query nas rotas REST.
+
+O dashboard Angular mantém o carregamento inicial e o tratamento de erros
+REST. Também liga ao hub com reconexão automática, aplica `AccessEventCreated`
+e o snapshot completo de `OccupancyChanged`, e volta a carregar o snapshot REST
+quando reconecta para reconciliar mensagens perdidas. O cliente não recebe
+replay durante uma desconexão. Alertas (`SecurityAlertCreated`) ainda não são
+implementados; não há notificação de alerta.
 
 ## Próximos passos
 
-Os vertical slices de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O processamento/decisão de acesso, as três rotas de `AccessEvent`, a atualização atómica de `OccupancySession` para pedidos concedidos e `GET /api/occupancy/current` estão implementados. Login JWT e autorização por papéis também estão implementados nesta branch. O frontend Angular consulta o histórico de eventos e a ocupação atual por piso, disponibiliza CRUD Admin das seis entidades de gestão e inclui um console que submete pedidos para `POST /api/access/requests` e consulta os eventos recentes. O console é acessível a Admin e SecurityOperator sob `AccessOperations`; Admin escolhe cartões/pontos existentes e SecurityOperator fornece os respetivos identificadores manualmente, porque as rotas de listagem são `AdminOnly`. A Fase 7 continua em desenvolvimento; simulação e cobertura mais ampla de componentes/E2E ainda não estão implementadas. Alertas e SignalR pertencem a fases futuras. A aplicação de migrations fora de Development permanece responsabilidade do deployment.
+Os vertical slices de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O processamento/decisão de acesso, as três rotas de `AccessEvent`, a atualização atómica de `OccupancySession` para pedidos concedidos e `GET /api/occupancy/current` estão implementados. Login JWT, autorização por papéis e o hub SignalR autenticado também estão implementados nesta branch. O frontend Angular consulta o histórico de eventos e a ocupação atual por piso, aplica atualizações SignalR, reconecta automaticamente e recarrega snapshots REST após reconectar. O console de pedidos é acessível a Admin e SecurityOperator sob `AccessOperations`; Admin escolhe cartões/pontos existentes e SecurityOperator fornece os respetivos identificadores manualmente, porque as rotas de listagem são `AdminOnly`. A Fase 7 continua em desenvolvimento; simulação e cobertura mais ampla de componentes/E2E ainda não estão implementadas. Alertas e replay durável continuam pendentes; a integração da Fase 9 ainda não foi validada contra PostgreSQL. A aplicação de migrations fora de Development permanece responsabilidade do deployment.
