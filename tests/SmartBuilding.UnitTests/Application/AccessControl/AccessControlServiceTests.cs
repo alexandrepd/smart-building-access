@@ -13,7 +13,8 @@ public class AccessControlServiceTests
     [Fact]
     public async Task RequestAccessAsync_ValidCardAndPermission_GrantsAndRecordsDecision()
     {
-        var repository = new FakeAccessControlRepository(ValidContext());
+        AccessDecisionContext context = ValidContext();
+        var repository = new FakeAccessControlRepository(context);
         var service = new AccessControlService(repository, new FrozenTimeProvider(RequestTime));
 
         AccessRequestResult result = await service.RequestAccessAsync(
@@ -28,12 +29,20 @@ public class AccessControlServiceTests
         Assert.Equal("CARD-100", repository.RequestedCardNumber);
         Assert.Single(repository.CreatedEvents);
         Assert.Equal(repository.CreatedEvents[0].Id, accessEvent.Id);
+        Assert.Equal(
+            new OccupancyTransition(
+                context.UserId!.Value,
+                context.FloorId,
+                AccessDirection.Entry,
+                RequestTime.UtcDateTime),
+            repository.OccupancyTransition);
     }
 
     [Fact]
     public async Task RequestAccessAsync_ExitSupportedByAccessPoint_GrantsAccess()
     {
-        var repository = new FakeAccessControlRepository(ValidContext());
+        AccessDecisionContext context = ValidContext();
+        var repository = new FakeAccessControlRepository(context);
         var service = new AccessControlService(repository, new FrozenTimeProvider(RequestTime));
 
         AccessRequestResult result = await service.RequestAccessAsync(
@@ -42,6 +51,7 @@ public class AccessControlServiceTests
 
         Assert.Equal(AccessResult.Granted, result.AccessEvent?.Result);
         Assert.Equal(AccessDirection.Exit, result.AccessEvent?.Direction);
+        Assert.Equal(AccessDirection.Exit, repository.OccupancyTransition?.Direction);
     }
 
     [Theory]
@@ -66,6 +76,7 @@ public class AccessControlServiceTests
         Assert.Equal(expected, result.AccessEvent?.Result);
         Assert.False(string.IsNullOrWhiteSpace(result.AccessEvent?.Reason));
         Assert.Single(repository.CreatedEvents);
+        Assert.Null(repository.OccupancyTransition);
     }
 
     [Fact]
@@ -142,6 +153,7 @@ public class AccessControlServiceTests
     {
         return new AccessDecisionContext(
             Guid.NewGuid(),
+            Guid.NewGuid(),
             AccessPointIsActive: true,
             SupportsEntry: true,
             SupportsExit: true,
@@ -200,6 +212,8 @@ public class AccessControlServiceTests
 
         public AccessEventDto? RecordedEventDto { get; private set; }
 
+        public OccupancyTransition? OccupancyTransition { get; private set; }
+
         public List<AccessEvent> CreatedEvents { get; } = [];
 
         public IReadOnlyList<AccessEvent> ExistingEvents { get; init; } = [];
@@ -214,11 +228,13 @@ public class AccessControlServiceTests
             return Task.FromResult(context);
         }
 
-        public Task<AccessEvent> CreateEventAsync(
+        public Task<AccessEvent> RecordEventAsync(
             AccessEvent accessEvent,
+            OccupancyTransition? occupancyTransition,
             CancellationToken cancellationToken)
         {
             CreatedEvents.Add(accessEvent);
+            OccupancyTransition = occupancyTransition;
             RecordedEventDto = new AccessEventDto(
                 accessEvent.Id,
                 accessEvent.AccessPointId,

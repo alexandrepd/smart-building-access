@@ -157,6 +157,25 @@ describe('AdminApiService', () => {
       reason: 'Access granted.',
     });
   });
+
+  it('loads current occupancy by floor from the occupancy endpoint', () => {
+    const occupancy = [
+      {
+        buildingId: 'building-id',
+        buildingName: 'Headquarters',
+        floorId: 'floor-id',
+        floorName: 'Floor 1',
+        occupantCount: 0,
+        occupants: [],
+      },
+    ];
+
+    api.getCurrentOccupancy().subscribe((result) => expect(result).toEqual(occupancy));
+
+    const request = http.expectOne('/api/occupancy/current');
+    expect(request.request.method).toBe('GET');
+    request.flush(occupancy);
+  });
 });
 
 describe('ManagementPage', () => {

@@ -308,7 +308,15 @@ namespace SmartBuilding.Infrastructure.Data.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_occupancy_sessions_user_id");
 
-                    b.ToTable("occupancy_sessions", (string)null);
+                    b.HasIndex("UserId", "FloorId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_occupancy_sessions_user_floor_open")
+                        .HasFilter("exited_at IS NULL");
+
+                    b.ToTable("occupancy_sessions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_occupancy_sessions_exit_not_before_entry", "exited_at IS NULL OR exited_at >= entered_at");
+                        });
                 });
 
             modelBuilder.Entity("SmartBuilding.Domain.Entities.SecurityAlert", b =>

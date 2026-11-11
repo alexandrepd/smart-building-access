@@ -15,4 +15,15 @@ public class OccupancySession
     public User User { get; set; } = null!;
 
     public Floor Floor { get; set; } = null!;
+
+    public bool TryClose(DateTime exitedAt)
+    {
+        if (ExitedAt is not null || exitedAt < EnteredAt)
+        {
+            return false;
+        }
+
+        ExitedAt = exitedAt;
+        return true;
+    }
 }

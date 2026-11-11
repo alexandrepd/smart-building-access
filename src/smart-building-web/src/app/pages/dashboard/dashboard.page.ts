@@ -3,7 +3,7 @@ import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
-import { AccessEvent, AdminApiService } from '../../admin/admin-api.service';
+import { AccessEvent, AdminApiService, CurrentOccupancyFloor } from '../../admin/admin-api.service';
 import { AuthService } from '../../auth/auth.service';
 
 @Component({
@@ -20,6 +20,7 @@ export class DashboardPage implements OnInit {
   protected readonly events = signal<AccessEvent[]>([]);
   protected readonly eventCounts = signal({ total: 0, granted: 0, denied: 0 });
   protected readonly counts = signal({ buildings: 0, floors: 0, accessPoints: 0 });
+  protected readonly occupancy = signal<CurrentOccupancyFloor[]>([]);
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal('');
 
@@ -27,12 +28,14 @@ export class DashboardPage implements OnInit {
     if (this.isAdmin) {
       forkJoin({
         events: this.api.getAccessEvents(),
+        occupancy: this.api.getCurrentOccupancy(),
         buildings: this.api.getBuildings(),
         floors: this.api.getFloors(),
         accessPoints: this.api.getAccessPoints(),
       }).subscribe({
-        next: ({ events, buildings, floors, accessPoints }) => {
+        next: ({ events, occupancy, buildings, floors, accessPoints }) => {
           this.setEvents(events);
+          this.occupancy.set(occupancy);
           this.counts.set({
             buildings: buildings.length,
             floors: floors.length,
@@ -45,9 +48,13 @@ export class DashboardPage implements OnInit {
       return;
     }
 
-    this.api.getAccessEvents().subscribe({
-      next: (events) => {
+    forkJoin({
+      events: this.api.getAccessEvents(),
+      occupancy: this.api.getCurrentOccupancy(),
+    }).subscribe({
+      next: ({ events, occupancy }) => {
         this.setEvents(events);
+        this.occupancy.set(occupancy);
         this.loading.set(false);
       },
       error: (error: HttpErrorResponse) => this.handleLoadError(error),
@@ -64,6 +71,18 @@ export class DashboardPage implements OnInit {
 
   protected shortId(id: string): string {
     return id.slice(0, 8);
+  }
+
+  protected currentOccupantCount(): number {
+    return this.occupancy().reduce((total, floor) => total + floor.occupantCount, 0);
+  }
+
+  protected formatDuration(seconds: number): string {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours} h ${minutes} min`;
+    if (minutes > 0) return `${minutes} min`;
+    return `${seconds} s`;
   }
 
   private sortEvents(events: AccessEvent[]): AccessEvent[] {

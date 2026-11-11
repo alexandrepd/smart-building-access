@@ -11,9 +11,10 @@ policies por papel, bootstrap seguro do primeiro Admin e a migration
 guarda de rota para o painel e interceptor que envia o Bearer token nas
 chamadas `/api`. O access token e a respetiva expiração são guardados em
 `sessionStorage`; ao expirar, a sessão local é descartada. O dashboard mostra
-eventos reais e o console `/access-request` permite a Admin e SecurityOperator
-registar pedidos sob `AccessOperations`. A rota `/management` tem guard
-Admin-only no cliente, além da autorização aplicada pela API.
+eventos reais e snapshots de ocupação por piso; o console `/access-request`
+permite a Admin e SecurityOperator registar pedidos sob `AccessOperations`.
+A rota `/management` tem guard Admin-only no cliente, além da autorização
+aplicada pela API.
 
 **Ainda incompleto ou planeado:** não há refresh tokens, revogação de tokens,
 MFA nem integração com um provedor externo. Como `sessionStorage` é acessível
@@ -159,6 +160,6 @@ da API.
 - A API não implementa refresh, logout com revogação, MFA ou gestão de sessões.
 - As rotas CRUD administrativas requerem `Admin`; as rotas de decisão e
   auditoria de `AccessEvent` aceitam `Admin` e `SecurityOperator`.
-- A autenticação do chamador não altera a regra de decisão de acesso nem
-  atualiza `OccupancySession`; atualização de ocupação, alertas e SignalR
-  continuam por implementar.
+- A autenticação do chamador não altera a regra de decisão de acesso.
+  Occupancy é atualizada nesta branch após decisões concedidas; alertas e
+  SignalR continuam por implementar.

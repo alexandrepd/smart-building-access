@@ -2495,9 +2495,9 @@ validação do GUID. Build de produção e os 11 testes passaram nesta branch.
 componentes e E2E. Os SecurityOperators veem eventos e podem registar pedidos,
 mas não contagens administrativas nem a rota de gestão. A Fase 7 permanece
 em desenvolvimento: o seu Definition of Done — operar o sistema principal
-pelo frontend — ainda não foi atingido. Dashboard de ocupação e SignalR
-continuam também dependentes das fases seguintes; esta atualização não altera
-a ordem nem os critérios do roadmap.
+pelo frontend — ainda não foi atingido. A Fase 8 de ocupação está em
+desenvolvimento nesta branch; SignalR continua dependente da Fase 9. Esta
+atualização não altera a ordem nem os critérios do roadmap.
 
 ---
 
@@ -2514,6 +2514,24 @@ Implementar:
 Definition of Done:
 
 Entrar e sair altera corretamente a ocupação.
+
+### Estado nesta branch
+
+Um pedido concedido para um User altera a sessão aberta do piso do
+AccessPoint: Entry abre uma sessão se não existir outra aberta para o
+User/piso; Exit fecha a sessão correspondente. Gravação de `AccessEvent` e
+alteração de sessão são atómicas. Entry repetida, Exit sem sessão e Exit
+anterior à entrada são no-op para ocupação; o pedido continua auditado e a
+decisão de acesso não é alterada. O modelo protege uma sessão aberta por
+User/piso com índice único parcial e impede `ExitedAt < EnteredAt`.
+
+`GET /api/occupancy/current`, sob `AccessOperations`, devolve todos os pisos,
+contagem atual, ocupantes e duração em segundos no momento da consulta. O
+dashboard mostra esse snapshot a Admin e SecurityOperator. A migration
+`TrackOccupancySessions` contém as novas garantias da base de dados. Nesta
+branch, a UI e os testes unitários estão implementados; a validação contra um
+PostgreSQL descartável ainda está pendente. SignalR, alertas, simulação e
+atualização automática do painel não fazem parte desta fase.
 
 ---
 

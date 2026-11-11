@@ -37,10 +37,10 @@ Para ler a preparação completa num único ficheiro, abra o [README de Entrevis
 
 | Requisito da vaga | Onde estudar | Evidência/ligação ao projeto | Estado |
 |---|---|---|---|
-| Frontend Angular sólido | Módulos 5 e 9 | Login, dashboard de `AccessEvent`, console de pedidos, guard e CRUD Admin das seis entidades | Fase 7 em desenvolvimento; simulação e cobertura mais ampla faltam; ocupação e tempo real pertencem a fases seguintes |
+| Frontend Angular sólido | Módulos 5 e 9 | Login, dashboard de `AccessEvent`/ocupação, console de pedidos, guard e CRUD Admin das seis entidades | Dashboard de ocupação da Fase 8 implementado; Fase 7 ainda em desenvolvimento; simulação e cobertura mais ampla faltam; tempo real é Fase 9 |
 | UX intuitiva para self-service | Módulos 1, 5 e 9 | Dashboard de eventos e formulários administrativos parciais | Melhorias e fluxos restantes ainda requerem implementação e validação |
 | Backend .NET ou Java | Módulo 2 | API, Application, Domain e Infrastructure em .NET 10 | .NET aplicado no projeto; Java é alternativa da vaga, não requisito para duplicar a stack |
-| RESTful APIs | Módulos 3 e 10 | CRUDs administrativos, Access Control e `POST /api/auth/login` | Autenticação JWT e policies de autorização implementadas; ocupação, alertas e SignalR continuam futuros |
+| RESTful APIs | Módulos 3, 4 e 10 | CRUDs administrativos, Access Control, `GET /api/occupancy/current` e `POST /api/auth/login` | Autenticação JWT, autorização e consulta de ocupação implementadas; alertas e SignalR continuam futuros |
 | OpenAPI/Swagger specifications | Módulo 3 | Metadados OpenAPI gerados a partir dos endpoints | Documento OpenAPI code-first; Swagger UI não está implementado |
 | Manutenção, bugs e novas features | Módulos 2, 7 e 9 | testes, branches focadas, tratamento de erros e exemplos de debugging | Praticar cada alteração com reprodução, causa raiz e teste de regressão |
 | Git fundamental | Módulo 6 | branches, Conventional Commits, PRs e reviews | Fluxo usado neste repositório |
@@ -79,7 +79,7 @@ Windows Server também será estudado conceitualmente. Docker Compose já foi va
 
 ## Ordem recomendada
 
-Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e AccessPermissions estão implementadas. O processamento/decisão de Access Control, auditoria/consulta de `AccessEvent`s, login JWT e autorização por papéis estão implementados nesta branch. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. O frontend Angular tem login, dashboard com os 10 `AccessEvent`s mais recentes, console de pedidos acessível a Admin/SecurityOperator e CRUD Admin das seis entidades de gestão. O target de testes está configurado com Vitest: sete testes cobrem contratos HTTP do service Admin e quatro testes cobrem comportamento das páginas, incluindo pedido de acesso, seletores Admin, validação do GUID e recuperação da alteração de papel. Build e os 11 testes passaram nesta branch. Simulação e cobertura mais ampla de componentes/E2E ainda não estão implementadas na Fase 7; dashboard de ocupação e SignalR/tempo real pertencem às fases seguintes. A aplicação também tem Docker Compose validado para execução local, incluindo Angular servido por Nginx, API e PostgreSQL. CI/CD e Kubernetes continuam planejados; atualização de `OccupancySession` e processamento de alertas continuam futuros.
+Estado atual do produto: APIs CRUD de Buildings, Floors, AccessPoints, Users, AccessCards e AccessPermissions estão implementadas. O processamento/decisão de Access Control, auditoria de `AccessEvent`, login JWT e autorização por papéis estão implementados. A migration `AddUserRole` existe; fora de Development, aplicá-la é responsabilidade operacional antes de iniciar a versão nova. O frontend Angular tem login, dashboard com eventos e ocupação por piso, console de pedidos acessível a Admin/SecurityOperator e CRUD Admin das seis entidades. `Entry`/`Exit` concedidos atualizam atomicamente `OccupancySession`; `GET /api/occupancy/current` devolve todos os pisos, contagens e sessões abertas com duração calculada no momento da consulta. A Fase 8 está implementada; Fase 7 (simulação e cobertura mais ampla de componentes/E2E) continua em desenvolvimento, e SignalR é Fase 9. A aplicação também tem Docker Compose validado para execução local, incluindo Angular servido por Nginx, API e PostgreSQL. CI/CD e Kubernetes continuam planejados; processamento de alertas continua futuro.
 
 Para estudar o fluxo implementado em cinco níveis — analogia simples,
 definição, exemplo do projeto, resposta de entrevista e exercício — consulte
@@ -87,6 +87,10 @@ definição, exemplo do projeto, resposta de entrevista e exercício — consult
 
 Para estudar autenticação JWT e autorização `Admin`/`SecurityOperator` nos
 mesmos cinco níveis, consulte o [módulo de autenticação e autorização](10-authentication-authorization.md).
+
+Para estudar transações, índice único parcial e duração das sessões de ocupação
+nos mesmos cinco níveis, consulte o
+[exemplo progressivo de PostgreSQL/EF Core](04-databases-ef-core.md#exemplo-progressivo-ocupação-por-piso).
 
 Para rever em cinco níveis o dashboard, o console de pedidos, os formulários
 administrativos, os limites do guard e as lacunas da Fase 7, consulte o

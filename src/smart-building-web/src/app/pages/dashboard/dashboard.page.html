@@ -56,6 +56,50 @@
         }
       </section>
 
+      <section class="occupancy-panel" aria-labelledby="occupancy-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">OCUPAÇÃO ATUAL</p>
+            <h2 id="occupancy-heading">
+              {{ currentOccupantCount() }} {{ currentOccupantCount() === 1 ? 'pessoa' : 'pessoas' }}
+              no edifício
+            </h2>
+          </div>
+        </div>
+        @if (occupancy().length === 0) {
+          <p class="empty-state">Ainda não existem pisos para apresentar.</p>
+        } @else {
+          <div class="floor-grid">
+            @for (floor of occupancy(); track floor.floorId) {
+              <article class="floor-card">
+                <div class="floor-heading">
+                  <div>
+                    <strong>{{ floor.floorName }}</strong>
+                    <span>{{ floor.buildingName }}</span>
+                  </div>
+                  <span class="occupant-count">
+                    {{ floor.occupantCount }}
+                    {{ floor.occupantCount === 1 ? 'pessoa' : 'pessoas' }}
+                  </span>
+                </div>
+                @if (floor.occupants.length > 0) {
+                  <ul>
+                    @for (occupant of floor.occupants; track occupant.userId) {
+                      <li>
+                        <span>{{ occupant.userName }}</span>
+                        <small>{{ formatDuration(occupant.durationSeconds) }}</small>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="floor-empty">Sem ocupantes neste piso.</p>
+                }
+              </article>
+            }
+          </div>
+        }
+      </section>
+
       <section class="activity-panel">
         <div class="panel-heading">
           <div>
@@ -105,8 +149,8 @@
       </section>
 
       <p class="scope-note">
-        O painel apresenta eventos registados pela API. A ocupação em tempo real e as notificações
-        continuarão indisponíveis até às fases de Occupancy e SignalR.
+        A ocupação é calculada a partir das sessões ativas na API. Atualizações automáticas em tempo
+        real e notificações continuam indisponíveis até à fase SignalR.
       </p>
     }
   </section>

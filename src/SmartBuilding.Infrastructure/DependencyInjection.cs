@@ -7,6 +7,7 @@ using SmartBuilding.Application.AccessPermissions;
 using SmartBuilding.Application.Buildings;
 using SmartBuilding.Application.Floors;
 using SmartBuilding.Application.Users;
+using SmartBuilding.Application.Occupancy;
 using SmartBuilding.Infrastructure.Data;
 using SmartBuilding.Infrastructure.Data.Repositories;
 using SmartBuilding.Infrastructure.Data.Seeding;
@@ -27,6 +28,7 @@ public static class DependencyInjection
                 .UseNpgsql(connectionString)
                 .UseSnakeCaseNamingConvention());
         services.AddScoped<IAccessControlRepository, AccessControlRepository>();
+        services.AddScoped<IOccupancyRepository, OccupancyRepository>();
         services.AddScoped<IBuildingRepository, BuildingRepository>();
         services.AddScoped<IAccessPointRepository, AccessPointRepository>();
         services.AddScoped<IAccessCardRepository, AccessCardRepository>();

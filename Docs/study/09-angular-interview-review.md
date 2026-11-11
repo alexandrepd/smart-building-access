@@ -7,8 +7,8 @@ frontend Angular já tem login, dashboard com histórico de `AccessEvent`,
 console de pedidos de acesso e gestão administrativa de `Buildings`, `Floors`,
 `AccessPoints`, Users, AccessCards e AccessPermissions. A Fase 7 continua em
 desenvolvimento: simulação e cobertura mais ampla de componentes e E2E ainda
-faltam. Dashboard de ocupação/ocupação atual e SignalR/tempo real também não
-estão implementados e pertencem às fases seguintes. Não apresente
+faltam. O dashboard de ocupação por piso da Fase 8 está implementado nesta
+branch; SignalR/tempo real pertence à Fase 9. Não apresente
 comportamento planeado como implementado.
 
 O projeto não fixou uma versão Angular. Os conceitos são estáveis; confirme a versão usada pela empresa antes de afirmar detalhes dependentes da versão.
@@ -311,6 +311,10 @@ porque as rotas de listagem dessas opções são Admin-only. A validação Angul
 melhora a entrada de dados, mas não substitui a decisão nem a autorização
 aplicadas no backend.
 
+Na Fase 8 desta branch, o dashboard consulta `GET /api/occupancy/current` e
+mostra todos os pisos, contagens, ocupantes e duração atual desde a entrada.
+O snapshot é atualizado quando a página carrega; SignalR ainda não existe.
+
 A rota `/management` é Admin-only por guard Angular e pelas policies existentes
 na API. Os formulários reativos implementam criar, consultar, atualizar e
 remover `Buildings`, `Floors` e `AccessPoints`; usam seletores para relações
@@ -328,12 +332,13 @@ continuam protegidos por `AdminOnly` na API; o guard é somente controlo de
 navegação.
 
 O target de testes usa `@angular/build:unit-test`/Vitest. O spec
-`admin-api.service.spec.ts` contém sete testes de contratos HTTP, incluindo o
-pedido de acesso. Há quatro testes de páginas, cobrindo gravação parcial de
-User/papel, pedido e resposta de acesso, seletores Admin e validação de GUID.
-Build de produção e os 11 testes passaram nesta branch. Simulação e cobertura
-mais ampla de componentes e E2E ainda não estão implementadas nesta fase;
-dashboard de ocupação e SignalR/tempo real pertencem às fases seguintes.
+`admin-api.service.spec.ts` contém oito testes de contratos HTTP, incluindo os
+pedidos de acesso e ocupação. Há cinco testes de páginas, cobrindo gravação
+parcial de User/papel, pedido e resposta de acesso, seletores Admin, validação
+de GUID e apresentação da ocupação. Build de produção e os 13 testes passaram
+na branch de console; a cobertura da página de ocupação está em validação.
+Simulação e cobertura mais ampla de componentes/E2E ainda não estão
+implementadas nesta fase.
 
 ### Resposta de entrevista
 
@@ -348,10 +353,11 @@ dashboard de ocupação e SignalR/tempo real pertencem às fases seguintes.
 > mostra a decisão auditada; Admin usa seletores de cartões e pontos, enquanto
 > SecurityOperator insere os identificadores porque as listagens são
 > Admin-only. O guard melhora a navegação, mas a API mantém a autorização e a
-> decisão real. O target Vitest tem sete testes de contratos HTTP e quatro
-> testes de páginas; o build e os 11 testes passaram. Simulação e cobertura
-> mais ampla de componentes/E2E ainda faltam nesta fase. Ocupação e SignalR
-> pertencem às fases seguintes; portanto, a Fase 7 não está concluída.
+> decisão real. O target Vitest tem oito testes de contratos HTTP e cinco
+> testes de páginas. Nesta branch, o dashboard consulta ocupação por piso,
+> com sessões e duração calculada no servidor; a consulta e as transições
+> básicas da Fase 8 estão implementadas. Simulação e cobertura mais ampla de
+> componentes/E2E da Fase 7 ainda faltam; SignalR pertence à Fase 9.
 
 ### Exercício prático
 

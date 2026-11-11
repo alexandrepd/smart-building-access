@@ -134,7 +134,7 @@ Cada configuração é responsável por:
 | `AccessCard` | `access_cards` | `card_number` único e `user_id` |
 | `AccessPermission` | `access_permissions` | `user_id` e `access_point_id` |
 | `AccessEvent` | `access_events` | instante, ponto, cartão e utilizador |
-| `OccupancySession` | `occupancy_sessions` | utilizador, piso e saída |
+| `OccupancySession` | `occupancy_sessions` | utilizador, piso, saída e único índice parcial para sessão aberta por User/piso |
 | `SecurityAlert` | `security_alerts` | `access_point_id` |
 
 ## Tipos de data
@@ -155,6 +155,10 @@ Os índices únicos documentados são:
 
 - `users.email`;
 - `access_cards.card_number`.
+- `occupancy_sessions(user_id, floor_id)` para sessões abertas (`exited_at IS NULL`).
+
+A tabela de ocupação também exige `exited_at IS NULL OR exited_at >=
+entered_at`, impedindo durações negativas no banco.
 
 Os demais índices suportam navegação por foreign keys e consultas futuras de eventos e ocupação. Índices adicionais devem nascer de consultas reais e medições, não de antecipação.
 
@@ -329,8 +333,21 @@ uma validação de CI/CD ou Kubernetes. A validação confirma o caminho de
 entrada web e o proxy; não altera o estado futuro das funcionalidades de
 domínio, como processamento de `OccupancySession`.
 
+Ao gravar um pedido concedido, o repositório adquire um advisory transaction
+lock pela chave User/piso, consulta a sessão aberta e aplica Entry/Exit.
+Entrada repetida e saída sem sessão são no-op para ocupação. Evento e sessão
+são guardados na mesma transação, e o índice único parcial protege a invariável
+mesmo perante outros escritores. Pedidos negados ou concedidos sem User
+associado apenas persistem o evento.
+
+`OccupancyRepository` consulta todos os pisos e as respetivas sessões abertas,
+incluindo pisos sem ocupantes. A Application calcula `DurationSeconds` no
+instante da consulta. A migration `TrackOccupancySessions` adiciona o índice
+parcial e a constraint temporal.
+
 ## Próximos passos
 
 1. criar testes de integração automatizados com PostgreSQL;
-2. implementar contratos e consultas de persistência para os demais casos de uso;
-3. manter novas evoluções do esquema em migrations adicionais.
+2. validar a migration e as transações de ocupação contra PostgreSQL;
+3. criar testes de integração automatizados com PostgreSQL;
+4. manter novas evoluções do esquema em migrations adicionais.

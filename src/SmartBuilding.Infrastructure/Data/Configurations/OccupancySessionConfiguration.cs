@@ -8,7 +8,11 @@ public class OccupancySessionConfiguration : IEntityTypeConfiguration<OccupancyS
 {
     public void Configure(EntityTypeBuilder<OccupancySession> builder)
     {
-        builder.ToTable("occupancy_sessions");
+        builder.ToTable(
+            "occupancy_sessions",
+            table => table.HasCheckConstraint(
+                "ck_occupancy_sessions_exit_not_before_entry",
+                "exited_at IS NULL OR exited_at >= entered_at"));
         builder.HasKey(session => session.Id);
 
         builder.Property(session => session.EnteredAt)
@@ -19,6 +23,10 @@ public class OccupancySessionConfiguration : IEntityTypeConfiguration<OccupancyS
         builder.HasIndex(session => session.UserId);
         builder.HasIndex(session => session.FloorId);
         builder.HasIndex(session => session.ExitedAt);
+        builder.HasIndex(session => new { session.UserId, session.FloorId })
+            .IsUnique()
+            .HasFilter("exited_at IS NULL")
+            .HasDatabaseName("ux_occupancy_sessions_user_floor_open");
         builder.HasOne(session => session.User)
             .WithMany(user => user.OccupancySessions)
             .HasForeignKey(session => session.UserId)

@@ -7,6 +7,7 @@ using SmartBuilding.Application.AccessPermissions;
 using SmartBuilding.Application.Buildings;
 using SmartBuilding.Application.Floors;
 using SmartBuilding.Application.Users;
+using SmartBuilding.Application.Occupancy;
 
 namespace SmartBuilding.Application;
 
@@ -17,6 +18,7 @@ public static class DependencyInjection
         services.AddSingleton<TimeProvider>(TimeProvider.System);
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IAccessControlService, AccessControlService>();
+        services.AddScoped<IOccupancyService, OccupancyService>();
         services.AddScoped<IBuildingService, BuildingService>();
         services.AddScoped<IAccessPointService, AccessPointService>();
         services.AddScoped<IAccessCardService, AccessCardService>();

@@ -122,10 +122,11 @@ AccessPoint válido gera `200` e um evento com `result: "CardNotFound"` e
 evento. Eventos podem ser lidos pelas duas rotas GET. Falhas de validação não
 são decisões negadas e não criam evento.
 
-O fluxo implementado exige autenticação/autorização, mas ainda não atualiza
-`OccupancySession`, publica notificações SignalR ou processa alertas. A
-identidade do chamador não substitui a decisão baseada no cartão, AccessPoint
-e permissão.
+O fluxo implementado exige autenticação/autorização. Decisões concedidas
+associadas a um User também atualizam `OccupancySession` atomicamente com o
+`AccessEvent`; notificações SignalR e processamento de alertas ainda não estão
+implementados. A identidade do chamador não substitui a decisão baseada no
+cartão, AccessPoint e permissão.
 
 ### 4. Resposta de entrevista
 
@@ -135,8 +136,10 @@ e permissão.
 > concessão ou negação, porque ambas são decisões válidas do domínio; `400`
 > representa request inválido e `404` representa AccessPoint desconhecido,
 > que não pode ser referenciado pela FK do evento. O evento inclui direção,
-> resultado e instante UTC. O fluxo não atualiza ocupação; a policy exige
-> papel `Admin` ou `SecurityOperator`.”
+> resultado e instante UTC. Para decisões concedidas associadas a um User, a
+> transição de `OccupancySession` é gravada atomicamente com o evento. Entry
+> duplicada e Exit sem sessão não alteram a ocupação, mas o evento continua a
+> ser registado. A policy exige papel `Admin` ou `SecurityOperator`.”
 
 ### 5. Exercício prático
 
@@ -312,7 +315,7 @@ O recurso `Users` também possui CRUD em `/api/users`, protegido por `AdminOnly`
 
 **Exercício prático:** use o ficheiro `SmartBuilding.Api.http` para listar, criar, consultar, substituir, ativar e desativar um cartão. Tente um número já existente e um `UserId` desconhecido e identifique os status esperados. Envie `ExpiresAt` com um offset diferente de `Z`, depois consulte a resposta e explique por que o instante permanece igual, embora a representação seja UTC. Desenhe o percurso do request pelas quatro partes (endpoint, serviço, interface do repositório e implementação) e indique em que camada cada status HTTP é escolhido.
 
-O gerenciamento de `AccessCards` está **implementado nesta branch** e protegido por `AdminOnly`. A gestão CRUD de permissões também exige Admin. A decisão/processamento e a criação de `AccessEvent` usam a policy `AccessOperations`, que permite `Admin` ou `SecurityOperator`. A atualização de `OccupancySession` continua futura.
+O gerenciamento de `AccessCards` está **implementado nesta branch** e protegido por `AdminOnly`. A gestão CRUD de permissões também exige Admin. A decisão/processamento e a criação de `AccessEvent` usam a policy `AccessOperations`, que permite `Admin` ou `SecurityOperator`. Nesta branch, decisões concedidas também atualizam `OccupancySession` na mesma transação; `GET /api/occupancy/current` apresenta o snapshot por piso.
 
 No smoke PostgreSQL, `  Alex@Example.com  ` foi criado com `201` e armazenado como `alex@example.com`; repetição do email retornou `409`. O fluxo também confirmou update `200`, delete `204`, hash persistido e ausência de password/hash na response. Cartões bloqueiam o delete com `409`; `AccessEvent` sobrevive à remoção de User com `UserId` nulo.
 
@@ -324,11 +327,11 @@ No smoke PostgreSQL, `  Alex@Example.com  ` foi criado com `201` e armazenado co
 
 **Exemplo do projeto:** em `/api/permissions`, `GET` lista ou consulta por ID (`200`, ou `404` para ID desconhecido); `POST` cria e retorna `201 Created`, body e `Location`; `PUT /{id}` substitui User, AccessPoint, intervalo e `IsActive`, retornando `200`; `DELETE /{id}` retorna `204`, ou `404` se a permissão não existir. No POST e PUT, User ou AccessPoint inexistente também resulta em `404`. Criar não recebe estado ativo e a permissão é criada ativa. Os requests usam `DateTimeOffset`; `ValidFrom` e o `ValidUntil` opcional são normalizados para UTC. Se `ValidUntil` estiver presente, deve ser estritamente posterior a `ValidFrom`; igualdade ou término anterior é inválido (`400`).
 
-**Resposta de entrevista:** “O endpoint de AccessPermission implementa gestão CRUD, distinta da decisão de acesso. A API mapeia HTTP para `IAccessPermissionService`; a Application valida referências e intervalo e normaliza `DateTimeOffset` para UTC; o contrato `IAccessPermissionRepository` separa o caso de uso do repositório EF Core. O POST cria a permissão ativa e responde `201` com `Location`, enquanto o PUT substitui também `IsActive`. Referências ausentes retornam `404`. Separadamente, `AccessControlService` avalia o pedido e grava `AccessEvent`; a atualização de `OccupancySession` ainda não está implementada.”
+**Resposta de entrevista:** “O endpoint de AccessPermission implementa gestão CRUD, distinta da decisão de acesso. A API mapeia HTTP para `IAccessPermissionService`; a Application valida referências e intervalo e normaliza `DateTimeOffset` para UTC; o contrato `IAccessPermissionRepository` separa o caso de uso do repositório EF Core. O POST cria a permissão ativa e responde `201` com `Location`, enquanto o PUT substitui também `IsActive`. Referências ausentes retornam `404`. Separadamente, `AccessControlService` avalia o pedido e grava `AccessEvent`; decisões concedidas associadas a um User também atualizam `OccupancySession` na mesma transação.”
 
 **Exercício prático:** desenhe o caminho endpoint → service → interface de repositório → implementação. Escreva requests para criar uma permissão sem `ValidUntil`, consultar por ID, substituir e desativar via `PUT`, e remover. Preveja os status para User inexistente, AccessPoint inexistente, `ValidUntil == ValidFrom` e ID desconhecido. Depois use dois offsets diferentes que representem o mesmo instante para explicar por que a Application compara instantes e persiste valores UTC. Por fim, explique por que uma permissão criada não significa, por si só, que uma tentativa real será concedida.
 
-A gestão CRUD de `AccessPermission`, a decisão/processamento de acesso, a criação/consulta de `AccessEvent`s e a autenticação/autorização JWT estão **implementados nesta branch**. A atualização de `OccupancySession`, alertas e SignalR continuam **planejados/não implementados**.
+A gestão CRUD de `AccessPermission`, a decisão/processamento de acesso, a criação/consulta de `AccessEvent`s, as transições básicas de `OccupancySession`, a consulta de ocupação atual e a autenticação/autorização JWT estão **implementados nesta branch**. Alertas e SignalR continuam **planejados/não implementados**.
 
 ### Validar e normalizar email
 
@@ -377,4 +380,4 @@ Antes de versionar, diferencie mudanças compatíveis de breaking changes. Adici
 
 ## Exercício
 
-Abra o documento OpenAPI em Development e compare as cinco operações de `/api/access-points` com `SmartBuilding.Api.http`. Explique o body, `Location`, status e content type de cada cenário. Trace como sucesso, `FloorNotFound` e dependentes se tornam respostas HTTP e por que o delete bloqueado usa `409`. Para Users, envie um email com whitespace externo e explique a diferença entre validação do formato e normalização; diferencie o teste da primitiva de hash do caso de uso implementado em `POST /api/auth/login`. Identifique que os pedidos de Access Control exigem `Admin` ou `SecurityOperator`, enquanto CRUD administrativo exige `Admin`. Explique quais capacidades continuam planejadas, incluindo ocupação, alertas e idempotência de eventos.
+Abra o documento OpenAPI em Development e compare as cinco operações de `/api/access-points` com `SmartBuilding.Api.http`. Explique o body, `Location`, status e content type de cada cenário. Trace como sucesso, `FloorNotFound` e dependentes se tornam respostas HTTP e por que o delete bloqueado usa `409`. Para Users, envie um email com whitespace externo e explique a diferença entre validação do formato e normalização; diferencie o teste da primitiva de hash do caso de uso implementado em `POST /api/auth/login`. Identifique que os pedidos de Access Control exigem `Admin` ou `SecurityOperator`, enquanto CRUD administrativo exige `Admin`. A ocupação atual e suas transições básicas estão implementadas; alertas e SignalR continuam planejados.

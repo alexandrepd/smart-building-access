@@ -46,6 +46,22 @@ export interface AccessRequest {
   direction: 'Entry' | 'Exit';
 }
 
+export interface CurrentOccupant {
+  userId: string;
+  userName: string;
+  enteredAt: string;
+  durationSeconds: number;
+}
+
+export interface CurrentOccupancyFloor {
+  buildingId: string;
+  buildingName: string;
+  floorId: string;
+  floorName: string;
+  occupantCount: number;
+  occupants: CurrentOccupant[];
+}
+
 export interface BuildingUser {
   id: string;
   name: string;
@@ -145,6 +161,10 @@ export class AdminApiService {
 
   requestAccess(request: AccessRequest): Observable<AccessEvent> {
     return this.http.post<AccessEvent>('/api/access/requests', request);
+  }
+
+  getCurrentOccupancy(): Observable<CurrentOccupancyFloor[]> {
+    return this.http.get<CurrentOccupancyFloor[]>('/api/occupancy/current');
   }
 
   getUsers(): Observable<BuildingUser[]> {

@@ -58,8 +58,18 @@ public sealed class AccessControlService(
             Reason = ResultReasons[result]
         };
 
-        AccessEvent recordedEvent = await repository.CreateEventAsync(
+        OccupancyTransition? occupancyTransition = result == AccessResult.Granted
+            && context.UserId is Guid userId
+                ? new OccupancyTransition(
+                    userId,
+                    context.FloorId,
+                    command.Direction,
+                    occurredAt)
+                : null;
+
+        AccessEvent recordedEvent = await repository.RecordEventAsync(
             accessEvent,
+            occupancyTransition,
             cancellationToken);
 
         return AccessRequestResult.Recorded(ToDto(recordedEvent));

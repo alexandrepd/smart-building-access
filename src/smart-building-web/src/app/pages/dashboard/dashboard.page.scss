@@ -183,6 +183,74 @@
   border-radius: 8px;
   background: #fff;
 }
+.occupancy-panel {
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 1px solid #e4e9ed;
+  border-radius: 8px;
+  background: #fff;
+}
+.floor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+.floor-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #edf0f2;
+  border-radius: 7px;
+  background: #fcfdfe;
+}
+.floor-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.floor-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.floor-heading strong {
+  color: #29394c;
+  font-size: 11px;
+}
+.floor-heading span,
+.occupant-count,
+.floor-empty {
+  color: #8793a0;
+  font-size: 9px;
+}
+.occupant-count {
+  white-space: nowrap;
+}
+.floor-card ul {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.floor-card li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #edf0f2;
+  color: #667586;
+  font-size: 10px;
+}
+.floor-card li small {
+  color: #8793a0;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.floor-empty {
+  margin: 14px 0 0;
+}
 .panel-heading {
   display: flex;
   justify-content: space-between;

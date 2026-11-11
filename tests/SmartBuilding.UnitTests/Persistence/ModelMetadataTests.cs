@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using SmartBuilding.Domain.Entities;
 using SmartBuilding.Infrastructure.Data;
@@ -12,7 +13,7 @@ public class ModelMetadataTests
     public ModelMetadataTests()
     {
         using var context = new SmartBuildingDbContext(CreateOptions());
-        model = context.Model;
+        model = context.GetService<IDesignTimeModel>().Model;
     }
 
     [Fact]
@@ -57,6 +58,32 @@ public class ModelMetadataTests
         Assert.Contains(
             metadata.GetIndexes(),
             index => index.IsUnique && index.Properties.Select(property => property.Name).SequenceEqual([propertyName]));
+    }
+
+    [Fact]
+    public void Model_OpenOccupancySessions_HasUniqueUserAndFloorIndex()
+    {
+        IEntityType metadata = Assert.IsAssignableFrom<IEntityType>(
+            model.FindEntityType(typeof(OccupancySession)));
+
+        Assert.Contains(
+            metadata.GetIndexes(),
+            index => index.IsUnique
+                && index.Properties.Select(property => property.Name)
+                    .SequenceEqual([nameof(OccupancySession.UserId), nameof(OccupancySession.FloorId)])
+                && index.GetFilter() == "exited_at IS NULL");
+    }
+
+    [Fact]
+    public void Model_OccupancySession_RequiresExitAtOrAfterEntry()
+    {
+        IEntityType metadata = Assert.IsAssignableFrom<IEntityType>(
+            model.FindEntityType(typeof(OccupancySession)));
+
+        Assert.Contains(
+            metadata.GetCheckConstraints(),
+            constraint => constraint.Name == "ck_occupancy_sessions_exit_not_before_entry"
+                && constraint.Sql == "exited_at IS NULL OR exited_at >= entered_at");
     }
 
     [Theory]
