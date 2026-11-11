@@ -98,6 +98,7 @@ app.MapAccessPointEndpoints();
 app.MapAccessCardEndpoints();
 app.MapAccessPermissionEndpoints();
 app.MapAccessControlEndpoints();
+app.MapOccupancyEndpoints();
 app.MapUserEndpoints();
 
 app.Run();

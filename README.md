@@ -11,6 +11,7 @@ Preparação para entrevista: [README-ENTREVISTA.md](README-ENTREVISTA.md).
 - modelo inicial de domínio;
 - OpenAPI configurado na API;
 - frontend Angular com login JWT, painel, console de pedidos de acesso, gestão Admin e interceptor Bearer;
+- a Fase 8 está implementada: transições concedidas atualizam `OccupancySession` atomicamente com `AccessEvent`, e a ocupação atual é consultada por piso; SignalR continua futuro;
 - desenvolvimento organizado por fases em [Docs/smart-building-project-plan.md](Docs/smart-building-project-plan.md).
 
 ## Pré-requisitos

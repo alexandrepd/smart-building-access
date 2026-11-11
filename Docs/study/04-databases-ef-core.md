@@ -82,6 +82,75 @@ Transação agrupa operações numa unidade atómica. Propriedades ACID:
 
 Registrar evento e alterar ocupação pode exigir uma transação.
 
+## Exemplo progressivo: ocupação por piso
+
+### 1. Explicação simples / analogia
+
+Imagine uma portaria que regista cada passagem e mantém, ao mesmo tempo, uma
+lista de quem está em cada piso. A lista não pode dizer que alguém entrou se
+o registo da passagem falhou, nem perder a passagem se a lista não puder ser
+atualizada. Por isso, as duas alterações são guardadas juntas.
+
+### 2. Definição técnica
+
+Uma transação torna atómicas as gravações relacionadas: todas são confirmadas
+no commit ou nenhuma é. Idempotência, neste caso, significa que repetir uma
+transição não duplica o seu efeito na sessão; não significa deduplicar os
+`AccessEvent`s nem rejeitar um pedido repetido.
+
+Um índice único parcial pode impor uma regra apenas às linhas que satisfazem
+um filtro. Aqui, o filtro `exited_at IS NULL` permite no máximo uma sessão
+aberta para cada par `UserId`/`FloorId`, embora o histórico possa conter várias
+sessões fechadas desse par.
+
+### 3. Exemplo concreto do projeto
+
+Quando um pedido de `Entry` ou `Exit` é concedido e está associado a um User,
+`AccessControlRepository` aplica a transição de `OccupancySession` e adiciona
+o `AccessEvent` na mesma transação PostgreSQL. Um advisory transaction lock
+por User/piso serializa essas transições; o índice único parcial
+`ux_occupancy_sessions_user_floor_open` protege a regra no banco. A constraint
+`ck_occupancy_sessions_exit_not_before_entry` também impede uma saída anterior
+à entrada.
+
+- `Entry` abre uma sessão se não houver uma aberta para esse User/piso.
+- Uma `Entry` duplicada não altera a ocupação.
+- `Exit` fecha a sessão aberta correspondente; sem sessão aberta, é no-op.
+- Uma saída anterior à entrada também não fecha a sessão.
+- Cada decisão concedida continua a gerar o seu próprio `AccessEvent`, mesmo
+  quando a transição de ocupação é no-op.
+
+`GET /api/occupancy/current` exige `AccessOperations` (Admin ou
+SecurityOperator) e devolve todos os pisos, incluindo os vazios, com sessões
+abertas, contagem atual e `DurationSeconds`. A duração é calculada pela
+Application no processamento de cada consulta, a partir de `EnteredAt` e do
+`TimeProvider`; não é uma duração persistida na sessão. O endpoint devolve um
+snapshot, não atualizações em tempo real.
+
+### 4. Resposta de entrevista
+
+> “Para uma decisão concedida associada a um User, guardo o `AccessEvent` e a
+> transição de `OccupancySession` na mesma transação, para evitar que a
+> auditoria e o estado de ocupação fiquem divergentes. A escrita é serializada
+> por User/piso e um índice único parcial garante no banco que só exista uma
+> sessão aberta para esse par. Entry duplicada e Exit sem sessão são no-op
+> para a ocupação, mas o evento continua auditado. A duração não é armazenada:
+> é calculada em cada consulta de `GET /api/occupancy/current`. A consulta
+> ainda é um snapshot; SignalR continua futuro.”
+
+### 5. Exercício prático
+
+1. Com um User e um AccessPoint no mesmo piso, registe uma `Entry` concedida
+   e consulte `GET /api/occupancy/current`.
+2. Repita a `Entry`: confirme que a contagem continua um, mas que a nova
+   decisão concedida mantém o seu `AccessEvent`.
+3. Envie `Exit` sem sessão aberta para outro User e confirme que não cria uma
+   sessão; depois feche a sessão do primeiro User.
+4. Explique como a transação, o advisory lock, o índice parcial e a constraint
+   temporal protegem partes diferentes da consistência.
+5. Consulte novamente mais tarde e explique por que a duração mudou sem uma
+   atualização de `OccupancySession`.
+
 ## ORM
 
 ORM é um tradutor entre objetos e tabelas:

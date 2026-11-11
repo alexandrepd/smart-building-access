@@ -21,6 +21,7 @@ A API contém:
 - grupo de Minimal APIs em `/api/cards` para listar, consultar, emitir, substituir e ativar/desativar cartões;
 - grupo de Minimal APIs em `/api/permissions` para listar, consultar, criar, substituir e remover permissões;
 - grupo de Minimal APIs em `/api/access` para processar pedidos e consultar `AccessEvent`s;
+- endpoint `GET /api/occupancy/current` para consultar sessões abertas e contagens por piso;
 - endpoint anónimo `POST /api/auth/login` que valida credenciais e emite JWT Bearer;
 - autenticação de tokens JWT (esquema HTTP Bearer) e policies `AdminOnly`/`AccessOperations` aplicadas no servidor;
 - CRUD administrativo protegido por `Admin` e operações de Access Control permitidas a `Admin` ou `SecurityOperator`;
@@ -36,7 +37,7 @@ A API contém:
 
 Ainda não contém:
 
-- atualização de `OccupancySession`, processamento de alertas ou notificações SignalR;
+- atualização automática em tempo real, processamento de alertas ou notificações SignalR;
 - Swagger UI interativo;
 - health checks completos.
 
@@ -166,11 +167,26 @@ JSON serializam `direction` e `result` como strings (por exemplo `"Entry"` e
 string. `occurredAt` representa o instante UTC em formato de data/hora com
 offset `Z`.
 
-Esse fluxo não altera `OccupancySession`, não envia notificações SignalR nem
-executa worker/regras de alertas. O middleware de autenticação e as policies
-autorizam o chamador antes de executar os endpoints; isso não altera a regra
-de decisão de acesso nem atualiza ocupação. O `200` indica que a decisão foi
-processada e auditada, não que a sessão de ocupação foi atualizada.
+Nesta branch, uma decisão `Granted` associada a um User também tenta atualizar
+`OccupancySession` para o piso do AccessPoint. A operação é atómica com o
+`AccessEvent`: Entry abre uma sessão se não houver uma aberta para o User/piso;
+Exit fecha a sessão correspondente. Repetir Entry, enviar Exit sem sessão ou
+ter uma saída anterior à entrada não altera ocupação. Em todos esses casos,
+um pedido autorizado continua concedido e o evento bruto é mantido. Requests
+negados continuam apenas auditados. O fluxo ainda não envia notificações
+SignalR nem executa worker/regras de alertas. A policy autoriza o chamador,
+mas não altera a decisão de acesso.
+
+## Consulta de ocupação
+
+| Método e rota | Resultado de sucesso | Outros resultados |
+|---|---|---|
+| `GET /api/occupancy/current` | `200 OK` com todos os pisos e respetivas sessões abertas, incluindo pisos vazios | `401 Unauthorized`, `403 Forbidden` |
+
+A rota exige `AccessOperations` (`Admin` ou `SecurityOperator`). Cada piso
+inclui edifício, nome, contagem atual e ocupantes com `UserId`, nome,
+`EnteredAt` e `DurationSeconds`, calculado na hora da consulta. A resposta é
+um snapshot; ainda não recebe atualizações automáticas em tempo real.
 
 ## Composition root
 
@@ -194,7 +210,7 @@ Os recursos usam substantivos plurais em kebab-case:
 /api/access-points
 /api/access/requests
 /api/access/events
-/api/occupancy/sessions
+/api/occupancy/current
 /api/security/alerts
 ```
 
@@ -252,12 +268,12 @@ O fluxo segue as camadas existentes: `AccessCardEndpoints` converte HTTP em cham
 O gerenciamento de cartões está **implementado nesta branch**. Isso cobre
 emissão, consulta, substituição de atribuição/dados e mudança de estado. A
 avaliação de permissões e a criação/consulta de `AccessEvent`s também estão
-implementadas no fluxo Access Control; a atualização de `OccupancySession`
-continua futura.
+implementadas no fluxo Access Control; pedidos concedidos associados a um User
+atualizam `OccupancySession` atomicamente com o evento.
 
 ## Fluxo implementado para AccessPermission
 
-O grupo `/api/permissions` gere registos de autorização de um `User` para um `AccessPoint`. A gestão CRUD é distinta de decidir um pedido apresentado por um leitor: o fluxo `/api/access/requests` avalia as permissões e cria `AccessEvent`s, mas não atualiza `OccupancySession`.
+O grupo `/api/permissions` gere registos de autorização de um `User` para um `AccessPoint`. A gestão CRUD é distinta de decidir um pedido apresentado por um leitor: o fluxo `/api/access/requests` avalia as permissões e cria `AccessEvent`s; nesta branch, pedidos concedidos também atualizam `OccupancySession` na mesma transação.
 
 | Método e rota | Resultado de sucesso | Outros resultados |
 |---|---|---|
@@ -282,7 +298,8 @@ O fluxo é `AccessPermissionEndpoints` → `IAccessPermissionService`/`AccessPer
 Os CRUDs de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e
 a gestão CRUD de `AccessPermissions` estão implementados nesta branch.
 Também estão implementados o processamento/decisão de pedidos e as consultas
-de `AccessEvent`; atualização de ocupação e processamento de alertas continuam
+de `AccessEvent`, a atualização atómica de `OccupancySession` para pedidos
+concedidos e `GET /api/occupancy/current`. Alertas e SignalR continuam
 planejados.
 
 ## Fluxo implementado para Users
@@ -375,4 +392,4 @@ O futuro hub `/accessHub` notificará eventos, alertas e alterações de ocupaç
 
 ## Próximos passos
 
-Os vertical slices de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O processamento/decisão de acesso e as três rotas de `AccessEvent` documentadas acima estão implementados. Login JWT e autorização por papéis também estão implementados nesta branch. O frontend Angular consulta o histórico de eventos no dashboard, disponibiliza CRUD Admin das seis entidades de gestão e inclui um console que submete pedidos para `POST /api/access/requests` e consulta os eventos recentes. O console é acessível a Admin e SecurityOperator sob `AccessOperations`; Admin escolhe cartões/pontos existentes e SecurityOperator fornece os respetivos identificadores manualmente, porque as rotas de listagem são `AdminOnly`. Dashboard de ocupação, atualização de ocupação, alertas, SignalR e simulação ainda não estão implementados; consulte o estado da [Fase 7 no plano](smart-building-project-plan.md#phase-7---angular). A aplicação de migrations fora de Development permanece responsabilidade do deployment.
+Os vertical slices de `Buildings`, `Floors`, `AccessPoints`, `Users`, `AccessCards` e `AccessPermissions` estão implementados. O processamento/decisão de acesso, as três rotas de `AccessEvent`, a atualização atómica de `OccupancySession` para pedidos concedidos e `GET /api/occupancy/current` estão implementados. Login JWT e autorização por papéis também estão implementados nesta branch. O frontend Angular consulta o histórico de eventos e a ocupação atual por piso, disponibiliza CRUD Admin das seis entidades de gestão e inclui um console que submete pedidos para `POST /api/access/requests` e consulta os eventos recentes. O console é acessível a Admin e SecurityOperator sob `AccessOperations`; Admin escolhe cartões/pontos existentes e SecurityOperator fornece os respetivos identificadores manualmente, porque as rotas de listagem são `AdminOnly`. A Fase 7 continua em desenvolvimento; simulação e cobertura mais ampla de componentes/E2E ainda não estão implementadas. Alertas e SignalR pertencem a fases futuras. A aplicação de migrations fora de Development permanece responsabilidade do deployment.

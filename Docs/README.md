@@ -38,10 +38,12 @@ de pedidos de acesso para Admin/SecurityOperator e CRUD Admin de Buildings,
 Floors, AccessPoints, Users, AccessCards e AccessPermissions, além de login,
 guards e interceptor Bearer. A Fase 7 continua em desenvolvimento: simulação
 e cobertura mais ampla de componentes e E2E ainda não estão implementadas.
-Dashboard de ocupação e SignalR/tempo real também não estão implementados e
-pertencem às fases seguintes. Consulte a
-[visão geral da arquitetura](architecture-overview.md) e a
-[revisão Angular para entrevistas](study/09-angular-interview-review.md).
+A consulta de ocupação por piso e as transições de `OccupancySession` estão
+implementadas (Fase 8); SignalR/tempo real pertence à Fase 9. Consulte a
+[visão geral da arquitetura](architecture-overview.md), a
+[camada API](api-layer.md#consulta-de-ocupação), a
+[revisão Angular para entrevistas](study/09-angular-interview-review.md) e o
+[módulo de PostgreSQL/EF Core](study/04-databases-ef-core.md#exemplo-progressivo-ocupação-por-piso).
 O comando de execução local e o proxy para a API estão no
 [README principal](../README.md).
 

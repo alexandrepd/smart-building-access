@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SmartBuilding.Application;
 using SmartBuilding.Application.AccessControl;
 using SmartBuilding.Application.AccessPermissions;
+using SmartBuilding.Application.Occupancy;
 using SmartBuilding.Domain.Entities;
 using SmartBuilding.Infrastructure;
 using SmartBuilding.Infrastructure.Data;
@@ -45,6 +46,23 @@ public class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<IAccessControlService>());
         Assert.IsType<AccessControlRepository>(
             scope.ServiceProvider.GetRequiredService<IAccessControlRepository>());
+    }
+
+    [Fact]
+    public void AddApplicationAndInfrastructure_Occupancy_RegistersServiceAndRepository()
+    {
+        var services = new ServiceCollection();
+        services.AddApplication();
+        services.AddInfrastructure(
+            "Host=localhost;Database=dependency_injection;Username=unused");
+
+        using ServiceProvider serviceProvider = services.BuildServiceProvider(validateScopes: true);
+        using IServiceScope scope = serviceProvider.CreateScope();
+
+        Assert.IsType<OccupancyService>(
+            scope.ServiceProvider.GetRequiredService<IOccupancyService>());
+        Assert.IsType<OccupancyRepository>(
+            scope.ServiceProvider.GetRequiredService<IOccupancyRepository>());
     }
 
     [Fact]

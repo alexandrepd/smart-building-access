@@ -36,7 +36,13 @@ Os vertical slices CRUD de `Buildings`, `Floors` e `AccessPoints` estão impleme
 - extensão do caso de uso de Users para atribuir papel, incluindo a proteção contra rebaixar o último Admin;
 - `TimeProvider` para obter o instante UTC de forma substituível em testes.
 
-O processamento/decisão, auditoria por `AccessEvent` e caso de uso de login estão implementados. A Application valida credenciais e delega a criação do token ao contrato `IAccessTokenService`; assinatura e transporte JWT pertencem à API. A atualização de `OccupancySession`, notificações SignalR e processamento de alertas permanecem planejados para fases futuras. A gestão CRUD de `AccessPermission` e a decisão no momento do pedido são casos de uso distintos.
+O processamento/decisão, auditoria por `AccessEvent`, caso de uso de login e
+consulta de ocupação estão implementados nesta branch. Um pedido concedido
+produz uma intenção de transição para Occupancy; a Infrastructure grava a
+sessão e o evento na mesma transação. A Application calcula durações a partir
+de `TimeProvider` e dos instantes UTC da sessão. Notificações SignalR e
+processamento de alertas permanecem planejados. A gestão CRUD de
+`AccessPermission` e a decisão no momento do pedido são casos de uso distintos.
 
 No slice `Users`, `UserService` normaliza nome e email, converte email para lowercase, valida o formato do endereço e exige password entre 12 e 128 caracteres na criação. A password é encaminhada para `IPasswordHashService`; a atualização recebe apenas nome, email e `IsActive`, nunca uma password.
 
@@ -205,10 +211,11 @@ Operações que realizam I/O devem ser assíncronas, terminar em `Async` e receb
 
 Application define o limite lógico da operação. Infrastructure fornece o mecanismo transacional.
 
-Atualmente `AccessControlRepository` persiste o `AccessEvent` da decisão.
-Quando a atualização de ocupação for implementada, a gravação do evento e a
-alteração de `OccupancySession` poderão precisar fazer parte da mesma unidade
-de trabalho; essa consistência ainda é futura.
+`AccessControlRepository` persiste o `AccessEvent` da decisão. Para decisões
+concedidas associadas a um User, a gravação do evento e a transição de
+`OccupancySession` são atómicas. A Infrastructure serializa a alteração por
+User/piso e a Application continua a decidir se o acesso foi concedido; a
+transação não converte uma decisão de acesso em regra de persistência.
 
 ## Erros
 
@@ -236,5 +243,6 @@ Os 15 casos de `UserService` cobrem normalização de email e persistência some
 
 Implementar progressivamente os casos de uso restantes. A gestão CRUD de
 `AccessPermission` e a decisão/auditoria de Access Control estão
-implementadas. Atualização de `OccupancySession` e processamento de alertas
-permanecem planejados e não devem ser inferidos a partir do fluxo atual.
+implementadas, assim como a transição de `OccupancySession` para pedidos
+concedidos associados a um User. Alertas e notificações SignalR permanecem
+planejados e não devem ser inferidos a partir do fluxo atual.

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartBuilding.Application.AccessControl;
 using SmartBuilding.Domain.Entities;
+using SmartBuilding.Domain.Enums;
 
 namespace SmartBuilding.Infrastructure.Data.Repositories;
 
@@ -51,6 +52,7 @@ public sealed class AccessControlRepository(SmartBuildingDbContext dbContext)
 
         return new AccessDecisionContext(
             accessPoint.Id,
+            accessPoint.FloorId,
             accessPoint.IsActive,
             accessPoint.SupportsEntry,
             accessPoint.SupportsExit,
@@ -63,10 +65,51 @@ public sealed class AccessControlRepository(SmartBuildingDbContext dbContext)
             hasCurrentlyValidPermission);
     }
 
-    public async Task<AccessEvent> CreateEventAsync(
+    public async Task<AccessEvent> RecordEventAsync(
         AccessEvent accessEvent,
+        OccupancyTransition? occupancyTransition,
         CancellationToken cancellationToken)
     {
+        if (occupancyTransition is not null)
+        {
+            await using var transaction =
+                await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            string lockKey =
+                $"{occupancyTransition.UserId:N}:{occupancyTransition.FloorId:N}";
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))",
+                cancellationToken);
+
+            OccupancySession? openSession = await dbContext.OccupancySessions
+                .SingleOrDefaultAsync(
+                    session => session.UserId == occupancyTransition.UserId
+                        && session.FloorId == occupancyTransition.FloorId
+                        && session.ExitedAt == null,
+                    cancellationToken);
+
+            if (occupancyTransition.Direction == AccessDirection.Entry
+                && openSession is null)
+            {
+                dbContext.OccupancySessions.Add(new OccupancySession
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = occupancyTransition.UserId,
+                    FloorId = occupancyTransition.FloorId,
+                    EnteredAt = occupancyTransition.OccurredAt
+                });
+            }
+            else if (occupancyTransition.Direction == AccessDirection.Exit
+                && openSession is not null)
+            {
+                openSession.TryClose(occupancyTransition.OccurredAt);
+            }
+
+            dbContext.AccessEvents.Add(accessEvent);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return accessEvent;
+        }
+
         dbContext.AccessEvents.Add(accessEvent);
         await dbContext.SaveChangesAsync(cancellationToken);
         return accessEvent;

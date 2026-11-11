@@ -10,8 +10,9 @@ public interface IAccessControlRepository
         DateTime occurredAt,
         CancellationToken cancellationToken);
 
-    Task<AccessEvent> CreateEventAsync(
+    Task<AccessEvent> RecordEventAsync(
         AccessEvent accessEvent,
+        OccupancyTransition? occupancyTransition,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<AccessEvent>> GetEventsAsync(CancellationToken cancellationToken);

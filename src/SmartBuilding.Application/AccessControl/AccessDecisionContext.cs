@@ -2,6 +2,7 @@ namespace SmartBuilding.Application.AccessControl;
 
 public sealed record AccessDecisionContext(
     Guid AccessPointId,
+    Guid FloorId,
     bool AccessPointIsActive,
     bool SupportsEntry,
     bool SupportsExit,

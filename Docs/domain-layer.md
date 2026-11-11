@@ -79,7 +79,10 @@ Representa uma tentativa de acesso num `AccessPoint` conhecido, permitida ou neg
 
 ### OccupancySession
 
-Representa um intervalo derivado de permanência de um utilizador num piso. `ExitedAt == null` indica uma sessão aberta.
+Representa um intervalo derivado de permanência de um utilizador num piso.
+`ExitedAt == null` indica uma sessão aberta. `TryClose` só fecha uma sessão
+aberta e rejeita uma saída anterior à entrada; uma sessão fechada não é
+alterada por uma segunda tentativa de fecho.
 
 ### SecurityAlert
 
@@ -121,16 +124,13 @@ erDiagram
 
 ## Decisão de acesso implementada e limites
 
-O fluxo de decisão implementado avalia os dados das entidades na Application, na ordem: cartão inexistente; cartão inativo; cartão expirado; utilizador inativo; AccessPoint inativo; direção não suportada; nenhuma permissão ativa; permissão ativa fora da validade atual; acesso concedido. A primeira condição aplicável determina o `AccessResult`. Os pedidos com AccessPoint conhecido são auditados em todos esses resultados, incluindo negativas. A decisão não atualiza `OccupancySession`, não envia notificações SignalR e não processa alertas.
+O fluxo de decisão implementado avalia os dados das entidades na Application, na ordem: cartão inexistente; cartão inativo; cartão expirado; utilizador inativo; AccessPoint inativo; direção não suportada; nenhuma permissão ativa; permissão ativa fora da validade atual; acesso concedido. A primeira condição aplicável determina o `AccessResult`. Os pedidos com AccessPoint conhecido são auditados em todos esses resultados, incluindo negativas. Nesta branch, somente um pedido concedido associado a um User tenta alterar `OccupancySession`: Entry cria uma sessão se não houver uma aberta para o mesmo User/piso; Exit fecha a sessão aberta nesse par. Entry duplicada, Exit sem sessão e saída anterior à entrada são no-op para ocupação, sem transformar um acesso concedido em negado nem apagar o `AccessEvent`.
 
-As entidades continuam sendo modelos mutáveis com propriedades públicas, valores padrão e coleções de navegação; não encapsulam todas as invariantes. Regras ainda planejadas incluem:
+As entidades continuam sendo modelos mutáveis com propriedades públicas, valores padrão e coleções de navegação; não encapsulam todas as invariantes. A unicidade da sessão aberta por User/piso e a ordem temporal também são protegidas na persistência; SignalR e processamento de alertas continuam planejados.
 
-- garantir `ExitedAt >= EnteredAt`;
-- detectar segunda entrada com sessão já aberta;
-- detectar saída sem sessão aberta;
-- controlar transições válidas de `AlertStatus`.
-
-Essas regras devem ser adicionadas juntamente com testes unitários. Não devem ser implementadas em endpoints ou configurações EF. O Domain não autentica o cliente: o login e a autorização HTTP são implementados nas camadas Application/API; a decisão de acesso continua sendo uma regra distinta e não é alterada pela identidade do chamador.
+O Domain não autentica o cliente: o login e a autorização HTTP são
+implementados nas camadas Application/API; a decisão de acesso continua sendo
+uma regra distinta e não é alterada pela identidade do chamador.
 
 ## Datas e tempo
 
@@ -150,7 +150,6 @@ diretamente de `DateTime.UtcNow` durante a avaliação.
 
 ## Próximos passos da camada
 
-Os resultados e enumerações usados na decisão de Access Control estão
-implementados. A evolução comportamental restante nesta área envolve
-`OccupancySession` e alertas; suas invariantes devem entrar com os respetivos
-casos de uso e testes, sem colocar regras em endpoints ou configurações EF.
+Os resultados e enumerações usados na decisão de Access Control e as
+transições básicas de `OccupancySession` estão implementados nesta branch.
+Alertas e as respetivas transições de estado permanecem futuros.

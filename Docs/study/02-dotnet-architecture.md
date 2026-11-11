@@ -72,9 +72,10 @@ validar request e obter instante UTC
 ```
 
 Application não sabe se os dados vieram de PostgreSQL, memória ou outro
-serviço. A decisão está implementada, mas atualizar `OccupancySession`,
-notificar por SignalR, processar alertas e autenticar/autorizar o chamador
-continuam futuros. Para aprender o contrato, a ordem exata dos resultados e
+serviço. A decisão e as transições básicas de `OccupancySession` estão
+implementadas nesta branch; notificar por SignalR e processar alertas
+continuam futuros. A autenticação e autorização do chamador são aplicadas na
+API. Para aprender o contrato, a ordem exata dos resultados e
 praticar uma resposta de entrevista, consulte o
 [exemplo progressivo de Access Control](03-rest-openapi.md#exemplo-do-projeto-decisão-de-acesso-e-auditoria).
 
