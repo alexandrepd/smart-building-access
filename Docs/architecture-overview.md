@@ -105,8 +105,12 @@ o guard Angular é apenas uma barreira de navegação no cliente. O alvo de test
 Angular está configurado com `@angular/build:unit-test`/Vitest e
 `admin-api.service.spec.ts` contém seis testes de contratos HTTP do service:
 listagem de Users, formato do payload de criação de User, atualização de papel,
-desativação de AccessCard e criação/atualização de AccessPermission. O resultado
-do build e dos testes desta branch ainda não está reportado.
+desativação de AccessCard e criação/atualização de AccessPermission. Além
+desses seis testes do service, há um teste da página para o caso em que a
+criação do User é bem-sucedida mas a atribuição do papel falha: o registo
+permanece editável e a interface informa que o perfil foi guardado
+parcialmente. O build de produção passou e os sete testes passaram nesta
+branch.
 
 A Fase 7 continua em desenvolvimento: console de pedidos de acesso, simulação
 e cobertura mais ampla de componentes e E2E não estão implementados. Dashboard

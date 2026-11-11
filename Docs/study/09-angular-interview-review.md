@@ -315,11 +315,12 @@ navegação.
 O target de testes usa `@angular/build:unit-test`/Vitest. O spec
 `admin-api.service.spec.ts` contém seis testes de contratos HTTP: listagem de
 Users, formato do payload de criação de User, atualização de papel,
-desativação de AccessCard e criação/atualização de AccessPermission. Não estão
-reportados aqui resultados de execução do build ou dos testes. Console de
-pedidos de acesso, simulação e cobertura mais ampla de componentes e E2E não
-estão implementados nesta fase; dashboard de ocupação e SignalR/tempo real
-pertencem às fases seguintes.
+desativação de AccessCard e criação/atualização de AccessPermission. Um teste
+adicional da página verifica a recuperação quando a criação do User funciona,
+mas a atribuição de papel falha. Build de produção e os sete testes passaram
+nesta branch. Console de pedidos de acesso, simulação e cobertura mais ampla
+de componentes e E2E não estão implementados nesta fase; dashboard de
+ocupação e SignalR/tempo real pertencem às fases seguintes.
 
 ### Resposta de entrevista
 
@@ -331,11 +332,12 @@ pertencem às fases seguintes.
 > Floors, AccessPoints, Users, AccessCards e AccessPermissions. A criação de
 > User exige password mínima de 12 caracteres e o papel é alterado pelo
 > endpoint dedicado. O guard melhora a navegação, mas a API mantém a
-> autorização real. O target Vitest e testes de mapeamento do admin service
-> estão configurados; os resultados ainda não estão reportados. Dashboard de
-> console de pedidos, simulação e cobertura mais ampla de componentes/E2E
-> ainda faltam nesta fase. Ocupação e SignalR pertencem às fases seguintes;
-> portanto, a Fase 7 não está concluída.
+> autorização real. O target Vitest tem seis testes de contratos HTTP do
+> service e um teste da página para recuperação de atualização parcial do
+> papel; o build de produção e os sete testes passaram. Dashboard de console
+> de pedidos, simulação e cobertura mais ampla de componentes/E2E ainda faltam
+> nesta fase. Ocupação e SignalR pertencem às fases seguintes; portanto, a
+> Fase 7 não está concluída.
 
 ### Exercício prático
 
