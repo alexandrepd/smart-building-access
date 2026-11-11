@@ -43,7 +43,8 @@ de `PUT /api/users/{id}/role`; a API impede a remoção do último Admin.
 Também não é possível excluir o último Admin.
 
 No frontend, guards Angular restringem `/management` a `Admin`; o dashboard
-permite a `SecurityOperator` autenticado consultar eventos, enquanto as
+permite a `SecurityOperator` autenticado consultar eventos e o console
+`/access-request` permite a ambos os papéis submeter pedidos, enquanto as
 contagens administrativas e a gestão ficam reservadas a Admin. O guard serve
 à navegação e à UX: as policies da API continuam a impor a autorização real.
 

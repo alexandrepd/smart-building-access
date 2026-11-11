@@ -2476,23 +2476,28 @@ opcional e validação no cliente de que o fim é posterior ao início. Os
 endpoints continuam sujeitos a `AdminOnly` na API; o guard Angular não
 substitui essa autorização.
 
-O target Angular está configurado com `@angular/build:unit-test`/Vitest, e
-`admin-api.service.spec.ts` contém seis testes dos contratos HTTP: listagem de
-Users, formato do payload de criação de User, alteração de papel, desativação
-de cartão e criação/atualização de AccessPermission. Os resultados de build e
-testes desta branch foram verificados: o build de produção passou e os sete
-testes passaram, incluindo uma regressão da página que confirma que, se a
-alteração de papel falhar após criar um User, o perfil criado fica carregado
-para permitir corrigir o papel sem repetir a criação.
+O console `/access-request` permite a `Admin` e `SecurityOperator` enviar
+pedidos para `POST /api/access/requests`, visualizar a decisão registada e
+consultar os 10 eventos mais recentes. Admin seleciona cartões e pontos de
+acesso devolvidos pelos endpoints de gestão; SecurityOperator introduz o
+número do cartão e o GUID do ponto, pois essas listagens permanecem
+`AdminOnly`. O cliente valida os campos, apresenta erros HTTP e não decide se
+o acesso é permitido: a decisão e a auditoria continuam na API sob
+`AccessOperations`.
 
-**Ainda por implementar nesta fase:** dashboard de ocupação/ocupação atual,
-console de pedidos de acesso, SignalR/atualizações em tempo real, simulação e
-cobertura mais ampla de componentes e E2E. Os SecurityOperators veem eventos,
-mas não contagens administrativas nem a rota de gestão. A Fase 7 permanece em
-desenvolvimento: o seu Definition of Done — operar o sistema principal pelo
-frontend — ainda não foi atingido. Ocupação e SignalR continuam também
-dependentes das fases seguintes; esta atualização não altera a ordem nem os
-critérios do roadmap.
+O target Angular está configurado com `@angular/build:unit-test`/Vitest, e
+`admin-api.service.spec.ts` contém sete testes de contratos HTTP, incluindo o
+pedido de acesso. Há quatro testes de páginas: recuperação de uma alteração
+parcial de papel, envio e apresentação da decisão de acesso, seletores Admin e
+validação do GUID. Build de produção e os 11 testes passaram nesta branch.
+
+**Ainda por implementar nesta fase:** simulação e cobertura mais ampla de
+componentes e E2E. Os SecurityOperators veem eventos e podem registar pedidos,
+mas não contagens administrativas nem a rota de gestão. A Fase 7 permanece
+em desenvolvimento: o seu Definition of Done — operar o sistema principal
+pelo frontend — ainda não foi atingido. Dashboard de ocupação e SignalR
+continuam também dependentes das fases seguintes; esta atualização não altera
+a ordem nem os critérios do roadmap.
 
 ---
 

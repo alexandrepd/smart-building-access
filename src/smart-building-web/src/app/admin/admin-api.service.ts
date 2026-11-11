@@ -40,6 +40,12 @@ export interface AccessEvent {
   reason: string;
 }
 
+export interface AccessRequest {
+  cardNumber: string;
+  accessPointId: string;
+  direction: 'Entry' | 'Exit';
+}
+
 export interface BuildingUser {
   id: string;
   name: string;
@@ -135,6 +141,10 @@ export class AdminApiService {
 
   getAccessEvents(): Observable<AccessEvent[]> {
     return this.http.get<AccessEvent[]>('/api/access/events');
+  }
+
+  requestAccess(request: AccessRequest): Observable<AccessEvent> {
+    return this.http.post<AccessEvent>('/api/access/requests', request);
   }
 
   getUsers(): Observable<BuildingUser[]> {

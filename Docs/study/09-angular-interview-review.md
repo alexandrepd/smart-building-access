@@ -3,12 +3,12 @@
 ## Objetivo
 
 Este guia serve para revisão rápida antes de uma entrevista Full-Stack. O
-frontend Angular já tem login, dashboard com histórico de `AccessEvent` e
-gestão administrativa de `Buildings`, `Floors`, `AccessPoints`, Users,
-AccessCards e AccessPermissions. A Fase 7 continua em desenvolvimento:
-console de pedidos de acesso, simulação e cobertura mais ampla de componentes
-e E2E ainda faltam. Dashboard de ocupação/ocupação atual e SignalR/tempo real
-também não estão implementados e pertencem às fases seguintes. Não apresente
+frontend Angular já tem login, dashboard com histórico de `AccessEvent`,
+console de pedidos de acesso e gestão administrativa de `Buildings`, `Floors`,
+`AccessPoints`, Users, AccessCards e AccessPermissions. A Fase 7 continua em
+desenvolvimento: simulação e cobertura mais ampla de componentes e E2E ainda
+faltam. Dashboard de ocupação/ocupação atual e SignalR/tempo real também não
+estão implementados e pertencem às fases seguintes. Não apresente
 comportamento planeado como implementado.
 
 O projeto não fixou uma versão Angular. Os conceitos são estáveis; confirme a versão usada pela empresa antes de afirmar detalhes dependentes da versão.
@@ -36,6 +36,11 @@ Angular é um kit organizado para construir o painel de controlo do edifício. C
 ### Definição técnica
 
 Angular é um framework frontend baseado em TypeScript. Fornece componentes, templates, injeção de dependências, roteamento, formulários, cliente HTTP e ferramentas de compilação.
+
+Neste fluxo, um formulário Angular recolhe os dados do pedido e um service
+envia-os por `HttpClient` à API. A API autentica e autoriza o chamador, decide
+o resultado de acesso e devolve a resposta; a interface apresenta a decisão,
+mas não implementa a regra de autorização.
 
 ### No Smart Building
 
@@ -267,15 +272,17 @@ Validação frontend oferece feedback imediato. A API valida novamente porque o 
 
 **Resposta de entrevista:** Reactive Forms são adequados para formulários complexos porque o modelo e validadores são explícitos em TypeScript, facilitando composição e teste. Template-driven pode ser mais simples em formulários pequenos.
 
-## Exemplo progressivo: dashboard e gestão administrativa
+## Exemplo progressivo: dashboard, gestão e console de pedidos
 
 ### Analogia simples
 
 O dashboard é como o livro de registos da portaria: mostra as entradas e
-saídas mais recentes. A área de gestão é como o balcão onde a equipa mantém
-edifícios, pisos, pontos de acesso, pessoas, cartões e permissões. O crachá de
-Admin abre esse balcão; o de SecurityOperator permite consultar os eventos,
-mas não alterar a configuração.
+saídas mais recentes. O console de pedidos é como um intercomunicador: o
+operador informa qual cartão foi apresentado e em que porta, e o sistema
+central decide se deve abrir. Admin escolhe cartões e portas numa lista;
+SecurityOperator escreve os identificadores porque não pode consultar essas
+listas administrativas. A área de gestão é o balcão onde Admin mantém
+edifícios, pisos, pontos de acesso, pessoas, cartões e permissões.
 
 ### Definição técnica
 
@@ -296,6 +303,14 @@ sobre os eventos devolvidos pela API; a tabela apresenta apenas os 10 mais
 recentes. Só Admin vê também as contagens de Buildings, Floors e AccessPoints. Um
 `SecurityOperator` autenticado pode ver eventos.
 
+O console `/access-request` permite a Admin e SecurityOperator enviar pedidos
+para `POST /api/access/requests`, ver o resultado decidido pela API e consultar
+os eventos recentes. Admin seleciona cartões e pontos de acesso existentes;
+SecurityOperator fornece manualmente o número do cartão e o GUID do ponto,
+porque as rotas de listagem dessas opções são Admin-only. A validação Angular
+melhora a entrada de dados, mas não substitui a decisão nem a autorização
+aplicadas no backend.
+
 A rota `/management` é Admin-only por guard Angular e pelas policies existentes
 na API. Os formulários reativos implementam criar, consultar, atualizar e
 remover `Buildings`, `Floors` e `AccessPoints`; usam seletores para relações
@@ -313,14 +328,12 @@ continuam protegidos por `AdminOnly` na API; o guard é somente controlo de
 navegação.
 
 O target de testes usa `@angular/build:unit-test`/Vitest. O spec
-`admin-api.service.spec.ts` contém seis testes de contratos HTTP: listagem de
-Users, formato do payload de criação de User, atualização de papel,
-desativação de AccessCard e criação/atualização de AccessPermission. Um teste
-adicional da página verifica a recuperação quando a criação do User funciona,
-mas a atribuição de papel falha. Build de produção e os sete testes passaram
-nesta branch. Console de pedidos de acesso, simulação e cobertura mais ampla
-de componentes e E2E não estão implementados nesta fase; dashboard de
-ocupação e SignalR/tempo real pertencem às fases seguintes.
+`admin-api.service.spec.ts` contém sete testes de contratos HTTP, incluindo o
+pedido de acesso. Há quatro testes de páginas, cobrindo gravação parcial de
+User/papel, pedido e resposta de acesso, seletores Admin e validação de GUID.
+Build de produção e os 11 testes passaram nesta branch. Simulação e cobertura
+mais ampla de componentes e E2E ainda não estão implementadas nesta fase;
+dashboard de ocupação e SignalR/tempo real pertencem às fases seguintes.
 
 ### Resposta de entrevista
 
@@ -331,13 +344,14 @@ ocupação e SignalR/tempo real pertencem às fases seguintes.
 > Admin-only `/management` e formulários reativos para gerir Buildings,
 > Floors, AccessPoints, Users, AccessCards e AccessPermissions. A criação de
 > User exige password mínima de 12 caracteres e o papel é alterado pelo
-> endpoint dedicado. O guard melhora a navegação, mas a API mantém a
-> autorização real. O target Vitest tem seis testes de contratos HTTP do
-> service e um teste da página para recuperação de atualização parcial do
-> papel; o build de produção e os sete testes passaram. Dashboard de console
-> de pedidos, simulação e cobertura mais ampla de componentes/E2E ainda faltam
-> nesta fase. Ocupação e SignalR pertencem às fases seguintes; portanto, a
-> Fase 7 não está concluída.
+> endpoint dedicado. O console `/access-request` envia pedidos para a API e
+> mostra a decisão auditada; Admin usa seletores de cartões e pontos, enquanto
+> SecurityOperator insere os identificadores porque as listagens são
+> Admin-only. O guard melhora a navegação, mas a API mantém a autorização e a
+> decisão real. O target Vitest tem sete testes de contratos HTTP e quatro
+> testes de páginas; o build e os 11 testes passaram. Simulação e cobertura
+> mais ampla de componentes/E2E ainda faltam nesta fase. Ocupação e SignalR
+> pertencem às fases seguintes; portanto, a Fase 7 não está concluída.
 
 ### Exercício prático
 
@@ -360,6 +374,11 @@ de User não deve ser carregada de volta ao formulário após a resposta.
 Como extensão, adicione paginação ao histórico e decida se os indicadores
 devem resumir a página atual ou o conjunto completo. Explique como evitar
 apresentar o total de uma página como se fosse o total histórico.
+
+Como exercício do console de pedidos, descreva o caminho do formulário
+reativo até `POST /api/access/requests`, a diferença entre seletores Admin e
+identificadores manuais de SecurityOperator, e como a resposta permitida ou
+negada é apresentada sem o Angular tentar decidir as regras de acesso.
 
 ## 11. Router, Lazy Loading e Guards
 
